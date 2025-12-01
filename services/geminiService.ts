@@ -1,0 +1,404 @@
+import { GoogleGenAI, Type } from "@google/genai";
+import { ImageSize, AspectRatio } from "../types";
+
+// Helper to ensure we get a valid client instance
+// For Veo/Pro Image, we need to check for selected API key flow
+const getClient = async (requiresPaidKey: boolean = false, skipKeyCheck: boolean = false) => {
+  if (requiresPaidKey && !skipKeyCheck && window.aistudio) {
+     const hasKey = await window.aistudio.hasSelectedApiKey();
+     if (!hasKey) {
+        throw new Error("API_KEY_REQUIRED");
+     }
+  }
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+};
+
+// Helper to safely parse JSON from AI response
+export const safeParseJSON = (text: string) => {
+    const cleanup = (str: string) => str.replace(/```json/g, '').replace(/```/g, '').trim();
+    
+    try {
+        const cleaned = cleanup(text);
+        return JSON.parse(cleaned);
+    } catch (e) {
+        // Fallback strategy 1: Extract JSON structure (Array or Object) by matching outer brackets
+        try {
+            const cleaned = cleanup(text);
+            const firstOpenBrace = cleaned.indexOf('{');
+            const firstOpenBracket = cleaned.indexOf('[');
+            
+            let start = -1;
+            let end = -1;
+
+            // Determine if it starts with { or [ and find corresponding closer
+            if (firstOpenBrace !== -1 && (firstOpenBracket === -1 || firstOpenBrace < firstOpenBracket)) {
+                start = firstOpenBrace;
+                end = cleaned.lastIndexOf('}');
+            } else if (firstOpenBracket !== -1) {
+                start = firstOpenBracket;
+                end = cleaned.lastIndexOf(']');
+            }
+            
+            if (start !== -1 && end !== -1) {
+                 const substring = cleaned.substring(start, end + 1);
+                 return JSON.parse(substring);
+            }
+        } catch (e2) {
+            // Fallback strategy 2: Replace control characters (newlines) with spaces
+            try {
+                const cleaned = cleanup(text);
+                const sanitized = cleaned.replace(/[\n\r\t]/g, ' ');
+                const firstOpen = sanitized.search(/[\{\[]/);
+                // Simple max approach for sanitized string as we lost formatting
+                const lastClose = Math.max(sanitized.lastIndexOf('}'), sanitized.lastIndexOf(']'));
+                 if (firstOpen !== -1 && lastClose !== -1) {
+                     return JSON.parse(sanitized.substring(firstOpen, lastClose + 1));
+                }
+            } catch (e3) {
+                console.warn("JSON Parse Warning, returning empty object. Raw text:", text);
+            }
+        }
+        // Return empty object if all else fails
+        return {};
+    }
+};
+
+export const findLeadsWithMaps = async (query: string, location: string) => {
+  const ai = await getClient();
+  const prompt = `Find 5 potential local business leads for "${query}" near "${location}". 
+  For each business, provide a name, a short description of what they do, and why they might need a new website or marketing.
+  
+  Please also extract their Phone Number and Email address if available in the listing or context.
+  
+  You MUST return a strictly valid JSON array with objects containing:
+  - businessName
+  - location
+  - details
+  - phone (string or null)
+  - email (string or null)
+  
+  IMPORTANT: Ensure all strings are properly escaped. Do not use unescaped newlines or control characters inside string values.
+  Do not include markdown formatting. Just the raw JSON.`;
+
+  // Using Flash with Maps grounding for discovery
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: prompt,
+    config: {
+      tools: [{ googleMaps: {} }],
+      maxOutputTokens: 2000,
+    }
+  });
+
+  const parsedLeads = safeParseJSON(response.text || "[]");
+  
+  return {
+    leads: Array.isArray(parsedLeads) ? parsedLeads : [],
+    grounding: response.candidates?.[0]?.groundingMetadata?.groundingChunks
+  };
+};
+
+export const generateBrandAnalysis = async (businessName: string, details: string) => {
+  const ai = await getClient();
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: `Analyze this business: "${businessName}" (${details}).
+    Generate branding guidelines for them.
+    
+    Requirements:
+    - colors: array of 3 hex codes
+    - tone: string (e.g. Friendly, Corporate, Luxury)
+    - suggestions: string (Short paragraph on how to improve their brand, under 50 words)
+    `,
+    config: {
+        maxOutputTokens: 1000,
+        responseMimeType: "application/json",
+        responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+                colors: { type: Type.ARRAY, items: { type: Type.STRING } },
+                tone: { type: Type.STRING },
+                suggestions: { type: Type.STRING }
+            },
+            required: ["colors", "tone", "suggestions"]
+        }
+    }
+  });
+  return safeParseJSON(response.text || "{}");
+}
+
+export const generatePitchEmail = async (businessName: string, websiteUrl: string | undefined, brandTone: string, hasConceptImage: boolean = false) => {
+  const ai = await getClient();
+  
+  const prompt = `Write a cold email to "${businessName}" to sell website design and social media marketing services.
+  
+  Context:
+  - Potential Client: ${businessName}
+  - My Services: Website Design & Social Media Growth
+  - Tone: ${brandTone || 'Professional and Friendly'}
+  
+  Asset Status:
+  ${websiteUrl ? `- I have a live website demo link: ${websiteUrl}` : '- I do not have a live link yet.'}
+  ${hasConceptImage ? '- I have attached a visual mockup image of a new website concept for them.' : ''}
+  
+  Instructions:
+  - If I have a Concept Image, explicitly mention "I've attached a visual concept of what your new site could look like."
+  - Highlight that we can help them grow their brand online through a modern website and active social media presence.
+  - If I have a URL, ask them to click the link to see their new site.
+  - Keep it under 150 words.
+  - Empathetic, not salesy.`;
+
+  // Switched to Flash for better JSON reliability
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: prompt,
+    config: {
+        maxOutputTokens: 1000,
+        responseMimeType: "application/json",
+        responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+                subject: { type: Type.STRING },
+                body: { type: Type.STRING }
+            },
+            required: ["subject", "body"]
+        }
+    }
+  });
+  return safeParseJSON(response.text || "{}");
+}
+
+export const generateCampaignStrategy = async (businessName: string, goal: string, platforms: string[], brandGuidelines: any) => {
+  const ai = await getClient();
+  
+  const prompt = `Create a marketing campaign strategy for "${businessName}".
+  Goal: "${goal}"
+  Platforms: ${platforms.join(', ')}
+  Brand Tone: ${brandGuidelines?.tone || 'Professional'}
+  
+  Generate a JSON response with:
+  1. "strategy_summary": A paragraph explaining the strategy.
+  2. "content_ideas": An array of 3 specific content ideas.
+     Each idea must have:
+     - "title": Short title
+     - "format": "IMAGE" or "VIDEO"
+     - "platform": One of the selected platforms
+     - "description": Description of the content to be created
+     - "copy": The caption/text for the post
+  `;
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: prompt,
+    config: {
+      maxOutputTokens: 2000,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          strategy_summary: { type: Type.STRING },
+          content_ideas: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                title: { type: Type.STRING },
+                format: { type: Type.STRING },
+                platform: { type: Type.STRING },
+                description: { type: Type.STRING },
+                copy: { type: Type.STRING }
+              },
+              required: ["title", "format", "platform", "description", "copy"]
+            }
+          }
+        },
+        required: ["strategy_summary", "content_ideas"]
+      }
+    }
+  });
+  return safeParseJSON(response.text || "{}");
+};
+
+export const analyzeAndGenerateMarketing = async (businessName: string, goal: string) => {
+  const ai = await getClient();
+  // Switched to Flash for reliability with JSON Schema
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: `I need to pitch digital services to "${businessName}". 
+    Goal: ${goal}.
+    
+    Task:
+    1. Analyze potential weaknesses a local business like this usually has (Keep under 150 words).
+    2. Write a friendly, professional cold email (subject + body). Keep it concise (under 200 words).
+    3. Write a catchy Facebook post they could use (under 100 words).`,
+    config: {
+      maxOutputTokens: 8192,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          analysis: { type: Type.STRING },
+          emailSubject: { type: Type.STRING },
+          emailBody: { type: Type.STRING },
+          socialPost: { type: Type.STRING }
+        },
+        required: ["analysis", "emailSubject", "emailBody", "socialPost"]
+      }
+    }
+  });
+  return safeParseJSON(response.text || "{}");
+};
+
+export const generateWebsiteConceptImage = async (
+  prompt: string, 
+  aspectRatio: AspectRatio = AspectRatio.LANDSCAPE, 
+  size: ImageSize = ImageSize.S_1K,
+  skipKeyCheck: boolean = false
+) => {
+  const ai = await getClient(true, skipKeyCheck); // Requires paid key for Pro Image
+  
+  // Using Nano Banana Pro (Gemini 3 Pro Image)
+  const response = await ai.models.generateContent({
+    model: 'gemini-3-pro-image-preview',
+    contents: {
+        parts: [{ text: `A professional, modern website design mockup for: ${prompt}. High quality, UI/UX design, photorealistic laptop screen mockup.` }]
+    },
+    config: {
+      imageConfig: {
+        aspectRatio: aspectRatio,
+        imageSize: size
+      }
+    }
+  });
+
+  let imageUrl = '';
+  if (response.candidates?.[0]?.content?.parts) {
+      for (const part of response.candidates[0].content.parts) {
+          if (part.inlineData) {
+              imageUrl = `data:image/png;base64,${part.inlineData.data}`;
+              break;
+          }
+      }
+  }
+  return imageUrl;
+};
+
+export const generateSocialMediaImage = async (
+  businessName: string,
+  topic: string,
+  aspectRatio: AspectRatio = AspectRatio.SQUARE,
+  skipKeyCheck: boolean = false
+) => {
+  const ai = await getClient(true, skipKeyCheck); // Requires paid key for Pro Image (Nano Banana)
+
+  const response = await ai.models.generateContent({
+    model: 'gemini-3-pro-image-preview',
+    contents: {
+        parts: [{ text: `A professional social media image for ${businessName}. Content: ${topic}. Photorealistic, aesthetic, high quality, commercial photography.` }]
+    },
+    config: {
+      imageConfig: {
+        imageSize: ImageSize.S_1K,
+        aspectRatio: aspectRatio
+      }
+    }
+  });
+
+  let imageUrl = '';
+  if (response.candidates?.[0]?.content?.parts) {
+      for (const part of response.candidates[0].content.parts) {
+          if (part.inlineData) {
+              imageUrl = `data:image/png;base64,${part.inlineData.data}`;
+              break;
+          }
+      }
+  }
+  return imageUrl;
+};
+
+export const generateWebsiteStructure = async (prompt: string) => {
+    const ai = await getClient();
+    const response = await ai.models.generateContent({
+        model: 'gemini-3-pro-preview', // High quality for code generation
+        contents: `Create a complete, single-file HTML website code for: ${prompt}.
+        
+        Requirements:
+        1. Use Tailwind CSS via CDN (script tag).
+        2. Use Google Fonts (Quicksand or similar).
+        3. Include a Header (Logo, Nav), Hero Section (with placeholder image using unsplash source if needed), Services/Features, Testimonials, and Contact Form.
+        4. Be fully responsive and mobile-friendly.
+        5. Return ONLY the raw HTML string, starting with <!DOCTYPE html>. Do not wrap in markdown code blocks.`,
+        config: {
+            maxOutputTokens: 8192, // High token limit for full code
+        }
+    });
+    
+    // Clean up markdown if present
+    const text = response.text || '';
+    return text.replace(/```html/g, '').replace(/```/g, '');
+}
+
+export const refineWebsiteCode = async (currentCode: string, instructions: string) => {
+    const ai = await getClient();
+    const response = await ai.models.generateContent({
+        model: 'gemini-3-pro-preview', // High quality for code refinement
+        contents: `I have this HTML code:
+        
+        ${currentCode.substring(0, 15000)}... (truncated if too long)
+
+        User Request: "${instructions}"
+
+        Return the UPDATED full single-file HTML code. Maintain all previous functionality unless asked to change. 
+        Ensure Tailwind CSS and scripts remain intact. Return ONLY raw HTML.`,
+        config: {
+            maxOutputTokens: 8192,
+        }
+    });
+    
+    const text = response.text || '';
+    return text.replace(/```html/g, '').replace(/```/g, '');
+}
+
+export const generateMarketingVideo = async (
+  prompt: string,
+  brandInfo: string = '', 
+  aspectRatio: '16:9' | '9:16' = '16:9',
+  skipKeyCheck: boolean = false
+) => {
+  const ai = await getClient(true, skipKeyCheck); // Requires paid key for Veo
+  
+  const fullPrompt = brandInfo 
+    ? `Cinematic marketing video: ${prompt}. Style: ${brandInfo}. High quality, professional lighting, 4k`
+    : `Cinematic marketing video: ${prompt}, high quality, professional lighting, 4k`;
+
+  let operation = await ai.models.generateVideos({
+    model: 'veo-3.1-fast-generate-preview',
+    prompt: fullPrompt,
+    config: {
+      numberOfVideos: 1,
+      resolution: '1080p',
+      aspectRatio: aspectRatio
+    }
+  });
+
+  // Polling logic
+  while (!operation.done) {
+    await new Promise(resolve => setTimeout(resolve, 5000)); // Check every 5s
+    operation = await ai.operations.getVideosOperation({operation: operation});
+  }
+
+  const videoUri = operation.response?.generatedVideos?.[0]?.video?.uri;
+  if (!videoUri) throw new Error("Failed to generate video");
+
+  // Fetch the actual video blob
+  const response = await fetch(`${videoUri}&key=${process.env.API_KEY}`);
+  const blob = await response.blob();
+  return URL.createObjectURL(blob);
+};
+
+// Function to handle key selection
+export const promptForKeySelection = async () => {
+    if (window.aistudio) {
+        await window.aistudio.openSelectKey();
+    }
+}
