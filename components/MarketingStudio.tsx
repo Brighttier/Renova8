@@ -1,7 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Lead, AspectRatio, HistoryItem } from '../types';
-import { generateCampaignStrategy, generateSocialMediaImage, generateMarketingVideo, promptForKeySelection } from '../services/geminiService';
-import { ApiKeyModal } from './ApiKeyModal';
+import React from 'react';
+import { Lead } from '../types';
 
 interface Props {
   selectedLead: Lead | null;
@@ -11,378 +9,177 @@ interface Props {
   onUpdateLead: (lead: Lead) => void;
 }
 
-interface ContentItem {
-    id: string;
-    title: string;
-    format: 'IMAGE' | 'VIDEO';
-    platform: string;
-    description: string;
-    copy: string;
-    generatedMediaUrl?: string;
-    isLoading?: boolean;
-}
-
-interface Strategy {
-    summary: string;
-    items: ContentItem[];
-}
-
-export const MarketingStudio: React.FC<Props> = ({ selectedLead, onUseCredit, leads, onSelectLead, onUpdateLead }) => {
-  const [goal, setGoal] = useState('');
-  const [platforms, setPlatforms] = useState<string[]>(['Instagram', 'Facebook']);
-  const [loading, setLoading] = useState(false);
-  const [strategy, setStrategy] = useState<Strategy | null>(null);
-  const [showKeyModal, setShowKeyModal] = useState(false);
-  const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
-
-  // Filter leads
-  const wonLeads = leads.filter(l => l.status === 'converted');
-  const otherLeads = leads.filter(l => l.status !== 'converted');
-
-  // Reset data when lead changes
-  useEffect(() => {
-      setStrategy(null);
-      setGoal('');
-  }, [selectedLead?.id]);
-
-  const togglePlatform = (p: string) => {
-      if (platforms.includes(p)) {
-          setPlatforms(platforms.filter(plat => plat !== p));
-      } else {
-          setPlatforms([...platforms, p]);
-      }
-  }
-
-  const handleGenerateStrategy = async () => {
-      if (!selectedLead || !goal) return;
-      setLoading(true);
-      try {
-          onUseCredit(5); // Strategy cost
-          const result = await generateCampaignStrategy(selectedLead.businessName, goal, platforms, selectedLead.brandGuidelines);
-          
-          if (result && result.content_ideas) {
-              const items: ContentItem[] = result.content_ideas.map((idea: any, idx: number) => ({
-                  id: `idea-${Date.now()}-${idx}`,
-                  title: idea.title,
-                  format: (idea.format || 'IMAGE').toUpperCase() as 'IMAGE' | 'VIDEO',
-                  platform: idea.platform,
-                  description: idea.description,
-                  copy: idea.copy
-              }));
-              
-              setStrategy({
-                  summary: result.strategy_summary,
-                  items: items
-              });
-
-              // Save Strategy to History
-              const historyItem: HistoryItem = {
-                  id: `hist-${Date.now()}`,
-                  type: 'STRATEGY',
-                  timestamp: Date.now(),
-                  content: result,
-                  metadata: {
-                      description: `Goal: ${goal}`,
-                      platform: platforms.join(', ')
-                  }
-              };
-              
-              onUpdateLead({
-                  ...selectedLead,
-                  history: [...(selectedLead.history || []), historyItem]
-              });
-          }
-      } catch (e) {
-          console.error(e);
-          alert("Could not generate strategy. Please try again.");
-      } finally {
-          setLoading(false);
-      }
-  }
-
-  const handleCreateContent = async (itemId: string, skipKeyCheck = false) => {
-      if (!strategy || !selectedLead) return;
-      
-      const itemIndex = strategy.items.findIndex(i => i.id === itemId);
-      if (itemIndex === -1) return;
-      
-      const item = strategy.items[itemIndex];
-      
-      // Update item loading state
-      const updateItemState = (updates: Partial<ContentItem>) => {
-          setStrategy(prev => {
-              if (!prev) return null;
-              const newItems = [...prev.items];
-              newItems[itemIndex] = { ...newItems[itemIndex], ...updates };
-              return { ...prev, items: newItems };
-          });
-      };
-
-      updateItemState({ isLoading: true });
-
-      try {
-          const brandContext = `Brand Colors: ${selectedLead.brandGuidelines?.colors?.join(', ') || 'Standard'}. Tone: ${selectedLead.brandGuidelines?.tone || 'Professional'}.`;
-          
-          let mediaUrl = '';
-          
-          if (item.format === 'VIDEO') {
-              onUseCredit(20); // Video cost
-              // Use Veo
-              // Determine Aspect Ratio based on platform
-              const isVertical = ['TikTok', 'Instagram Reels', 'YouTube Shorts', 'Instagram Story'].some(p => item.platform.includes(p));
-              const ratio = isVertical ? '9:16' : '16:9';
-              
-              mediaUrl = await generateMarketingVideo(
-                  `${item.description}. ${brandContext}`, 
-                  brandContext, 
-                  ratio, 
-                  skipKeyCheck
-              );
-          } else {
-              onUseCredit(5); // Image cost
-              // Use Nano Banana Pro
-              const isVertical = ['Instagram Story', 'TikTok'].some(p => item.platform.includes(p));
-              const ratio = isVertical ? AspectRatio.PORTRAIT : AspectRatio.SQUARE;
-
-              mediaUrl = await generateSocialMediaImage(
-                  selectedLead.businessName,
-                  `${item.description}. ${brandContext}`,
-                  ratio,
-                  skipKeyCheck
-              );
-          }
-
-          updateItemState({ generatedMediaUrl: mediaUrl, isLoading: false });
-
-          // Save Media to History
-          const historyItem: HistoryItem = {
-              id: `hist-${Date.now()}`,
-              type: item.format,
-              timestamp: Date.now(),
-              content: mediaUrl,
-              metadata: {
-                  prompt: item.description,
-                  platform: item.platform,
-                  description: item.title
-              }
-          };
-
-          onUpdateLead({
-              ...selectedLead,
-              history: [...(selectedLead.history || []), historyItem]
-          });
-
-      } catch (err: any) {
-          updateItemState({ isLoading: false });
-          if (err.message.includes("API_KEY_REQUIRED")) {
-              setPendingAction(() => () => handleCreateContent(itemId, true));
-              setShowKeyModal(true);
-          } else {
-              console.error(err);
-              alert("Generation failed. Please try again.");
-          }
-      }
-  }
-
-  const handleKeyConfirm = async () => {
-      setShowKeyModal(false);
-      await promptForKeySelection();
-      if (pendingAction) {
-          pendingAction();
-          setPendingAction(null);
-      }
-  }
+export const MarketingStudio: React.FC<Props> = ({ leads }) => {
+  // Features to be implemented
+  const upcomingFeatures = [
+    {
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+      ),
+      title: 'AI Campaign Strategy',
+      description: 'Generate comprehensive marketing strategies tailored to your business goals and target audience.'
+    },
+    {
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      ),
+      title: 'Social Media Content',
+      description: 'Create stunning visuals and engaging copy for Instagram, Facebook, LinkedIn, and more.'
+    },
+    {
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>
+      ),
+      title: 'Video Generation',
+      description: 'Transform your ideas into professional marketing videos with AI-powered video creation.'
+    },
+    {
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      ),
+      title: 'Content Calendar',
+      description: 'Plan and schedule your marketing content across all platforms in one unified calendar.'
+    },
+    {
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+        </svg>
+      ),
+      title: 'Performance Analytics',
+      description: 'Track campaign performance and get AI-powered insights to optimize your marketing efforts.'
+    },
+    {
+      icon: (
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
+      ),
+      title: 'Audience Targeting',
+      description: 'Define and reach your ideal customers with precision targeting powered by AI analysis.'
+    }
+  ];
 
   return (
-    <div className="space-y-6">
-        {showKeyModal && <ApiKeyModal onClose={() => setShowKeyModal(false)} onConfirm={handleKeyConfirm} />}
+    <div className="min-h-full p-8">
+      {/* Header */}
+      <div className="text-center mb-12">
+        <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-[#D4AF37] to-[#B8963A] rounded-2xl mb-6 shadow-lg">
+          <svg className="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+          </svg>
+        </div>
+        <h1 className="text-3xl font-serif font-bold text-[#4A4A4A] mb-3">Marketing Studio</h1>
+        <div className="inline-flex items-center gap-3 px-6 py-3 bg-[#D4AF37]/10 rounded-full mb-4 border border-[#D4AF37]/30">
+          <span className="relative flex h-3 w-3">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#D4AF37] opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-[#D4AF37]"></span>
+          </span>
+          <span className="text-2xl font-bold text-[#D4AF37] animate-pulse">Coming Soon</span>
+        </div>
+        <p className="text-[#4A4A4A]/70 max-w-2xl mx-auto text-lg">
+          Our powerful AI-driven marketing suite is under development. Get ready to create, manage, and optimize your marketing campaigns with cutting-edge tools.
+        </p>
+      </div>
 
-        <div className="text-center space-y-2 mb-8">
-            <h1 className="text-3xl font-bold text-gray-800 font-serif">Marketing Campaign Manager</h1>
-            <p className="text-gray-500">Plan, Strategize, and Create content to reach your customer's goals.</p>
+      {/* Features Grid */}
+      <div className="max-w-5xl mx-auto">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+          {upcomingFeatures.map((feature, index) => (
+            <div
+              key={index}
+              className="bg-white rounded-2xl p-6 border border-[#EFEBE4] shadow-sm hover:shadow-md transition-all duration-300 hover:border-[#D4AF37]/30 group"
+            >
+              <div className="w-12 h-12 bg-[#F9F6F0] rounded-xl flex items-center justify-center text-[#D4AF37] mb-4 group-hover:bg-[#D4AF37]/10 transition-colors">
+                {feature.icon}
+              </div>
+              <h3 className="text-lg font-semibold text-[#4A4A4A] mb-2">{feature.title}</h3>
+              <p className="text-sm text-[#4A4A4A]/60 leading-relaxed">{feature.description}</p>
+            </div>
+          ))}
         </div>
 
-       {/* 1. Setup Section */}
-       <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm animate-fadeIn">
-            <div className="flex flex-col md:flex-row gap-6">
-                <div className="flex-1 space-y-4">
-                    <div>
-                        <label className="text-xs font-bold text-gray-400 uppercase block mb-2">Campaign For</label>
-                        <div className="relative">
-                            <select
-                                className="appearance-none w-full bg-gray-50 border border-gray-200 text-gray-900 font-bold py-3 pl-4 pr-10 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                value={selectedLead?.id || ""}
-                                onChange={(e) => {
-                                    const lead = leads.find(l => l.id === e.target.value);
-                                    if (lead) onSelectLead(lead);
-                                }}
-                            >
-                                <option value="" disabled>Select a Customer...</option>
-                                {wonLeads.length > 0 && (
-                                    <optgroup label="🏆 Won Customers">
-                                        {wonLeads.map(lead => (
-                                            <option key={lead.id} value={lead.id}>🎉 {lead.businessName}</option>
-                                        ))}
-                                    </optgroup>
-                                )}
-                                {otherLeads.length > 0 && (
-                                    <optgroup label="Other Leads">
-                                        {otherLeads.map(lead => (
-                                            <option key={lead.id} value={lead.id}>{lead.businessName}</option>
-                                        ))}
-                                    </optgroup>
-                                )}
-                            </select>
-                            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
-                                <svg className="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="text-xs font-bold text-gray-400 uppercase block mb-2">Campaign Goal</label>
-                        <input 
-                            type="text" 
-                            placeholder="e.g. Increase Christmas sales by 20%, Promote new yoga class"
-                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none"
-                            value={goal}
-                            onChange={(e) => setGoal(e.target.value)}
-                        />
-                    </div>
-                </div>
-
-                <div className="flex-1 space-y-4">
-                    <label className="text-xs font-bold text-gray-400 uppercase block">Platforms Package</label>
-                    <div className="grid grid-cols-2 gap-3">
-                        {['Instagram', 'Facebook', 'TikTok', 'LinkedIn', 'YouTube', 'Email'].map(p => (
-                            <button 
-                                key={p}
-                                onClick={() => togglePlatform(p)}
-                                className={`px-4 py-3 rounded-xl border text-sm font-bold transition-all flex items-center justify-between ${platforms.includes(p) ? 'bg-purple-50 border-purple-500 text-purple-700' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}
-                            >
-                                <span>{p}</span>
-                                {platforms.includes(p) && <span>✓</span>}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+        {/* Newsletter/Notification Signup */}
+        <div className="bg-gradient-to-br from-[#4A4A4A] to-[#2A2A2A] rounded-2xl p-8 text-center text-white">
+          <div className="max-w-xl mx-auto">
+            <svg className="w-12 h-12 mx-auto mb-4 text-[#D4AF37]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            <h2 className="text-2xl font-serif font-bold mb-3">Stay Updated</h2>
+            <p className="text-white/70 mb-6">
+              We're working hard to bring you the best marketing tools. You'll be notified when these features become available.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                disabled
+                className="px-6 py-3 bg-[#D4AF37] text-[#4A4A4A] rounded-xl font-medium opacity-50 cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                </svg>
+                Notify Me When Available
+              </button>
             </div>
+          </div>
+        </div>
 
-            <div className="mt-6 pt-6 border-t border-gray-100 flex justify-end">
-                <button 
-                    onClick={handleGenerateStrategy}
-                    disabled={loading || !selectedLead || !goal || platforms.length === 0}
-                    className="px-8 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold shadow-lg hover:opacity-90 disabled:opacity-50 transition-all flex items-center gap-2"
-                >
-                    {loading ? (
-                        <>
-                            <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            Developing Strategy...
-                        </>
-                    ) : (
-                        <>
-                            <span>✨</span> Generate Strategy (5 Credits)
-                        </>
-                    )}
-                </button>
+        {/* Current Status */}
+        <div className="mt-8 bg-white rounded-2xl p-6 border border-[#EFEBE4]">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-10 h-10 bg-[#D4AF37]/10 rounded-xl flex items-center justify-center">
+              <svg className="w-5 h-5 text-[#D4AF37]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
             </div>
-       </div>
+            <h3 className="text-lg font-semibold text-[#4A4A4A]">Development Status</h3>
+          </div>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-[#4A4A4A]/70">Overall Progress</span>
+              <span className="text-sm font-medium text-[#D4AF37]">In Development</span>
+            </div>
+            <div className="w-full h-2 bg-[#F9F6F0] rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-[#D4AF37] to-[#B8963A] rounded-full transition-all duration-500"
+                style={{ width: '35%' }}
+              />
+            </div>
+            <p className="text-xs text-[#4A4A4A]/50">
+              Our team is actively working on bringing you powerful marketing tools. Check back soon for updates!
+            </p>
+          </div>
+        </div>
 
-       {/* 2. Strategy & Content Section */}
-       {strategy && (
-           <div className="space-y-8 animate-fadeInUp">
-               {/* Strategy Summary */}
-               <div className="bg-blue-50 border border-blue-100 rounded-2xl p-6">
-                   <h3 className="text-blue-900 font-bold text-lg mb-2 flex items-center">
-                       <span className="text-2xl mr-2">🎯</span> Strategy Overview
-                   </h3>
-                   <p className="text-blue-800 leading-relaxed">
-                       {strategy.summary}
-                   </p>
-               </div>
-
-               <div className="flex items-center justify-between">
-                   <h2 className="text-2xl font-bold text-gray-800 font-serif">Content Production</h2>
-                   <div className="text-sm text-gray-500">AI Powered by Gemini 3 & Veo</div>
-               </div>
-
-               <div className="grid grid-cols-1 gap-6">
-                   {strategy.items.map((item, idx) => (
-                       <div key={item.id} className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
-                           <div className="flex flex-col md:flex-row gap-6">
-                               {/* Left: Text Content */}
-                               <div className="flex-1 space-y-4">
-                                   <div className="flex items-center gap-3 mb-2">
-                                       <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${item.format === 'VIDEO' ? 'bg-orange-100 text-orange-700' : 'bg-pink-100 text-pink-700'}`}>
-                                           {item.format}
-                                       </span>
-                                       <span className="text-gray-400 text-sm font-medium">{item.platform}</span>
-                                   </div>
-                                   
-                                   <h3 className="font-bold text-xl text-gray-800">{item.title}</h3>
-                                   <p className="text-gray-600 text-sm italic border-l-2 border-gray-200 pl-3">"{item.description}"</p>
-                                   
-                                   <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                                       <span className="text-xs font-bold text-gray-400 uppercase block mb-1">Caption / Script</span>
-                                       <p className="text-gray-800 text-sm whitespace-pre-wrap">{item.copy}</p>
-                                       <button 
-                                            onClick={() => navigator.clipboard.writeText(item.copy)}
-                                            className="text-purple-600 text-xs font-bold mt-2 hover:underline"
-                                       >
-                                           Copy Text
-                                       </button>
-                                   </div>
-                               </div>
-
-                               {/* Right: Media Generation */}
-                               <div className="w-full md:w-80 flex-shrink-0 flex flex-col">
-                                   <div className="flex-1 bg-gray-100 rounded-xl overflow-hidden relative min-h-[200px] flex items-center justify-center border border-gray-200">
-                                       {item.isLoading ? (
-                                           <div className="text-center p-4">
-                                               <div className={`w-8 h-8 border-2 border-t-transparent rounded-full animate-spin mx-auto mb-2 ${item.format === 'VIDEO' ? 'border-orange-500' : 'border-purple-500'}`}></div>
-                                               <p className="text-xs text-gray-500 font-bold">Creating {item.format === 'VIDEO' ? 'Veo Video' : 'HQ Image'}...</p>
-                                               <p className="text-[10px] text-gray-400 mt-1">Applying Brand DNA...</p>
-                                           </div>
-                                       ) : item.generatedMediaUrl ? (
-                                           item.format === 'VIDEO' ? (
-                                               <video src={item.generatedMediaUrl} controls className="w-full h-full object-cover" />
-                                           ) : (
-                                               <img src={item.generatedMediaUrl} alt="Generated Content" className="w-full h-full object-cover" />
-                                           )
-                                       ) : (
-                                           <div className="text-center p-4 text-gray-400">
-                                               <span className="text-4xl block mb-2 opacity-30">{item.format === 'VIDEO' ? '🎥' : '📸'}</span>
-                                               <p className="text-xs">Media not generated</p>
-                                           </div>
-                                       )}
-                                   </div>
-                                   
-                                   {!item.generatedMediaUrl && (
-                                       <button 
-                                            onClick={() => handleCreateContent(item.id)}
-                                            disabled={item.isLoading}
-                                            className={`mt-3 w-full py-3 rounded-xl font-bold text-white shadow-md transition-all ${item.format === 'VIDEO' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-purple-600 hover:bg-purple-700'}`}
-                                       >
-                                           Create {item.format === 'VIDEO' ? 'Video (20 Cr)' : 'Image (5 Cr)'}
-                                       </button>
-                                   )}
-                                   
-                                   {item.generatedMediaUrl && (
-                                       <a 
-                                            href={item.generatedMediaUrl} 
-                                            download={`content-${item.id}.${item.format === 'VIDEO' ? 'mp4' : 'png'}`}
-                                            className="mt-3 w-full py-2 bg-white border border-gray-300 text-gray-700 rounded-xl font-bold text-center text-sm hover:bg-gray-50"
-                                       >
-                                           Download
-                                       </a>
-                                   )}
-                               </div>
-                           </div>
-                       </div>
-                   ))}
-               </div>
-           </div>
-       )}
+        {/* Quick Stats */}
+        {leads.length > 0 && (
+          <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="bg-white rounded-xl p-4 border border-[#EFEBE4] text-center">
+              <div className="text-2xl font-bold text-[#D4AF37]">{leads.length}</div>
+              <div className="text-xs text-[#4A4A4A]/60">Total Leads</div>
+            </div>
+            <div className="bg-white rounded-xl p-4 border border-[#EFEBE4] text-center">
+              <div className="text-2xl font-bold text-[#D4AF37]">{leads.filter(l => l.status === 'converted').length}</div>
+              <div className="text-xs text-[#4A4A4A]/60">Customers</div>
+            </div>
+            <div className="bg-white rounded-xl p-4 border border-[#EFEBE4] text-center">
+              <div className="text-2xl font-bold text-[#D4AF37]">0</div>
+              <div className="text-xs text-[#4A4A4A]/60">Campaigns</div>
+            </div>
+            <div className="bg-white rounded-xl p-4 border border-[#EFEBE4] text-center">
+              <div className="text-2xl font-bold text-[#D4AF37]">--</div>
+              <div className="text-xs text-[#4A4A4A]/60">Engagement</div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

@@ -1,7 +1,7 @@
 
 export interface HistoryItem {
   id: string;
-  type: 'STRATEGY' | 'IMAGE' | 'VIDEO' | 'EMAIL' | 'WEBSITE_CONCEPT' | 'WEBSITE_DEPLOY';
+  type: 'STRATEGY' | 'IMAGE' | 'VIDEO' | 'EMAIL' | 'WEBSITE_CONCEPT' | 'WEBSITE_DEPLOY' | 'INVOICE' | 'PAYMENT' | 'COMMUNICATION';
   timestamp: number;
   content: any; // URL for media, JSON for strategy, text for email
   metadata?: {
@@ -9,7 +9,84 @@ export interface HistoryItem {
     platform?: string; // e.g., Instagram, Facebook
     description?: string;
     format?: string;
+    amount?: number;
+    status?: string;
   };
+}
+
+export interface InvoiceItem {
+  id: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+}
+
+export interface InvoiceSender {
+  name?: string;
+  company?: string;
+  address?: string;
+  city?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+}
+
+export interface PaymentRecord {
+  id: string;
+  amount: number;
+  date: number;
+  method?: 'cash' | 'card' | 'bank_transfer' | 'check' | 'other';
+  reference?: string;
+  notes?: string;
+}
+
+export interface Invoice {
+  id: string;
+  invoiceNumber: string;
+  amount: number;
+  description: string;
+  status: 'draft' | 'sent' | 'partial' | 'paid' | 'overdue';
+  createdAt: number;
+  dueDate?: number;
+  paidAt?: number;
+  items: InvoiceItem[];
+  subtotal: number;
+  taxRate: number;
+  taxAmount: number;
+  discount: number;
+  discountType: 'percentage' | 'fixed';
+  total: number;
+  notes?: string;
+  terms?: string;
+  billingPeriod?: {
+    start: number;
+    end: number;
+  };
+  sender?: InvoiceSender;
+  // Payment tracking
+  paidAmount: number;
+  payments?: PaymentRecord[];
+}
+
+export interface EmailAttachment {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  url?: string;
+}
+
+export interface Communication {
+  id: string;
+  type: 'email' | 'call' | 'meeting' | 'note';
+  subject: string;
+  content: string;
+  timestamp: number;
+  direction?: 'inbound' | 'outbound';
+  read?: boolean;
+  starred?: boolean;
+  attachments?: EmailAttachment[];
+  category?: 'pitch' | 'followup' | 'response' | 'invoice' | 'general';
 }
 
 export interface Lead {
@@ -21,12 +98,12 @@ export interface Lead {
   phone?: string;
   email?: string;
   status: 'new' | 'analyzing' | 'contacted' | 'negotiating' | 'converted';
-  
+
   // CRM Data
   addedAt?: number;
   websiteUrl?: string; // The deployed URL
   websiteConceptImage?: string; // The initial AI concept image
-  
+
   // AI Generated Data
   analysis?: string;
   brandGuidelines?: {
@@ -38,9 +115,15 @@ export interface Lead {
     subject: string;
     body: string;
   };
-  
+
   // Content Archive
   history?: HistoryItem[];
+
+  // Invoices & Payments
+  invoices?: Invoice[];
+
+  // Communications
+  communications?: Communication[];
 }
 
 export interface GeneratedContent {
@@ -61,15 +144,16 @@ export enum AppView {
   DASHBOARD = 'DASHBOARD',
   LEAD_FINDER = 'LEAD_FINDER',
   MY_CUSTOMERS = 'MY_CUSTOMERS',
+  INBOX = 'INBOX', // Email Inbox
   MARKETING = 'MARKETING',
   CAMPAIGN_HISTORY = 'CAMPAIGN_HISTORY',
   IMAGE_STUDIO = 'IMAGE_STUDIO',
   WEBSITE_BUILDER = 'WEBSITE_BUILDER',
   INVOICING = 'INVOICING',
   VIDEO_STUDIO = 'VIDEO_STUDIO',
+  WEBSITE_EDITOR = 'WEBSITE_EDITOR',
   SETTINGS = 'SETTINGS',
-  BLOOM = 'BLOOM', // New Bloom Status Page
-  
+
   // User Pages
   PROFILE = 'PROFILE',
   GENERAL_SETTINGS = 'GENERAL_SETTINGS',

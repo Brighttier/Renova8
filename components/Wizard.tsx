@@ -18,16 +18,27 @@ interface Props {
     existingLead?: Lead | null;
 }
 
+// All steps including Marketing Plan (kept for reference, used in Marketing Studio)
+const ALL_STEPS = [
+    { title: "Step 1: Find", icon: "🔍", desc: "Locate Customer" },
+    { title: "Step 2: Analyze", icon: "🧠", desc: "Brand DNA" },
+    { title: "Step 3: Visualize", icon: "🎨", desc: "Web Concept" },
+    { title: "Step 4: Strategize", icon: "📈", desc: "Marketing Plan" },
+    { title: "Step 5: Build", icon: "💻", desc: "Create Website" },
+    { title: "Step 6: Pitch", icon: "💌", desc: "Send Email" }
+];
+
+// Steps shown in Concierge Wizard (excluding Marketing Plan - available in Marketing Studio)
 const STEPS = [
-    { title: "Find", icon: "🔍", desc: "Locate Customer" },
-    { title: "Analyze", icon: "🧠", desc: "Brand DNA" },
-    { title: "Visualize", icon: "🎨", desc: "Web Concept" },
-    { title: "Strategize", icon: "📈", desc: "Marketing Plan" },
-    { title: "Build", icon: "💻", desc: "Create Website" },
-    { title: "Pitch", icon: "💌", desc: "Send Email" }
+    { title: "Step 1: Find", icon: "🔍", desc: "Locate Customer" },
+    { title: "Step 2: Analyze", icon: "🧠", desc: "Brand DNA" },
+    { title: "Step 3: Visualize", icon: "🎨", desc: "Web Concept" },
+    { title: "Step 4: Build", icon: "💻", desc: "Create Website" },
+    { title: "Step 5: Pitch", icon: "💌", desc: "Send Email" }
 ];
 
 export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead, existingLead }) => {
+    const [hasStarted, setHasStarted] = useState(false);
     const [currentStep, setCurrentStep] = useState(0);
     const [loading, setLoading] = useState(false);
     const [activeLead, setActiveLead] = useState<Lead | null>(existingLead || null);
@@ -256,6 +267,36 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
         }
     }
 
+    // Start Page - shown before wizard begins
+    if (!hasStarted) {
+        return (
+            <div className="max-w-5xl mx-auto pb-20">
+                <div className="text-center mb-10">
+                    <h1 className="text-4xl font-bold text-[#4A4A4A] font-serif mb-2">Business Builder Wizard</h1>
+                    <p className="text-[#4A4A4A]/60 tracking-wide text-lg">Concierge service from zero to pitched customer.</p>
+                </div>
+
+                <div className="bg-white rounded-[2rem] shadow-xl border border-[#EFEBE4] p-12">
+                    <div className="text-center">
+                        <div className="text-7xl mb-6">🚀</div>
+                        <h2 className="text-3xl font-bold font-serif text-[#4A4A4A] mb-4">Ready to Build Your Business?</h2>
+                        <p className="text-[#4A4A4A]/70 text-lg max-w-xl mx-auto mb-10">
+                            Follow our 6-step wizard to find customers, analyze their brand, create stunning visuals, and pitch your services.
+                        </p>
+
+                        {/* Start Button */}
+                        <button
+                            onClick={() => setHasStarted(true)}
+                            className="bg-[#D4AF37] text-white px-12 py-4 rounded-xl font-bold text-xl shadow-lg hover:bg-[#C5A572] transition-all transform hover:scale-105 hover:-translate-y-1"
+                        >
+                            Start Wizard →
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="max-w-5xl mx-auto pb-20">
             {showKeyModal && <ApiKeyModal onClose={() => setShowKeyModal(false)} onConfirm={handleKeyConfirm} />}
@@ -265,48 +306,45 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
                 <p className="text-[#4A4A4A]/60 tracking-wide text-lg">Concierge service from zero to pitched customer.</p>
             </div>
 
-            {/* Bloom-style Stepper */}
+            {/* Stepper - matching reference design */}
             <div className="mb-12 overflow-x-auto pb-4">
-                <div className="flex items-start justify-between min-w-[700px] px-8 relative">
-                    {/* Continuous Line Background */}
-                    <div className="absolute top-6 left-12 right-12 h-[2px] bg-gray-200 -z-10"></div>
-                    
+                <div className="flex items-center justify-center min-w-[700px] px-8 relative">
                     {STEPS.map((step, idx) => {
                         const isCompleted = idx < currentStep;
                         const isActive = idx === currentStep;
-                        
-                        return (
-                            <div key={idx} className="flex flex-col items-center relative z-10 w-32 group">
-                                {/* Connector Line (Colored) */}
-                                {idx > 0 && (
-                                    <div 
-                                        className={`absolute top-6 right-[50%] w-[100%] h-[2px] -z-10 transition-all duration-500 ${idx <= currentStep ? 'bg-[#2E7D32]' : 'bg-transparent'}`}
-                                        style={{ transform: 'translateX(50%)' }}
-                                    ></div>
-                                )}
 
-                                <div className={`
-                                    w-12 h-12 rounded-full flex items-center justify-center text-lg transition-all duration-300
-                                    ${isCompleted ? 'bg-[#2E7D32] text-white shadow-md scale-100' : ''}
-                                    ${isActive ? 'bg-white border-[3px] border-[#D4AF37] text-[#D4AF37] shadow-xl scale-110' : ''}
-                                    ${!isActive && !isCompleted ? 'bg-white border-2 border-gray-200 text-gray-300' : ''}
-                                `}>
-                                    {isCompleted ? (
-                                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>
-                                    ) : (
-                                        <span>{step.icon}</span>
-                                    )}
-                                </div>
-                                
-                                <div className={`text-center mt-3 transition-colors duration-300 ${isActive ? 'opacity-100' : 'opacity-70'}`}>
-                                    <div className={`text-xs font-bold uppercase tracking-wider mb-0.5 ${isActive ? 'text-[#D4AF37]' : isCompleted ? 'text-[#2E7D32]' : 'text-gray-400'}`}>
-                                        {step.title}
+                        return (
+                            <React.Fragment key={idx}>
+                                <div className="flex flex-col items-center relative z-10">
+                                    {/* Circle with number or checkmark */}
+                                    <div className={`
+                                        w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300
+                                        ${isCompleted ? 'bg-[#2E7D32] text-white' : ''}
+                                        ${isActive ? 'bg-[#D4AF37] text-white ring-4 ring-[#D4AF37]/30' : ''}
+                                        ${!isActive && !isCompleted ? 'bg-white border-2 border-gray-200 text-gray-400' : ''}
+                                    `}>
+                                        {isCompleted ? (
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        ) : (
+                                            <span>{idx + 1}</span>
+                                        )}
                                     </div>
-                                    <div className={`text-[10px] font-medium hidden md:block ${isActive ? 'text-[#4A4A4A]' : 'text-gray-400'}`}>
-                                        {step.desc}
+
+                                    {/* Step label */}
+                                    <div className={`text-center mt-2 transition-colors duration-300`}>
+                                        <div className={`text-sm font-medium ${isActive ? 'text-[#D4AF37] font-bold' : isCompleted ? 'text-[#2E7D32]' : 'text-gray-400'}`}>
+                                            {step.desc}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+
+                                {/* Connecting line between steps */}
+                                {idx < STEPS.length - 1 && (
+                                    <div className={`flex-1 h-[2px] mx-2 mt-[-20px] transition-colors duration-300 ${idx < currentStep ? 'bg-[#2E7D32]' : 'bg-gray-200'}`}></div>
+                                )}
+                            </React.Fragment>
                         );
                     })}
                 </div>
@@ -459,54 +497,8 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
                         </div>
                     )}
 
-                    {/* STEP 4: STRATEGY */}
+                    {/* STEP 4: BUILD (was Step 5, Strategy moved to Marketing Studio) */}
                     {currentStep === 3 && activeLead && (
-                         <div className="max-w-3xl mx-auto animate-fadeIn w-full">
-                             <h2 className="text-3xl font-bold mb-8 text-center font-serif text-[#4A4A4A]">Plan the Marketing</h2>
-                             
-                             {(!activeLead.history || !activeLead.history.some(h => h.type === 'STRATEGY')) ? (
-                                 <div className="text-center py-12 bg-[#F9F6F0] rounded-3xl border border-[#EFEBE4]">
-                                    <label className="block text-center font-bold text-[#D4AF37] text-xs uppercase tracking-widest mb-4">What is the main goal?</label>
-                                    <input 
-                                        className="w-3/4 p-4 rounded-xl border border-gray-200 mb-8 bg-white text-center text-lg shadow-sm focus:ring-2 focus:ring-[#D4AF37] outline-none"
-                                        value={strategyGoal}
-                                        onChange={e => setStrategyGoal(e.target.value)}
-                                    />
-                                    <br/>
-                                    <button onClick={handleStrategize} disabled={loading} className="bg-[#4A4A4A] text-white px-10 py-4 rounded-xl font-bold text-lg shadow-xl hover:bg-[#333] transition-all">
-                                        {loading ? 'Thinking...' : 'Generate Strategy (5 Cr)'}
-                                    </button>
-                                 </div>
-                             ) : (
-                                 <div className="space-y-8">
-                                     {activeLead.history.filter(h => h.type === 'STRATEGY').slice(0,1).map(strat => (
-                                         <div key={strat.id} className="bg-[#F9F6F0] p-8 rounded-[2rem] border border-[#EFEBE4] shadow-sm">
-                                             <h3 className="font-bold text-[#4A4A4A] text-xl mb-4 font-serif border-b border-[#D4AF37]/20 pb-2">Strategy Summary</h3>
-                                             <p className="text-gray-700 leading-relaxed text-lg mb-6">{strat.content.strategy_summary}</p>
-                                             
-                                             <h4 className="font-bold text-[#D4AF37] text-xs uppercase tracking-widest mb-4">Content Roadmap</h4>
-                                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                                 {strat.content.content_ideas?.map((idea: any, i: number) => (
-                                                     <div key={i} className="bg-white p-5 rounded-2xl border border-[#EFEBE4] shadow-sm hover:shadow-md transition-shadow">
-                                                         <div className="font-bold text-[#4A4A4A] mb-2 font-serif text-lg">{idea.title}</div>
-                                                         <div className="text-gray-400 text-xs font-bold uppercase tracking-wide">{idea.platform} • {idea.format}</div>
-                                                     </div>
-                                                 ))}
-                                             </div>
-                                         </div>
-                                     ))}
-                                     <div className="text-right">
-                                        <button onClick={nextStep} className="bg-[#2E7D32] text-white px-8 py-3 rounded-xl font-bold shadow-lg hover:bg-[#256628] transition-all transform hover:-translate-y-1">
-                                            Perfect, Next →
-                                        </button>
-                                     </div>
-                                 </div>
-                             )}
-                         </div>
-                    )}
-
-                    {/* STEP 5: BUILD */}
-                    {currentStep === 4 && activeLead && (
                          <div className="max-w-6xl mx-auto animate-fadeIn h-full flex flex-col w-full">
                              <div className="flex justify-between items-center mb-6 shrink-0">
                                 <h2 className="text-3xl font-bold font-serif text-[#4A4A4A]">Build the Website</h2>
@@ -548,8 +540,8 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
                          </div>
                     )}
 
-                    {/* STEP 6: PITCH */}
-                    {currentStep === 5 && activeLead && (
+                    {/* STEP 5: PITCH (was Step 6) */}
+                    {currentStep === 4 && activeLead && (
                          <div className="max-w-2xl mx-auto animate-fadeIn w-full">
                              <h2 className="text-3xl font-bold mb-8 text-center font-serif text-[#4A4A4A]">Send the Pitch</h2>
                              

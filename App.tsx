@@ -11,7 +11,8 @@ import { CampaignHistory } from './components/CampaignHistory';
 import { Settings } from './components/Settings';
 import { Header } from './components/Header';
 import { Wizard } from './components/Wizard';
-import { BloomStatusPage } from './components/BloomStatusPage';
+import { Inbox } from './components/Inbox';
+import { WebsiteEditor } from './components/WebsiteEditor';
 import { UserProfile, GeneralSettings, UserPassword, PaymentSetup, EmailConfig, HelpSupport } from './components/UserPages';
 
 // Sidebar Icons (Styled for Bloom/Renova8)
@@ -23,6 +24,8 @@ const HeartIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w
 const ImageIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>;
 const ArchiveIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>;
 const RocketIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>;
+const InboxIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>;
+const EditIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>;
 const ChevronLeftIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>;
 const ChevronRightIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>;
 
@@ -62,11 +65,16 @@ export default function App() {
       setCredits(prev => prev + amount);
   }
 
-  // BLOOM VIEW
-  if (currentView === AppView.BLOOM) {
-      return (
-          <BloomStatusPage onBack={() => setCurrentView(AppView.WIZARD)} />
-      );
+  // Website Editor is a full-screen view
+  if (currentView === AppView.WEBSITE_EDITOR) {
+    return (
+      <WebsiteEditor
+        customers={myCustomers}
+        selectedCustomer={selectedLead}
+        onUpdateCustomer={updateCustomer}
+        onBack={() => setCurrentView(AppView.MY_CUSTOMERS)}
+      />
+    );
   }
 
   return (
@@ -87,71 +95,84 @@ export default function App() {
           </div>
 
           <nav className="px-4 space-y-1">
-            <NavButton 
-              active={currentView === AppView.WIZARD} 
-              onClick={() => setCurrentView(AppView.WIZARD)} 
-              icon={<RocketIcon />} 
-              label="Concierge Wizard" 
+            <NavButton
+              active={currentView === AppView.INBOX}
+              onClick={() => setCurrentView(AppView.INBOX)}
+              icon={<InboxIcon />}
+              label="Inbox"
+              collapsed={isSidebarCollapsed}
+            />
+            <NavButton
+              active={currentView === AppView.WIZARD}
+              onClick={() => setCurrentView(AppView.WIZARD)}
+              icon={<RocketIcon />}
+              label="Concierge Wizard"
               collapsed={isSidebarCollapsed}
             />
             <div className="my-3 border-t border-[#F9F6F0] mx-2"></div>
-            <NavButton 
-              active={currentView === AppView.LEAD_FINDER} 
-              onClick={() => setCurrentView(AppView.LEAD_FINDER)} 
-              icon={<SearchIcon />} 
-              label="Scout Customers" 
+            <NavButton
+              active={currentView === AppView.LEAD_FINDER}
+              onClick={() => setCurrentView(AppView.LEAD_FINDER)}
+              icon={<SearchIcon />}
+              label="Scout Customers"
               collapsed={isSidebarCollapsed}
             />
-            <NavButton 
-              active={currentView === AppView.MY_CUSTOMERS} 
-              onClick={() => setCurrentView(AppView.MY_CUSTOMERS)} 
-              icon={<HeartIcon />} 
-              label="Client List" 
+            <NavButton
+              active={currentView === AppView.MY_CUSTOMERS}
+              onClick={() => setCurrentView(AppView.MY_CUSTOMERS)}
+              icon={<HeartIcon />}
+              label="Client List"
               collapsed={isSidebarCollapsed}
             />
-            <NavButton 
-              active={currentView === AppView.BLOOM} 
-              onClick={() => setCurrentView(AppView.BLOOM)} 
-              icon={<span className="text-xl -ml-1">🌸</span>} 
-              label="Renova8 Status" 
+            {/* Hidden for now - Website Atelier
+            <NavButton
+              active={currentView === AppView.WEBSITE_BUILDER}
+              onClick={() => setCurrentView(AppView.WEBSITE_BUILDER)}
+              icon={<WebsiteIcon />}
+              label="Website Atelier"
+              collapsed={isSidebarCollapsed}
+            />
+            */}
+            <NavButton
+              active={currentView === AppView.WEBSITE_EDITOR}
+              onClick={() => setCurrentView(AppView.WEBSITE_EDITOR)}
+              icon={<EditIcon />}
+              label="Website Editor"
+              collapsed={isSidebarCollapsed}
+            />
+            <NavButton
+              active={currentView === AppView.CAMPAIGN_HISTORY}
+              onClick={() => setCurrentView(AppView.CAMPAIGN_HISTORY)}
+              icon={<ArchiveIcon />}
+              label="Archives"
               collapsed={isSidebarCollapsed}
             />
             <div className="my-3 border-t border-[#F9F6F0] mx-2"></div>
-            <NavButton 
-              active={currentView === AppView.MARKETING} 
-              onClick={() => setCurrentView(AppView.MARKETING)} 
-              icon={<MagicIcon />} 
-              label="Marketing Studio" 
+            <NavButton
+              active={currentView === AppView.MARKETING}
+              onClick={() => setCurrentView(AppView.MARKETING)}
+              icon={<MagicIcon />}
+              label="Marketing Studio"
               collapsed={isSidebarCollapsed}
             />
-            <NavButton 
-              active={currentView === AppView.WEBSITE_BUILDER} 
-              onClick={() => setCurrentView(AppView.WEBSITE_BUILDER)} 
-              icon={<WebsiteIcon />} 
-              label="Website Atelier" 
+            {/* Hidden for now - Visual Assets
+             <NavButton
+              active={currentView === AppView.IMAGE_STUDIO}
+              onClick={() => setCurrentView(AppView.IMAGE_STUDIO)}
+              icon={<ImageIcon />}
+              label="Visual Assets"
               collapsed={isSidebarCollapsed}
             />
-             <NavButton 
-              active={currentView === AppView.IMAGE_STUDIO} 
-              onClick={() => setCurrentView(AppView.IMAGE_STUDIO)} 
-              icon={<ImageIcon />} 
-              label="Visual Assets" 
+            */}
+            {/* Hidden for now - Cinematic Video
+            <NavButton
+              active={currentView === AppView.VIDEO_STUDIO}
+              onClick={() => setCurrentView(AppView.VIDEO_STUDIO)}
+              icon={<VideoIcon />}
+              label="Cinematic Video"
               collapsed={isSidebarCollapsed}
             />
-            <NavButton 
-              active={currentView === AppView.VIDEO_STUDIO} 
-              onClick={() => setCurrentView(AppView.VIDEO_STUDIO)} 
-              icon={<VideoIcon />} 
-              label="Cinematic Video" 
-              collapsed={isSidebarCollapsed}
-            />
-             <NavButton 
-              active={currentView === AppView.CAMPAIGN_HISTORY} 
-              onClick={() => setCurrentView(AppView.CAMPAIGN_HISTORY)} 
-              icon={<ArchiveIcon />} 
-              label="Archives" 
-              collapsed={isSidebarCollapsed}
-            />
+            */}
           </nav>
         </div>
 
@@ -164,12 +185,28 @@ export default function App() {
                 {isSidebarCollapsed ? <ChevronRightIcon /> : <div className="flex items-center"><ChevronLeftIcon /><span className="ml-2 text-xs font-medium uppercase tracking-widest">Collapse</span></div>}
             </button>
 
-            <div className={`bg-[#F9F6F0] rounded-xl p-4 ${isSidebarCollapsed ? 'flex flex-col items-center justify-center' : 'text-center'} border border-[#EFEBE4]`}>
-                <div className="text-[10px] text-[#4A4A4A]/60 uppercase tracking-widest font-bold mb-1">
-                    {isSidebarCollapsed ? 'Cr.' : 'Credits'}
+            <a
+                href="mailto:support@renova8.com?subject=Professional%20Help%20Request"
+                className={`group bg-gradient-to-br from-[#D4AF37] to-[#B8963A] rounded-xl p-4 ${isSidebarCollapsed ? 'flex flex-col items-center justify-center' : 'text-center'} border border-[#D4AF37]/30 hover:shadow-lg hover:shadow-[#D4AF37]/20 transition-all duration-300 cursor-pointer block`}
+                title="Professional Help Needed – Contact Us"
+            >
+                <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-center gap-2'} mb-2`}>
+                    <svg className={`${isSidebarCollapsed ? 'w-6 h-6' : 'w-5 h-5'} text-white group-hover:scale-110 transition-transform`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
+                    {!isSidebarCollapsed && <span className="text-white font-semibold text-sm hidden lg:inline">Contact Us</span>}
                 </div>
-                <div className={`font-serif font-bold text-[#D4AF37] ${isSidebarCollapsed ? 'text-lg' : 'text-2xl'}`}>{credits}</div>
-            </div>
+                {!isSidebarCollapsed && (
+                    <div className="text-[10px] text-white/80 uppercase tracking-wider font-medium hidden lg:block">
+                        Professional Help Needed?
+                    </div>
+                )}
+                {isSidebarCollapsed && (
+                    <div className="text-[9px] text-white/80 uppercase tracking-wider font-bold">
+                        Help
+                    </div>
+                )}
+            </a>
         </div>
       </aside>
 
@@ -177,7 +214,7 @@ export default function App() {
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
         
         {/* Top Header */}
-        <Header onNavigate={setCurrentView} />
+        <Header onNavigate={setCurrentView} credits={credits} />
 
         {/* Scrollable Main Area */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-10 scroll-smooth bg-[#F9F6F0]">
@@ -200,14 +237,24 @@ export default function App() {
                 />
             )}
             {currentView === AppView.MY_CUSTOMERS && (
-                <MyCustomers 
-                    customers={myCustomers} 
+                <MyCustomers
+                    customers={myCustomers}
                     onUpdateCustomer={updateCustomer}
                     onUseCredit={deductCredit}
                     onBuildWebsite={(lead) => {
                         setSelectedLead(lead);
                         setCurrentView(AppView.WEBSITE_BUILDER);
                     }}
+                    onEditWebsite={(lead) => {
+                        setSelectedLead(lead);
+                        setCurrentView(AppView.WEBSITE_EDITOR);
+                    }}
+                />
+            )}
+            {currentView === AppView.INBOX && (
+                <Inbox
+                    customers={myCustomers}
+                    onUpdateCustomer={updateCustomer}
                 />
             )}
             {currentView === AppView.MARKETING && (
