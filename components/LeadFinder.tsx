@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { findLeadsWithMaps } from '../services/geminiService';
 import { Lead } from '../types';
+import { PageTour, SCOUT_TOUR_STEPS, usePageTour } from './PageTour';
 
 interface Props {
   onLeadsFound: (leads: Lead[]) => void;
@@ -16,6 +17,9 @@ export const LeadFinder: React.FC<Props> = ({ onLeadsFound, onUseCredit, onAnaly
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Lead[]>([]);
   const [groundingChunks, setGroundingChunks] = useState<any[]>([]);
+
+  // Page tour
+  const { showTour, completeTour } = usePageTour('scout');
 
   const handleSearch = async (e?: React.FormEvent, isLoadMore: boolean = false) => {
     if (e) e.preventDefault();
@@ -56,12 +60,17 @@ export const LeadFinder: React.FC<Props> = ({ onLeadsFound, onUseCredit, onAnaly
 
   return (
     <div className="space-y-8">
+      {/* Page Tour */}
+      {showTour && (
+        <PageTour tourId="scout" steps={SCOUT_TOUR_STEPS} onComplete={completeTour} />
+      )}
+
       <div className="text-center space-y-2">
         <h1 className="text-3xl font-bold text-gray-800 font-serif">Find Your Next Customer</h1>
         <p className="text-gray-500">Search for local businesses that need your help.</p>
       </div>
 
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-pink-100">
+      <div data-tour="scout-search" className="bg-white p-6 rounded-2xl shadow-sm border border-pink-100">
         <form onSubmit={(e) => handleSearch(e, false)} className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700 mb-1">Business Type</label>
@@ -96,7 +105,7 @@ export const LeadFinder: React.FC<Props> = ({ onLeadsFound, onUseCredit, onAnaly
 
       {/* Results */}
       {results.length > 0 && (
-          <div className="space-y-6">
+          <div data-tour="scout-results" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {results.map((lead) => {
                     const isSaved = savedLeads.some(s => s.businessName === lead.businessName); // Simple check by name

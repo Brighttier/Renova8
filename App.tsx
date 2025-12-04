@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppView, Lead } from './types';
 import { LeadFinder } from './components/LeadFinder';
 import { MarketingStudio } from './components/MarketingStudio';
@@ -15,6 +15,7 @@ import { Inbox } from './components/Inbox';
 import { WebsiteEditor } from './components/WebsiteEditor';
 import { UserProfile, GeneralSettings, UserPassword, PaymentSetup, EmailConfig, HelpSupport } from './components/UserPages';
 import { LandingPage } from './components/LandingPage';
+import { GuidedWalkthrough } from './components/GuidedWalkthrough';
 
 // Sidebar Icons (Styled for Bloom/Renova8)
 const SearchIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>;
@@ -37,6 +38,39 @@ export default function App() {
   const [credits, setCredits] = useState(50);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  // Walkthrough state - check localStorage for completion status
+  const [showWalkthrough, setShowWalkthrough] = useState(false);
+  const [hasSeenWalkthrough, setHasSeenWalkthrough] = useState(() => {
+    return localStorage.getItem('renova8_walkthrough_complete') === 'true';
+  });
+
+  // Trigger walkthrough when user enters the app from landing page for the first time
+  useEffect(() => {
+    if (currentView !== AppView.LANDING && !hasSeenWalkthrough && !showWalkthrough) {
+      // Small delay to let the main UI render first
+      const timer = setTimeout(() => {
+        setShowWalkthrough(true);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [currentView, hasSeenWalkthrough, showWalkthrough]);
+
+  const completeWalkthrough = () => {
+    localStorage.setItem('renova8_walkthrough_complete', 'true');
+    setHasSeenWalkthrough(true);
+    setShowWalkthrough(false);
+  };
+
+  const restartWalkthrough = () => {
+    localStorage.removeItem('renova8_walkthrough_complete');
+    // Also clear page-specific tours
+    localStorage.removeItem('renova8_tour_scout');
+    localStorage.removeItem('renova8_tour_editor');
+    localStorage.removeItem('renova8_tour_archives');
+    setHasSeenWalkthrough(false);
+    setShowWalkthrough(true);
+  };
 
   // Add leads from Search to "My Customers"
   const saveCustomer = (lead: Lead) => {
@@ -85,8 +119,17 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex bg-[#F9F6F0] font-sans text-[#4A4A4A]">
+      {/* Guided Walkthrough Overlay */}
+      {showWalkthrough && (
+        <GuidedWalkthrough
+          onComplete={completeWalkthrough}
+          onNavigate={setCurrentView}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside 
+      <aside
+        data-walkthrough="sidebar"
         className={`${isSidebarCollapsed ? 'w-20' : 'w-20 lg:w-64'} bg-white border-r border-[#EFEBE4] flex-shrink-0 flex flex-col justify-between transition-all duration-300 relative z-30 shadow-sm`}
       >
         <div>
@@ -108,28 +151,34 @@ export default function App() {
               label="Inbox"
               collapsed={isSidebarCollapsed}
             />
-            <NavButton
-              active={currentView === AppView.WIZARD}
-              onClick={() => setCurrentView(AppView.WIZARD)}
-              icon={<RocketIcon />}
-              label="Concierge Wizard"
-              collapsed={isSidebarCollapsed}
-            />
+            <div data-walkthrough="wizard">
+              <NavButton
+                active={currentView === AppView.WIZARD}
+                onClick={() => setCurrentView(AppView.WIZARD)}
+                icon={<RocketIcon />}
+                label="Concierge Wizard"
+                collapsed={isSidebarCollapsed}
+              />
+            </div>
             <div className="my-3 border-t border-[#F9F6F0] mx-2"></div>
-            <NavButton
-              active={currentView === AppView.LEAD_FINDER}
-              onClick={() => setCurrentView(AppView.LEAD_FINDER)}
-              icon={<SearchIcon />}
-              label="Scout Customers"
-              collapsed={isSidebarCollapsed}
-            />
-            <NavButton
-              active={currentView === AppView.MY_CUSTOMERS}
-              onClick={() => setCurrentView(AppView.MY_CUSTOMERS)}
-              icon={<HeartIcon />}
-              label="Client List"
-              collapsed={isSidebarCollapsed}
-            />
+            <div data-walkthrough="scout">
+              <NavButton
+                active={currentView === AppView.LEAD_FINDER}
+                onClick={() => setCurrentView(AppView.LEAD_FINDER)}
+                icon={<SearchIcon />}
+                label="Scout Customers"
+                collapsed={isSidebarCollapsed}
+              />
+            </div>
+            <div data-walkthrough="clients">
+              <NavButton
+                active={currentView === AppView.MY_CUSTOMERS}
+                onClick={() => setCurrentView(AppView.MY_CUSTOMERS)}
+                icon={<HeartIcon />}
+                label="Client List"
+                collapsed={isSidebarCollapsed}
+              />
+            </div>
             {/* Hidden for now - Website Atelier
             <NavButton
               active={currentView === AppView.WEBSITE_BUILDER}
@@ -139,20 +188,24 @@ export default function App() {
               collapsed={isSidebarCollapsed}
             />
             */}
-            <NavButton
-              active={currentView === AppView.WEBSITE_EDITOR}
-              onClick={() => setCurrentView(AppView.WEBSITE_EDITOR)}
-              icon={<EditIcon />}
-              label="Website Editor"
-              collapsed={isSidebarCollapsed}
-            />
-            <NavButton
-              active={currentView === AppView.CAMPAIGN_HISTORY}
-              onClick={() => setCurrentView(AppView.CAMPAIGN_HISTORY)}
-              icon={<ArchiveIcon />}
-              label="Archives"
-              collapsed={isSidebarCollapsed}
-            />
+            <div data-walkthrough="editor">
+              <NavButton
+                active={currentView === AppView.WEBSITE_EDITOR}
+                onClick={() => setCurrentView(AppView.WEBSITE_EDITOR)}
+                icon={<EditIcon />}
+                label="Website Editor"
+                collapsed={isSidebarCollapsed}
+              />
+            </div>
+            <div data-walkthrough="archives">
+              <NavButton
+                active={currentView === AppView.CAMPAIGN_HISTORY}
+                onClick={() => setCurrentView(AppView.CAMPAIGN_HISTORY)}
+                icon={<ArchiveIcon />}
+                label="Archives"
+                collapsed={isSidebarCollapsed}
+              />
+            </div>
             <div className="my-3 border-t border-[#F9F6F0] mx-2"></div>
             <NavButton
               active={currentView === AppView.MARKETING}
@@ -220,7 +273,7 @@ export default function App() {
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
         
         {/* Top Header */}
-        <Header onNavigate={setCurrentView} credits={credits} />
+        <Header onNavigate={setCurrentView} credits={credits} onRestartTour={restartWalkthrough} />
 
         {/* Scrollable Main Area */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-10 scroll-smooth bg-[#F9F6F0]">

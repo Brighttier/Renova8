@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Lead } from '../types';
+import { PageTour, EDITOR_TOUR_STEPS, usePageTour } from './PageTour';
 
 interface WebsiteEditorProps {
   customers: Lead[];
@@ -485,6 +486,136 @@ const componentTemplates: Record<string, Partial<EditorComponent>> = {
   }
 };
 
+// Demo/Playground website for learning
+const DEMO_CUSTOMER: Lead = {
+  id: 'demo-playground',
+  businessName: 'Sunny Side Bakery',
+  location: 'Portland, OR',
+  details: 'A charming artisan bakery specializing in fresh sourdough, pastries, and custom cakes. Family-owned since 2015.',
+  phone: '(555) 123-4567',
+  email: 'hello@sunnysidebakery.com',
+  status: 'new',
+  brandGuidelines: {
+    colors: ['#E67E22', '#2C3E50', '#ECF0F1'],
+    tone: 'Warm, friendly, artisanal',
+    suggestions: 'Focus on artisanal quality, local sourcing, and family tradition'
+  }
+};
+
+const createDemoWebsite = (): WebsiteData => ({
+  id: 'demo-website',
+  name: 'Demo Playground - Sunny Side Bakery',
+  components: [
+    {
+      ...componentTemplates.header,
+      id: 'demo-header-1',
+      order: 0,
+      content: {
+        ...componentTemplates.header!.content,
+        logo: 'Sunny Side Bakery',
+        menuItems: ['Home', 'Menu', 'About', 'Order Online', 'Contact']
+      }
+    } as EditorComponent,
+    {
+      ...componentTemplates.hero,
+      id: 'demo-hero-1',
+      order: 1,
+      content: {
+        ...componentTemplates.hero!.content,
+        headline: 'Fresh Baked Daily, Made with Love',
+        subheadline: 'Artisan breads, pastries, and custom cakes crafted with traditional techniques and the finest ingredients.',
+        ctaText: 'Order Now',
+        ctaLink: '#order'
+      },
+      styles: { backgroundColor: '#FDF6E9', textColor: '#2C3E50', padding: '80px 20px' }
+    } as EditorComponent,
+    {
+      ...componentTemplates.features,
+      id: 'demo-features-1',
+      order: 2,
+      content: {
+        title: 'Why Choose Us',
+        features: [
+          { icon: '🥖', title: 'Fresh Daily', description: 'Everything baked fresh each morning using traditional recipes' },
+          { icon: '🌾', title: 'Quality Ingredients', description: 'Locally sourced flour, organic eggs, and real butter' },
+          { icon: '🎂', title: 'Custom Cakes', description: 'Beautiful custom cakes for every celebration' },
+          { icon: '🚚', title: 'Local Delivery', description: 'Free delivery within 5 miles for orders over $25' }
+        ]
+      }
+    } as EditorComponent,
+    {
+      ...componentTemplates.services,
+      id: 'demo-services-1',
+      order: 3,
+      content: {
+        title: 'Our Specialties',
+        services: [
+          { title: 'Sourdough Breads', description: 'Traditional 48-hour fermented sourdough', price: 'From $8' },
+          { title: 'French Pastries', description: 'Croissants, pain au chocolat, and more', price: 'From $4' },
+          { title: 'Custom Cakes', description: 'Designed for your special occasion', price: 'From $45' },
+          { title: 'Catering', description: 'Perfect for events and corporate meetings', price: 'Contact us' }
+        ]
+      }
+    } as EditorComponent,
+    {
+      ...componentTemplates.testimonials,
+      id: 'demo-testimonials-1',
+      order: 4,
+      content: {
+        title: 'What Our Customers Say',
+        testimonials: [
+          { quote: 'The best sourdough in Portland! I drive 30 minutes just for their bread.', author: 'Sarah M.', role: 'Regular Customer' },
+          { quote: 'They made the most beautiful wedding cake for us. Delicious and stunning!', author: 'James & Emily', role: 'Wedding Clients' },
+          { quote: 'Our office orders pastries every Friday. Always fresh, always amazing!', author: 'Tech Startup Inc.', role: 'Corporate Client' }
+        ]
+      }
+    } as EditorComponent,
+    {
+      ...componentTemplates.cta,
+      id: 'demo-cta-1',
+      order: 5,
+      content: {
+        headline: 'Ready to Taste the Difference?',
+        subheadline: 'Visit us today or order online for pickup and delivery',
+        ctaText: 'Order Online',
+        ctaLink: '#order'
+      },
+      styles: { backgroundColor: '#E67E22', textColor: '#ffffff', padding: '60px 20px' }
+    } as EditorComponent,
+    {
+      ...componentTemplates.contact,
+      id: 'demo-contact-1',
+      order: 6,
+      content: {
+        ...componentTemplates.contact!.content,
+        title: 'Visit Our Bakery',
+        address: '123 Baker Street, Portland, OR 97201',
+        email: 'hello@sunnysidebakery.com',
+        phone: '(555) 123-4567',
+        hours: 'Tue-Sun: 7am - 6pm | Closed Mondays'
+      }
+    } as EditorComponent,
+    {
+      ...componentTemplates.footer,
+      id: 'demo-footer-1',
+      order: 7,
+      content: {
+        ...componentTemplates.footer!.content,
+        logo: 'Sunny Side Bakery',
+        tagline: 'Fresh baked daily since 2015'
+      }
+    } as EditorComponent
+  ],
+  globalStyles: {
+    primaryColor: '#E67E22',
+    secondaryColor: '#2C3E50',
+    accentColor: '#ECF0F1',
+    fontFamily: "'Playfair Display', serif",
+    backgroundColor: '#ffffff'
+  },
+  isDraft: true
+});
+
 // Default website template
 const createDefaultWebsite = (customer: Lead): WebsiteData => ({
   id: `website-${customer.id}`,
@@ -526,6 +657,7 @@ export const WebsiteEditor: React.FC<WebsiteEditorProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [showCustomerSelector, setShowCustomerSelector] = useState(!selectedCustomer);
+  const [isDemoMode, setIsDemoMode] = useState(false);
 
   // AI Prompt states
   const [showAIPrompt, setShowAIPrompt] = useState(false);
@@ -547,6 +679,9 @@ export const WebsiteEditor: React.FC<WebsiteEditorProps> = ({
   const [isDraggingFromPalette, setIsDraggingFromPalette] = useState(false);
   const [isDraggingExisting, setIsDraggingExisting] = useState(false);
   const [draggedExistingId, setDraggedExistingId] = useState<string | null>(null);
+
+  // Page tour
+  const { showTour, completeTour } = usePageTour('editor');
 
   // Filter suggestions based on input
   const filteredSuggestions = useMemo(() => {
@@ -753,8 +888,19 @@ export const WebsiteEditor: React.FC<WebsiteEditorProps> = ({
   // Load customer website
   const loadCustomerWebsite = useCallback((customer: Lead) => {
     setActiveCustomer(customer);
+    setIsDemoMode(false);
     const newWebsite = createDefaultWebsite(customer);
     setHistory({ past: [], present: newWebsite, future: [] });
+    setSelectedComponent(null);
+    setShowCustomerSelector(false);
+  }, []);
+
+  // Load demo playground website
+  const loadDemoWebsite = useCallback(() => {
+    setActiveCustomer(DEMO_CUSTOMER);
+    setIsDemoMode(true);
+    const demoWebsite = createDemoWebsite();
+    setHistory({ past: [], present: demoWebsite, future: [] });
     setSelectedComponent(null);
     setShowCustomerSelector(false);
   }, []);
@@ -1643,6 +1789,29 @@ export const WebsiteEditor: React.FC<WebsiteEditorProps> = ({
               <p className="text-[#4A4A4A]/60">Select a customer to edit their website</p>
             </div>
 
+            {/* Demo Playground Card */}
+            <button
+              onClick={loadDemoWebsite}
+              className="w-full mb-6 p-5 bg-gradient-to-r from-[#D4AF37]/10 to-[#D4AF37]/5 hover:from-[#D4AF37]/20 hover:to-[#D4AF37]/10 rounded-xl transition-all flex items-center gap-4 text-left group border-2 border-dashed border-[#D4AF37]/40 hover:border-[#D4AF37]"
+            >
+              <div className="w-14 h-14 bg-gradient-to-br from-[#D4AF37] to-[#B8963A] rounded-xl flex items-center justify-center shadow-lg">
+                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-[#D4AF37] text-lg">Try Demo Playground</span>
+                  <span className="px-2 py-0.5 bg-[#D4AF37]/20 text-[#D4AF37] text-xs font-semibold rounded-full">NEW</span>
+                </div>
+                <p className="text-sm text-[#4A4A4A]/70 mt-1">Practice editing with a sample bakery website before working on real customers</p>
+              </div>
+              <svg className="w-6 h-6 text-[#D4AF37]/50 group-hover:text-[#D4AF37] group-hover:translate-x-1 transition-all" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+
             {customers.length === 0 ? (
               <div className="text-center py-12">
                 <div className="w-20 h-20 mx-auto mb-4 bg-[#F9F6F0] rounded-full flex items-center justify-center">
@@ -1650,8 +1819,8 @@ export const WebsiteEditor: React.FC<WebsiteEditorProps> = ({
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                 </div>
-                <p className="text-[#4A4A4A]/60 mb-4">No customers found</p>
-                <p className="text-sm text-[#4A4A4A]/40">Add customers from the Client List to start editing their websites</p>
+                <p className="text-[#4A4A4A]/60 mb-4">No customers with websites yet</p>
+                <p className="text-sm text-[#4A4A4A]/40">Use the Wizard to generate websites for your customers, or try the demo playground above</p>
               </div>
             ) : (
               <div className="grid gap-4">
@@ -1688,17 +1857,31 @@ export const WebsiteEditor: React.FC<WebsiteEditorProps> = ({
 
   return (
     <div className="h-screen flex flex-col bg-[#1a1a1a] text-white overflow-hidden">
+      {/* Page Tour */}
+      {showTour && !showCustomerSelector && (
+        <PageTour tourId="editor" steps={EDITOR_TOUR_STEPS} onComplete={completeTour} />
+      )}
+
       {/* Top Toolbar */}
-      <div className="h-14 bg-[#252525] border-b border-[#333] flex items-center justify-between px-4 flex-shrink-0">
+      <div data-tour="editor-actions" className="h-14 bg-[#252525] border-b border-[#333] flex items-center justify-between px-4 flex-shrink-0">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="p-2 hover:bg-[#333] rounded-lg transition-colors" title="Back">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
           </button>
           <div className="h-6 w-px bg-[#444]" />
-          <button onClick={() => setShowCustomerSelector(true)} className="flex items-center gap-2 px-3 py-1.5 bg-[#333] hover:bg-[#404040] rounded-lg transition-colors">
+          <button data-tour="editor-customers" onClick={() => setShowCustomerSelector(true)} className="flex items-center gap-2 px-3 py-1.5 bg-[#333] hover:bg-[#404040] rounded-lg transition-colors">
             <span className="font-medium">{activeCustomer?.businessName || 'Select Customer'}</span>
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
           </button>
+          {isDemoMode && (
+            <span className="px-2.5 py-1 bg-gradient-to-r from-[#D4AF37] to-[#B8963A] text-black text-xs font-bold rounded-full flex items-center gap-1.5 animate-pulse">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              PLAYGROUND
+            </span>
+          )}
           <div className="h-6 w-px bg-[#444]" />
           {/* Undo/Redo */}
           <button onClick={undo} disabled={!canUndo} className={`p-2 rounded-lg transition-colors ${canUndo ? 'hover:bg-[#333]' : 'opacity-30 cursor-not-allowed'}`} title="Undo (Ctrl+Z)">
@@ -1724,13 +1907,21 @@ export const WebsiteEditor: React.FC<WebsiteEditorProps> = ({
 
         {/* Actions */}
         <div className="flex items-center gap-3">
-          {websiteData.isDraft && (
+          {isDemoMode && (
+            <span className="text-xs text-[#D4AF37]/70 mr-2">Practice mode - try the editing tools!</span>
+          )}
+          {!isDemoMode && websiteData.isDraft && (
             <span className="px-2 py-1 bg-orange-500/20 text-orange-400 text-xs rounded-full">Draft</span>
           )}
-          {websiteData.lastSavedAt && (
+          {!isDemoMode && websiteData.lastSavedAt && (
             <span className="text-xs text-gray-500">Saved {new Date(websiteData.lastSavedAt).toLocaleTimeString()}</span>
           )}
-          <button onClick={saveDraft} disabled={isSaving} className="px-4 py-2 bg-[#333] hover:bg-[#404040] rounded-lg transition-colors flex items-center gap-2">
+          <button
+            onClick={saveDraft}
+            disabled={isSaving}
+            className="px-4 py-2 bg-[#333] hover:bg-[#404040] rounded-lg transition-colors flex items-center gap-2"
+            title={isDemoMode ? "Practice saving - changes are not persisted" : "Save as draft"}
+          >
             {isSaving ? (
               <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
             ) : (
@@ -1738,7 +1929,11 @@ export const WebsiteEditor: React.FC<WebsiteEditorProps> = ({
             )}
             <span>Save Draft</span>
           </button>
-          <button onClick={() => setShowPublishModal(true)} className="px-4 py-2 bg-[#D4AF37] text-black hover:bg-[#C4A030] rounded-lg transition-colors flex items-center gap-2 font-medium">
+          <button
+            onClick={() => setShowPublishModal(true)}
+            className="px-4 py-2 bg-[#D4AF37] text-black hover:bg-[#C4A030] rounded-lg transition-colors flex items-center gap-2 font-medium"
+            title={isDemoMode ? "Practice publishing - demo sites are not actually published" : "Publish website"}
+          >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
             <span>Publish</span>
           </button>
@@ -1746,7 +1941,7 @@ export const WebsiteEditor: React.FC<WebsiteEditorProps> = ({
       </div>
 
       {/* AI Prompt Bar */}
-      <div className="bg-[#1f1f1f] border-b border-[#333] px-4 py-3">
+      <div data-tour="editor-prompt" className="bg-[#1f1f1f] border-b border-[#333] px-4 py-3">
         <div className="max-w-4xl mx-auto">
           <div className="relative">
             <div className="flex items-center gap-3">
@@ -2029,7 +2224,7 @@ export const WebsiteEditor: React.FC<WebsiteEditorProps> = ({
         </div>
 
         {/* Center - Preview */}
-        <div className="flex-1 bg-[#1a1a1a] p-8 overflow-hidden flex items-start justify-center">
+        <div data-tour="editor-preview" className="flex-1 bg-[#1a1a1a] p-8 overflow-hidden flex items-start justify-center">
           <div
             className={`bg-white overflow-y-auto shadow-2xl transition-all duration-300 ${
               previewMode === 'desktop' ? 'w-full max-w-6xl h-full' :

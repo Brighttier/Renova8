@@ -4,9 +4,10 @@ import { AppView } from '../types';
 interface Props {
     onNavigate: (view: AppView) => void;
     credits: number;
+    onRestartTour?: () => void;
 }
 
-export const Header: React.FC<Props> = ({ onNavigate, credits }) => {
+export const Header: React.FC<Props> = ({ onNavigate, credits, onRestartTour }) => {
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -54,7 +55,7 @@ export const Header: React.FC<Props> = ({ onNavigate, credits }) => {
             {/* Right Side */}
             <div className="flex items-center gap-2 md:gap-4">
                  {/* Credits Display */}
-                 <div className="flex items-center gap-2 bg-gradient-to-r from-[#D4AF37]/10 to-[#D4AF37]/5 px-3 py-1.5 md:px-4 md:py-2 rounded-xl border border-[#D4AF37]/20">
+                 <div data-walkthrough="credits" className="flex items-center gap-2 bg-gradient-to-r from-[#D4AF37]/10 to-[#D4AF37]/5 px-3 py-1.5 md:px-4 md:py-2 rounded-xl border border-[#D4AF37]/20">
                     <svg className="w-4 h-4 md:w-5 md:h-5 text-[#D4AF37]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
@@ -136,6 +137,17 @@ export const Header: React.FC<Props> = ({ onNavigate, credits }) => {
                                 <button onClick={() => handleNav(AppView.HELP_SUPPORT)} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-[#F9F6F0] hover:text-[#4A4A4A] rounded-lg flex items-center gap-2">
                                     <span>❓</span> Help & Support
                                 </button>
+                                {onRestartTour && (
+                                    <button
+                                        onClick={() => {
+                                            onRestartTour();
+                                            setIsProfileOpen(false);
+                                        }}
+                                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-[#D4AF37]/10 hover:text-[#D4AF37] rounded-lg flex items-center gap-2"
+                                    >
+                                        <span>🎯</span> Restart Tour
+                                    </button>
+                                )}
                                 <button className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 rounded-lg flex items-center gap-2 font-medium">
                                     <span>🚪</span> Logout
                                 </button>

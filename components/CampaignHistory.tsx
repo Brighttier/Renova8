@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Lead, HistoryItem } from '../types';
+import { PageTour, ARCHIVES_TOUR_STEPS, usePageTour } from './PageTour';
 
 interface Props {
   leads: Lead[];
@@ -11,8 +12,16 @@ export const CampaignHistory: React.FC<Props> = ({ leads }) => {
   const selectedLead = leads.find(l => l.id === selectedLeadId);
   const history = selectedLead?.history?.sort((a, b) => b.timestamp - a.timestamp) || [];
 
+  // Page tour
+  const { showTour, completeTour } = usePageTour('archives');
+
   return (
     <div className="space-y-6">
+      {/* Page Tour */}
+      {showTour && (
+        <PageTour tourId="archives" steps={ARCHIVES_TOUR_STEPS} onComplete={completeTour} />
+      )}
+
       <div className="text-center space-y-2 mb-8">
         <h1 className="text-3xl font-bold text-gray-800 font-serif">Campaign Archives</h1>
         <p className="text-gray-500">Access and reuse all your generated content, timestamped and organized.</p>
@@ -20,7 +29,7 @@ export const CampaignHistory: React.FC<Props> = ({ leads }) => {
 
       <div className="flex flex-col lg:flex-row gap-8 h-[calc(100vh-200px)]">
         {/* Sidebar */}
-        <div className="lg:w-1/4 bg-white rounded-2xl shadow-sm border border-gray-100 p-4 overflow-y-auto">
+        <div data-tour="archives-customers" className="lg:w-1/4 bg-white rounded-2xl shadow-sm border border-gray-100 p-4 overflow-y-auto">
              <h3 className="text-xs font-bold text-gray-400 uppercase mb-4">Select Customer</h3>
              {leads.length === 0 ? (
                  <p className="text-sm text-gray-400 text-center py-4">No customers yet.</p>
@@ -43,7 +52,7 @@ export const CampaignHistory: React.FC<Props> = ({ leads }) => {
         </div>
 
         {/* Timeline */}
-        <div className="lg:w-3/4 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
+        <div data-tour="archives-timeline" className="lg:w-3/4 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
             {selectedLead ? (
                 <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
                     <div className="flex items-center justify-between mb-8">
