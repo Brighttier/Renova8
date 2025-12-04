@@ -140,6 +140,7 @@ export interface WebsiteConcept {
 }
 
 export enum AppView {
+  LANDING = 'LANDING', // Landing Page
   WIZARD = 'WIZARD', // New Wizard View
   DASHBOARD = 'DASHBOARD',
   LEAD_FINDER = 'LEAD_FINDER',
