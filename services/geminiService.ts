@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { ImageSize, AspectRatio } from "../types";
+import { ImageSize, AspectRatio, DesignSpecification } from "../types";
 
 // Helper to ensure we get a valid client instance
 // For Veo/Pro Image, we need to check for selected API key flow
@@ -10,7 +10,7 @@ const getClient = async (requiresPaidKey: boolean = false, skipKeyCheck: boolean
         throw new Error("API_KEY_REQUIRED");
      }
   }
-  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+  return new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
 };
 
 // Helper to safely parse JSON from AI response
@@ -65,33 +65,35 @@ export const safeParseJSON = (text: string) => {
 
 export const findLeadsWithMaps = async (query: string, location: string) => {
   const ai = await getClient();
-  const prompt = `Find 5 potential local business leads for "${query}" near "${location}". 
-  For each business, provide a name, a short description of what they do, and why they might need a new website or marketing.
-  
-  Please also extract their Phone Number and Email address if available in the listing or context.
-  
+  const prompt = `Find 5 real local businesses for "${query}" near "${location}".
+  For each business, provide their actual name, address, a short description of what they do, and why they might need a new website or marketing.
+
+  Please also extract their Phone Number and Email address if available.
+
   You MUST return a strictly valid JSON array with objects containing:
-  - businessName
-  - location
-  - details
+  - businessName (string - the actual business name)
+  - location (string - their address or area)
+  - details (string - brief description)
   - phone (string or null)
   - email (string or null)
-  
-  IMPORTANT: Ensure all strings are properly escaped. Do not use unescaped newlines or control characters inside string values.
-  Do not include markdown formatting. Just the raw JSON.`;
 
-  // Using Flash with Maps grounding for discovery
+  IMPORTANT: Ensure all strings are properly escaped. Do not use unescaped newlines or control characters inside string values.
+  Do not include markdown formatting. Just the raw JSON array.`;
+
+  // Using Flash with Google Search grounding for discovery
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: 'gemini-2.0-flash',
     contents: prompt,
     config: {
-      tools: [{ googleMaps: {} }],
+      tools: [{ googleSearch: {} }],
       maxOutputTokens: 2000,
     }
   });
 
+  console.log('API Response:', response.text);
   const parsedLeads = safeParseJSON(response.text || "[]");
-  
+  console.log('Parsed Leads:', parsedLeads);
+
   return {
     leads: Array.isArray(parsedLeads) ? parsedLeads : [],
     grounding: response.candidates?.[0]?.groundingMetadata?.groundingChunks
@@ -316,12 +318,28 @@ export const generateSocialMediaImage = async (
   return imageUrl;
 };
 
-export const generateWebsiteStructure = async (prompt: string) => {
+export const generateWebsiteStructure = async (prompt: string, designSpec?: DesignSpecification) => {
     const ai = await getClient();
+
+    // If design spec is provided, use strict generation
+    if (designSpec) {
+        const strictPrompt = buildStrictWebsitePrompt(prompt, designSpec);
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-pro-preview',
+            contents: strictPrompt,
+            config: {
+                maxOutputTokens: 8192,
+            }
+        });
+        const text = response.text || '';
+        return text.replace(/```html/g, '').replace(/```/g, '');
+    }
+
+    // Fallback to basic generation without strict specs
     const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview', // High quality for code generation
         contents: `Create a complete, single-file HTML website code for: ${prompt}.
-        
+
         Requirements:
         1. Use Tailwind CSS via CDN (script tag).
         2. Use Google Fonts (Quicksand or similar).
@@ -332,10 +350,97 @@ export const generateWebsiteStructure = async (prompt: string) => {
             maxOutputTokens: 8192, // High token limit for full code
         }
     });
-    
+
     // Clean up markdown if present
     const text = response.text || '';
     return text.replace(/```html/g, '').replace(/```/g, '');
+}
+
+/**
+ * Build a strict website generation prompt from design specifications
+ * This ensures pixel-perfect consistency with the concept design
+ */
+const buildStrictWebsitePrompt = (businessPrompt: string, spec: DesignSpecification): string => {
+    const sectionsOrder = spec.content.sections
+        .sort((a, b) => a.order - b.order)
+        .map((s, i) => `${i + 1}. ${s.type.toUpperCase()}`)
+        .join('\n    ');
+
+    const exactTextEntries = Object.entries(spec.content.exactText || {})
+        .map(([key, value]) => `- ${key}: "${value}"`)
+        .join('\n    ');
+
+    return `Create a complete, single-file HTML website for: ${businessPrompt}
+
+=== CRITICAL: STRICT DESIGN SPECIFICATIONS - DO NOT DEVIATE ===
+
+## 1. COLORS (USE EXACT HEX CODES - NO SUBSTITUTIONS)
+- Primary Color: ${spec.colors.primary}
+- Secondary Color: ${spec.colors.secondary}
+- Accent/CTA Color: ${spec.colors.accent}
+- Background Color: ${spec.colors.background}
+- Text Color: ${spec.colors.text}
+${spec.colors.exactHexCodes.length > 0 ? `- Additional colors found in design: ${spec.colors.exactHexCodes.join(', ')}` : ''}
+
+IMPORTANT: Use these EXACT hex values. Do not use Tailwind color classes like "blue-500" - use custom colors with these exact hex codes.
+
+## 2. TYPOGRAPHY (USE EXACT FONTS)
+- Heading Font: "${spec.typography.headingFont}" (import from Google Fonts)
+- Body Font: "${spec.typography.bodyFont}" (import from Google Fonts)
+- Base Font Size: ${spec.typography.baseFontSize}
+- H1 Size: ${spec.typography.headingSizes.h1}
+- H2 Size: ${spec.typography.headingSizes.h2}
+- H3 Size: ${spec.typography.headingSizes.h3}
+
+## 3. LAYOUT (MATCH EXACTLY)
+- Container Max Width: ${spec.layout.maxWidth}
+- Section Vertical Padding: ${spec.layout.sectionPadding}
+- Grid Columns: ${spec.layout.gridColumns}
+- Grid Gap/Gutter: ${spec.layout.gutterWidth}
+
+## 4. COMPONENT STYLES
+Header:
+- Position: ${spec.components.header.style}
+- Logo Placement: ${spec.components.header.logoPlacement}
+
+Hero Section:
+- Height: ${spec.components.hero.height}
+- Content Alignment: ${spec.components.hero.alignment}
+
+Buttons:
+- Border Radius: ${spec.components.buttons.borderRadius}
+- Style: ${spec.components.buttons.style}
+- Use accent color (${spec.colors.accent}) for primary buttons
+
+Cards:
+- Border Radius: ${spec.components.cards.borderRadius}
+- Shadow: ${spec.components.cards.shadow}
+
+## 5. SECTIONS (IN THIS EXACT ORDER)
+    ${sectionsOrder}
+
+## 6. EXACT CONTENT (DO NOT PARAPHRASE OR REWRITE)
+${exactTextEntries || '    - Use appropriate placeholder text that matches the business context'}
+
+## 7. ASSETS
+${spec.assets.logo?.url ? `- Logo: <img src="${spec.assets.logo.url}" alt="Logo">` : '- Logo: Use text-based logo with business name'}
+${spec.assets.heroImage?.url ? `- Hero Image: <img src="${spec.assets.heroImage.url}">` : '- Hero Image: Use a professional placeholder from unsplash.com matching the business type'}
+
+## REQUIREMENTS
+1. Use Tailwind CSS via CDN
+2. Import the exact Google Fonts specified above
+3. Use inline style for custom colors: style="color: ${spec.colors.primary}; background-color: ${spec.colors.background};"
+4. Be fully responsive and mobile-friendly
+5. Return ONLY the raw HTML string, starting with <!DOCTYPE html>
+6. Do not wrap in markdown code blocks
+
+## STRICT RULES - VIOLATIONS ARE NOT ACCEPTABLE
+- DO NOT substitute any colors with similar shades
+- DO NOT change font families
+- DO NOT rearrange section order
+- DO NOT rewrite or paraphrase exact text content
+- DO NOT modify spacing ratios
+- DO NOT use default Tailwind colors - use the exact hex codes provided`;
 }
 
 export const refineWebsiteCode = async (currentCode: string, instructions: string) => {
@@ -391,7 +496,7 @@ export const generateMarketingVideo = async (
   if (!videoUri) throw new Error("Failed to generate video");
 
   // Fetch the actual video blob
-  const response = await fetch(`${videoUri}&key=${process.env.API_KEY}`);
+  const response = await fetch(`${videoUri}&key=${import.meta.env.VITE_API_KEY}`);
   const blob = await response.blob();
   return URL.createObjectURL(blob);
 };

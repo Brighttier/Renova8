@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { generateWebsiteConceptImage, generateWebsiteStructure, refineWebsiteCode, promptForKeySelection } from '../services/geminiService';
-import { ImageSize, AspectRatio, Lead, HistoryItem } from '../types';
+import { ImageSize, AspectRatio, Lead, HistoryItem, DesignSpecification, VerificationResult } from '../types';
+import { extractDesignSpecFromImage, createDefaultDesignSpec } from '../services/designExtractionService';
+import { verifyWebsiteAgainstSpec } from '../services/verificationService';
 import { ApiKeyModal } from './ApiKeyModal';
+import { DesignSpecReview } from './DesignSpecReview';
+import { DesignVerificationModal } from './DesignVerificationModal';
 
 interface Props {
   onUseCredit: () => void;
@@ -27,6 +31,13 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
 
   // Proposal State
   const [proposalSent, setProposalSent] = useState(false);
+
+  // Design Consistency State
+  const [designSpec, setDesignSpec] = useState<DesignSpecification | null>(null);
+  const [showDesignSpecReview, setShowDesignSpecReview] = useState(false);
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
+  const [isExtractingSpecs, setIsExtractingSpecs] = useState(false);
 
   useEffect(() => {
     if (selectedLead) {
@@ -54,7 +65,7 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
       try {
           const img = await generateWebsiteConceptImage(prompt, aspectRatio, size);
           setGeneratedImage(img);
-          
+
           if (selectedLead && onUpdateLead) {
               const historyItem: HistoryItem = {
                   id: `hist-${Date.now()}`,
@@ -67,8 +78,44 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
               };
               onUpdateLead({
                   ...selectedLead,
+                  websiteConceptImage: img,
                   history: [...(selectedLead.history || []), historyItem]
               });
+          }
+
+          // Extract design specifications from the generated concept
+          setIsExtractingSpecs(true);
+          try {
+              const extractedSpec = await extractDesignSpecFromImage(
+                  img,
+                  selectedLead?.businessName || 'Business',
+                  selectedLead?.brandGuidelines
+              );
+              setDesignSpec(extractedSpec);
+
+              // Update lead with design spec
+              if (selectedLead && onUpdateLead) {
+                  onUpdateLead({
+                      ...selectedLead,
+                      websiteConceptImage: img,
+                      brandGuidelines: {
+                          ...selectedLead.brandGuidelines,
+                          designSpec: extractedSpec
+                      }
+                  });
+              }
+
+              // Show design spec review
+              setShowDesignSpecReview(true);
+          } catch (specError) {
+              console.error('Failed to extract design specs:', specError);
+              // Fallback to default
+              if (selectedLead?.brandGuidelines) {
+                  const defaultSpec = createDefaultDesignSpec(selectedLead.brandGuidelines);
+                  setDesignSpec(defaultSpec);
+              }
+          } finally {
+              setIsExtractingSpecs(false);
           }
       } catch (err: any) {
           if (err.message.includes("API_KEY_REQUIRED")) {
@@ -116,13 +163,115 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
       if (!generatedCode) {
           setLoading(true);
           try {
-              const code = await generateWebsiteStructure(prompt);
+              // Use design spec for strict generation if available
+              const code = await generateWebsiteStructure(prompt, designSpec || undefined);
               setGeneratedCode(code);
+
+              // Verify the generated code against design spec
+              if (designSpec && generatedImage) {
+                  try {
+                      const result = await verifyWebsiteAgainstSpec(code, designSpec, generatedImage);
+                      setVerificationResult(result);
+
+                      // Show verification modal if score is below threshold
+                      if (result.overallMatchScore < 85) {
+                          setShowVerificationModal(true);
+                      }
+                  } catch (verifyError) {
+                      console.error('Verification failed:', verifyError);
+                  }
+              }
           } finally {
               setLoading(false);
           }
       }
   }
+
+  // Handle design spec confirmation
+  const handleDesignSpecConfirm = (updatedSpec: DesignSpecification) => {
+      setDesignSpec(updatedSpec);
+      setShowDesignSpecReview(false);
+
+      // Update lead with confirmed spec
+      if (selectedLead && onUpdateLead) {
+          onUpdateLead({
+              ...selectedLead,
+              brandGuidelines: {
+                  ...selectedLead.brandGuidelines,
+                  designSpec: updatedSpec
+              }
+          });
+      }
+  };
+
+  // Handle verification approval
+  const handleVerificationApprove = () => {
+      setShowVerificationModal(false);
+  };
+
+  // Handle regeneration request
+  const handleRegenerate = async () => {
+      setShowVerificationModal(false);
+      setGeneratedCode(null);
+      setLoading(true);
+
+      try {
+          const code = await generateWebsiteStructure(prompt, designSpec || undefined);
+          setGeneratedCode(code);
+
+          // Re-verify
+          if (designSpec && generatedImage) {
+              const result = await verifyWebsiteAgainstSpec(code, designSpec, generatedImage);
+              setVerificationResult(result);
+
+              if (result.overallMatchScore < 85) {
+                  setShowVerificationModal(true);
+              }
+          }
+      } finally {
+          setLoading(false);
+      }
+  };
+
+  // Handle asset upload from verification modal
+  const handleAssetUpload = (assetType: string, file: File) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+          const dataUrl = e.target?.result as string;
+
+          if (designSpec) {
+              const updatedSpec = { ...designSpec };
+
+              if (assetType === 'logo') {
+                  updatedSpec.assets.logo = {
+                      url: dataUrl,
+                      required: true
+                  };
+              } else if (assetType === 'hero-image') {
+                  updatedSpec.assets.heroImage = {
+                      url: dataUrl,
+                      required: false,
+                      placement: 'hero section',
+                      description: 'Hero background image'
+                  };
+              }
+
+              setDesignSpec(updatedSpec);
+
+              // Update lead
+              if (selectedLead && onUpdateLead) {
+                  onUpdateLead({
+                      ...selectedLead,
+                      brandGuidelines: {
+                          ...selectedLead.brandGuidelines,
+                          designSpec: updatedSpec
+                      }
+                  });
+              }
+          }
+      };
+      reader.readAsDataURL(file);
+  };
 
   const handleRefineCode = async () => {
       if (!generatedCode || !refinementPrompt) return;
@@ -180,6 +329,40 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
   return (
     <div className="space-y-6">
         {showKeyModal && <ApiKeyModal onClose={() => setShowKeyModal(false)} onConfirm={handleKeySelected} />}
+
+        {/* Design Spec Review Modal */}
+        {showDesignSpecReview && designSpec && (
+            <DesignSpecReview
+                designSpec={designSpec}
+                conceptImage={generatedImage || undefined}
+                onConfirm={handleDesignSpecConfirm}
+                onCancel={() => setShowDesignSpecReview(false)}
+            />
+        )}
+
+        {/* Design Verification Modal */}
+        {showVerificationModal && verificationResult && designSpec && (
+            <DesignVerificationModal
+                verificationResult={verificationResult}
+                designSpec={designSpec}
+                conceptImage={generatedImage || undefined}
+                generatedHtml={generatedCode || ''}
+                onApprove={handleVerificationApprove}
+                onRegenerate={handleRegenerate}
+                onUploadAsset={handleAssetUpload}
+            />
+        )}
+
+        {/* Design Spec Extraction Loading Indicator */}
+        {isExtractingSpecs && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-2xl p-8 max-w-md text-center shadow-xl">
+                    <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">Extracting Design Specifications</h3>
+                    <p className="text-gray-500">Analyzing colors, fonts, layout, and sections from your concept...</p>
+                </div>
+            </div>
+        )}
 
       <div className="text-center mb-6">
         <h1 className="text-3xl font-bold text-gray-800 font-serif">Dream Website Builder</h1>

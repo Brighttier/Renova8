@@ -110,6 +110,7 @@ export interface Lead {
     colors: string[];
     tone: string;
     suggestions: string;
+    designSpec?: DesignSpecification;  // Extended design specifications for strict consistency
   };
   emailDraft?: {
     subject: string;
@@ -184,4 +185,96 @@ export interface SocialPreset {
   icon: string;
   ratio: AspectRatio;
   description: string;
+}
+
+// Design Specification for strict concept-to-website consistency
+export interface DesignSpecification {
+  colors: {
+    primary: string;
+    secondary: string;
+    accent: string;
+    background: string;
+    text: string;
+    exactHexCodes: string[];
+  };
+  typography: {
+    headingFont: string;
+    bodyFont: string;
+    baseFontSize: string;
+    headingSizes: {
+      h1: string;
+      h2: string;
+      h3: string;
+    };
+  };
+  layout: {
+    maxWidth: string;
+    sectionPadding: string;
+    gridColumns: number;
+    gutterWidth: string;
+  };
+  components: {
+    header: {
+      style: 'fixed' | 'sticky' | 'static';
+      logoPlacement: 'left' | 'center';
+    };
+    hero: {
+      height: string;
+      alignment: 'left' | 'center' | 'right';
+    };
+    buttons: {
+      borderRadius: string;
+      style: 'solid' | 'outline' | 'ghost';
+    };
+    cards: {
+      borderRadius: string;
+      shadow: string;
+    };
+  };
+  content: {
+    sections: SectionSpec[];
+    exactText: { [key: string]: string };
+  };
+  assets: {
+    logo?: AssetSpec;
+    heroImage?: AssetSpec;
+    images: AssetSpec[];
+  };
+  verification: {
+    missingAssets: string[];
+    discrepancies: DiscrepancyReport[];
+  };
+}
+
+export interface SectionSpec {
+  type: string;
+  order: number;
+  requiredContent: string[];
+}
+
+export interface AssetSpec {
+  id: string;
+  type: 'logo' | 'image' | 'icon';
+  source: 'user' | 'placeholder' | 'ai-generated';
+  url?: string;
+  placement: string;
+  required: boolean;
+}
+
+export interface DiscrepancyReport {
+  element: string;
+  expected: string;
+  actual: string;
+  severity: 'critical' | 'major' | 'minor';
+}
+
+export interface VerificationResult {
+  overallMatchScore: number;
+  colorMatchScore: number;
+  layoutMatchScore: number;
+  typographyMatchScore: number;
+  discrepancies: DiscrepancyReport[];
+  recommendations: string[];
+  missingAssets: { type: string; description: string; placement: string; required: boolean; }[];
+  approved: boolean;
 }

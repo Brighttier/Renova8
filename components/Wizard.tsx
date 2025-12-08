@@ -1,15 +1,19 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Lead, HistoryItem, AspectRatio, ImageSize } from '../types';
-import { 
-    findLeadsWithMaps, 
-    generateBrandAnalysis, 
-    generateWebsiteConceptImage, 
-    generateCampaignStrategy, 
-    generateWebsiteStructure, 
+import { Lead, HistoryItem, AspectRatio, ImageSize, DesignSpecification, VerificationResult } from '../types';
+import {
+    findLeadsWithMaps,
+    generateBrandAnalysis,
+    generateWebsiteConceptImage,
+    generateCampaignStrategy,
+    generateWebsiteStructure,
     generatePitchEmail,
     promptForKeySelection
 } from '../services/geminiService';
+import { extractDesignSpecFromImage, createDefaultDesignSpec } from '../services/designExtractionService';
+import { verifyWebsiteAgainstSpec } from '../services/verificationService';
 import { ApiKeyModal } from './ApiKeyModal';
+import { DesignSpecReview } from './DesignSpecReview';
+import { DesignVerificationModal } from './DesignVerificationModal';
 
 interface Props {
     onUseCredit: (amount: number) => void;
@@ -52,9 +56,16 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
 
     // Step 4 State: Strategy
     const [strategyGoal, setStrategyGoal] = useState('Increase local awareness and sales');
-    
+
     // Step 5 State: Builder
     const [generatedCode, setGeneratedCode] = useState('');
+
+    // Design Consistency State
+    const [extractedDesignSpec, setExtractedDesignSpec] = useState<DesignSpecification | null>(null);
+    const [showDesignSpecReview, setShowDesignSpecReview] = useState(false);
+    const [showVerificationModal, setShowVerificationModal] = useState(false);
+    const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
+    const [isExtractingSpecs, setIsExtractingSpecs] = useState(false);
 
     // Update active lead if prop changes (sync from external updates)
     useEffect(() => {
@@ -137,28 +148,81 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
             onUseCredit(5);
             const brandColors = activeLead.brandGuidelines?.colors?.join(', ') || '';
             const prompt = `Modern website homepage for ${activeLead.businessName} (${activeLead.details}). Colors: ${brandColors}. Professional, inviting UI/UX.`;
-            
+
             const img = await generateWebsiteConceptImage(prompt, AspectRatio.LANDSCAPE, ImageSize.S_1K, skipKeyCheck);
-            
+
             const historyItem: HistoryItem = {
                 id: `wiz-${Date.now()}`, type: 'WEBSITE_CONCEPT', timestamp: Date.now(), content: img,
                 metadata: { prompt }
             };
 
-            const updated = { 
-                ...activeLead, 
+            const updated = {
+                ...activeLead,
                 websiteConceptImage: img,
                 history: [...(activeLead.history || []), historyItem]
             };
             setActiveLead(updated);
             onUpdateLead(updated);
+
+            // Auto-extract design specifications from the concept image
+            setIsExtractingSpecs(true);
+            try {
+                const designSpec = await extractDesignSpecFromImage(
+                    img,
+                    activeLead.businessName,
+                    activeLead.brandGuidelines
+                );
+                setExtractedDesignSpec(designSpec);
+
+                // Update lead with design spec
+                const updatedWithSpec = {
+                    ...updated,
+                    brandGuidelines: {
+                        ...updated.brandGuidelines,
+                        designSpec
+                    }
+                };
+                setActiveLead(updatedWithSpec);
+                onUpdateLead(updatedWithSpec);
+
+                // Show design spec review modal
+                setShowDesignSpecReview(true);
+            } catch (specError) {
+                console.error('Failed to extract design specs:', specError);
+                // Fallback to default design spec based on brand guidelines
+                if (activeLead.brandGuidelines) {
+                    const defaultSpec = createDefaultDesignSpec(activeLead.brandGuidelines);
+                    setExtractedDesignSpec(defaultSpec);
+                }
+            } finally {
+                setIsExtractingSpecs(false);
+            }
         } catch (e: any) {
-             if (e.message.includes("API_KEY_REQUIRED")) {
+            if (e.message.includes("API_KEY_REQUIRED")) {
                 setPendingAction(() => () => handleVisualize(true));
                 setShowKeyModal(true);
             }
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Handle design spec confirmation
+    const handleDesignSpecConfirm = (updatedSpec: DesignSpecification) => {
+        setExtractedDesignSpec(updatedSpec);
+        setShowDesignSpecReview(false);
+
+        // Update lead with confirmed design spec
+        if (activeLead) {
+            const updated = {
+                ...activeLead,
+                brandGuidelines: {
+                    ...activeLead.brandGuidelines,
+                    designSpec: updatedSpec
+                }
+            };
+            setActiveLead(updated);
+            onUpdateLead(updated);
         }
     };
 
@@ -191,21 +255,42 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
         }
     };
 
-    // Step 5: Build
+    // Step 5: Build (with strict design consistency)
     const handleBuild = async () => {
         if (!activeLead) return;
         setLoading(true);
         try {
             onUseCredit(10);
             const brandColors = activeLead.brandGuidelines?.colors?.join(', ') || '';
-            const prompt = `A single page website for ${activeLead.businessName}. ${activeLead.details}. 
-            Style: ${activeLead.brandGuidelines?.tone || 'Professional'}. 
-            Primary Colors: ${brandColors}. 
+            const prompt = `A single page website for ${activeLead.businessName}. ${activeLead.details}.
+            Style: ${activeLead.brandGuidelines?.tone || 'Professional'}.
+            Primary Colors: ${brandColors}.
             Include Hero, Services, Reviews, Contact.`;
-            
-            const code = await generateWebsiteStructure(prompt);
+
+            // Use design spec if available for strict consistency
+            const designSpec = activeLead.brandGuidelines?.designSpec || extractedDesignSpec;
+            const code = await generateWebsiteStructure(prompt, designSpec || undefined);
             setGeneratedCode(code);
-            
+
+            // Verify the generated website against design specs
+            if (designSpec && activeLead.websiteConceptImage) {
+                try {
+                    const verification = await verifyWebsiteAgainstSpec(
+                        code,
+                        designSpec,
+                        activeLead.websiteConceptImage
+                    );
+                    setVerificationResult(verification);
+
+                    // Show verification modal if there are issues
+                    if (verification.overallMatchScore < 85 || verification.discrepancies.length > 0) {
+                        setShowVerificationModal(true);
+                    }
+                } catch (verifyError) {
+                    console.error('Verification failed:', verifyError);
+                }
+            }
+
             // Create blob url for preview/deploy
             const blob = new Blob([code], { type: 'text/html' });
             const url = URL.createObjectURL(blob);
@@ -215,8 +300,8 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
                 metadata: { prompt }
             };
 
-            const updated = { 
-                ...activeLead, 
+            const updated = {
+                ...activeLead,
                 websiteUrl: url,
                 history: [...(activeLead.history || []), historyItem]
             };
@@ -225,6 +310,63 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
         } finally {
             setLoading(false);
         }
+    };
+
+    // Handle verification approval
+    const handleVerificationApprove = () => {
+        setShowVerificationModal(false);
+        // Website is already saved, just close the modal
+    };
+
+    // Handle regeneration request from verification
+    const handleRegenerate = async () => {
+        setShowVerificationModal(false);
+        await handleBuild();
+    };
+
+    // Handle asset upload from verification modal
+    const handleAssetUpload = (type: string, file: File) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const url = e.target?.result as string;
+            if (extractedDesignSpec) {
+                const updatedSpec = { ...extractedDesignSpec };
+                if (type === 'logo') {
+                    updatedSpec.assets.logo = {
+                        id: `logo-${Date.now()}`,
+                        type: 'logo',
+                        source: 'user',
+                        url,
+                        placement: 'header',
+                        required: true
+                    };
+                } else if (type === 'hero-image') {
+                    updatedSpec.assets.heroImage = {
+                        id: `hero-${Date.now()}`,
+                        type: 'image',
+                        source: 'user',
+                        url,
+                        placement: 'hero section',
+                        required: false
+                    };
+                }
+                setExtractedDesignSpec(updatedSpec);
+
+                // Update lead with new asset
+                if (activeLead) {
+                    const updated = {
+                        ...activeLead,
+                        brandGuidelines: {
+                            ...activeLead.brandGuidelines,
+                            designSpec: updatedSpec
+                        }
+                    };
+                    setActiveLead(updated);
+                    onUpdateLead(updated);
+                }
+            }
+        };
+        reader.readAsDataURL(file);
     };
 
     // Step 6: Pitch (Generate Email)
@@ -300,6 +442,30 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
     return (
         <div className="max-w-5xl mx-auto pb-20">
             {showKeyModal && <ApiKeyModal onClose={() => setShowKeyModal(false)} onConfirm={handleKeyConfirm} />}
+
+            {/* Design Spec Review Modal */}
+            {showDesignSpecReview && extractedDesignSpec && (
+                <DesignSpecReview
+                    designSpec={extractedDesignSpec}
+                    conceptImage={activeLead?.websiteConceptImage}
+                    onConfirm={handleDesignSpecConfirm}
+                    onCancel={() => setShowDesignSpecReview(false)}
+                />
+            )}
+
+            {/* Design Verification Modal */}
+            {showVerificationModal && verificationResult && extractedDesignSpec && activeLead?.websiteConceptImage && (
+                <DesignVerificationModal
+                    conceptImage={activeLead.websiteConceptImage}
+                    generatedHtml={generatedCode}
+                    verificationResult={verificationResult}
+                    designSpec={extractedDesignSpec}
+                    onApprove={handleVerificationApprove}
+                    onRegenerate={handleRegenerate}
+                    onUploadAsset={handleAssetUpload}
+                    onClose={() => setShowVerificationModal(false)}
+                />
+            )}
 
             <div className="text-center mb-10">
                 <h1 className="text-4xl font-bold text-[#4A4A4A] font-serif mb-2">Business Builder Wizard</h1>
