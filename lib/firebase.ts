@@ -42,21 +42,33 @@ const firebaseConfig = {
 // Initialize Firebase
 // ============================================
 
-let app: FirebaseApp;
-let auth: Auth;
-let db: Firestore;
-let functions: Functions;
+let app: FirebaseApp | null = null;
+let auth: Auth | null = null;
+let db: Firestore | null = null;
+let functions: Functions | null = null;
 
-// Check if Firebase is already initialized
-if (getApps().length === 0) {
-  app = initializeApp(firebaseConfig);
+// Only initialize Firebase if config is present
+const isConfigured = !!(
+  firebaseConfig.apiKey &&
+  firebaseConfig.projectId &&
+  firebaseConfig.authDomain
+);
+
+if (isConfigured) {
+  // Check if Firebase is already initialized
+  if (getApps().length === 0) {
+    app = initializeApp(firebaseConfig);
+  } else {
+    app = getApps()[0];
+  }
+
+  auth = getAuth(app);
+  db = getFirestore(app);
+  functions = getFunctions(app);
 } else {
-  app = getApps()[0];
+  console.warn("⚠️ Firebase is not configured. Auth features will be disabled.");
+  console.warn("   Add Firebase config to your .env file to enable authentication.");
 }
-
-auth = getAuth(app);
-db = getFirestore(app);
-functions = getFunctions(app);
 
 // ============================================
 // Connect to Emulators in Development
@@ -64,7 +76,7 @@ functions = getFunctions(app);
 
 const USE_EMULATORS = import.meta.env.DEV && import.meta.env.VITE_USE_EMULATORS === "true";
 
-if (USE_EMULATORS) {
+if (USE_EMULATORS && isConfigured && auth && db && functions) {
   console.log("🔧 Connecting to Firebase emulators...");
 
   try {

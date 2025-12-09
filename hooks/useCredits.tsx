@@ -12,6 +12,7 @@ import {
   getCredits as getCreditsFunction,
   createTokenCheckout,
   GetCreditsResponse,
+  isFirebaseConfigured,
 } from "../lib/firebase";
 import { useAuth } from "./useAuth";
 
@@ -54,6 +55,13 @@ export function useCredits(): UseCreditsReturn {
 
   // Real-time listener for credit balance
   useEffect(() => {
+    // If Firebase is not configured, use demo mode with free credits
+    if (!isFirebaseConfigured() || !db) {
+      setCredits(100); // Demo mode: give 100 free credits
+      setLoading(false);
+      return;
+    }
+
     if (!user) {
       setCredits(0);
       setTransactions([]);
@@ -91,6 +99,11 @@ export function useCredits(): UseCreditsReturn {
 
   // Fetch full credit details including transactions
   const refreshCredits = useCallback(async () => {
+    // Demo mode: no real credit fetching
+    if (!isFirebaseConfigured() || !db || !getCreditsFunction) {
+      return;
+    }
+
     if (!user) return;
 
     setLoading(true);
