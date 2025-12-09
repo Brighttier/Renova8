@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AppView } from '../types';
+import { useAuth } from '../hooks/useAuth';
+import { useCredits } from '../hooks/useCredits';
 
 interface Props {
     onNavigate: (view: AppView) => void;
@@ -7,9 +9,19 @@ interface Props {
     onRestartTour?: () => void;
 }
 
-export const Header: React.FC<Props> = ({ onNavigate, credits, onRestartTour }) => {
+export const Header: React.FC<Props> = ({ onNavigate, credits: legacyCredits, onRestartTour }) => {
+    const { user, signOut } = useAuth();
+    const { credits: firebaseCredits, loading: creditsLoading } = useCredits();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Use Firebase credits if logged in, otherwise fall back to legacy
+    const credits = user ? firebaseCredits : legacyCredits;
+
+    // Get user display info
+    const displayName = user?.displayName || 'Guest User';
+    const userEmail = user?.email || '';
+    const avatarSeed = user?.email || 'guest';
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
@@ -60,8 +72,10 @@ export const Header: React.FC<Props> = ({ onNavigate, credits, onRestartTour }) 
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <div className="flex flex-col">
-                        <span className="text-[10px] text-[#4A4A4A]/60 uppercase tracking-wider font-medium hidden md:block">Credits</span>
-                        <span className="text-sm md:text-base font-bold text-[#D4AF37]">{credits}</span>
+                        <span className="text-[10px] text-[#4A4A4A]/60 uppercase tracking-wider font-medium hidden md:block">Tokens</span>
+                        <span className="text-sm md:text-base font-bold text-[#D4AF37]">
+                            {creditsLoading ? '...' : credits.toLocaleString()}
+                        </span>
                     </div>
                  </div>
 
@@ -75,17 +89,17 @@ export const Header: React.FC<Props> = ({ onNavigate, credits, onRestartTour }) 
 
                 {/* User Profile */}
                 <div className="relative" ref={dropdownRef}>
-                    <button 
+                    <button
                         onClick={() => setIsProfileOpen(!isProfileOpen)}
                         className="flex items-center gap-3 hover:bg-[#F9F6F0] p-1.5 md:p-2 rounded-xl transition-colors border border-transparent hover:border-[#EFEBE4]"
                     >
                         <div className="text-right hidden md:block">
-                            <p className="text-sm font-bold text-[#4A4A4A]">Jane Doe</p>
-                            <p className="text-xs text-[#D4AF37] font-medium tracking-wide">Pro Concierge</p>
+                            <p className="text-sm font-bold text-[#4A4A4A]">{displayName}</p>
+                            <p className="text-xs text-[#D4AF37] font-medium tracking-wide">{user ? 'Pro Concierge' : 'Guest'}</p>
                         </div>
                         <div className="h-9 w-9 md:h-10 md:w-10 rounded-full bg-[#D4AF37] p-0.5">
                             <div className="h-full w-full rounded-full bg-[#F9F6F0] flex items-center justify-center overflow-hidden">
-                                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Jane" alt="User" />
+                                <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${avatarSeed}`} alt="User" />
                             </div>
                         </div>
                         <svg className={`w-4 h-4 text-gray-400 transition-transform ${isProfileOpen ? 'rotate-180' : ''} hidden md:block`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
@@ -95,8 +109,8 @@ export const Header: React.FC<Props> = ({ onNavigate, credits, onRestartTour }) 
                     {isProfileOpen && (
                         <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-xl border border-[#EFEBE4] py-2 z-50 animate-fadeIn origin-top-right">
                             <div className="px-4 py-3 border-b border-[#F9F6F0] bg-[#F9F6F0]/50 rounded-t-2xl md:hidden">
-                                <p className="text-sm font-bold text-[#4A4A4A]">Jane Doe</p>
-                                <p className="text-xs text-[#D4AF37]">Pro Concierge</p>
+                                <p className="text-sm font-bold text-[#4A4A4A]">{displayName}</p>
+                                <p className="text-xs text-[#D4AF37]">{user ? 'Pro Concierge' : 'Guest'}</p>
                             </div>
                             <div className="px-4 py-2 border-b border-[#F9F6F0] bg-[#F9F6F0]/30 hidden md:block">
                                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">My Account</p>
@@ -148,8 +162,14 @@ export const Header: React.FC<Props> = ({ onNavigate, credits, onRestartTour }) 
                                         <span>🎯</span> Restart Tour
                                     </button>
                                 )}
-                                <button className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 rounded-lg flex items-center gap-2 font-medium">
-                                    <span>🚪</span> Logout
+                                <button
+                                    onClick={async () => {
+                                        await signOut();
+                                        setIsProfileOpen(false);
+                                    }}
+                                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 hover:text-red-700 rounded-lg flex items-center gap-2 font-medium"
+                                >
+                                    <span>🚪</span> {user ? 'Logout' : 'Sign In'}
                                 </button>
                             </div>
                         </div>

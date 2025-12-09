@@ -16,6 +16,9 @@ import { WebsiteEditor } from './components/WebsiteEditor';
 import { UserProfile, GeneralSettings, UserPassword, PaymentSetup, EmailConfig, HelpSupport } from './components/UserPages';
 import { LandingPage } from './components/LandingPage';
 import { GuidedWalkthrough } from './components/GuidedWalkthrough';
+import { AuthProvider, useAuth } from './hooks/useAuth';
+import { useCredits } from './hooks/useCredits';
+import { AuthPage } from './components/AuthPage';
 
 // Sidebar Icons (Styled for Bloom/Renova8)
 const SearchIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>;
@@ -31,11 +34,14 @@ const EditIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-
 const ChevronLeftIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>;
 const ChevronRightIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>;
 
-export default function App() {
+// Inner component that uses auth and credits hooks
+function AppContent() {
+  const { user, loading: authLoading } = useAuth();
+  const { credits, refreshCredits } = useCredits();
+
   const [currentView, setCurrentView] = useState<AppView>(AppView.LANDING);
   const [leads, setLeads] = useState<Lead[]>([]); // Search results
   const [myCustomers, setMyCustomers] = useState<Lead[]>([]); // Saved customers
-  const [credits, setCredits] = useState(50);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
@@ -92,12 +98,32 @@ export default function App() {
       setCurrentView(AppView.MY_CUSTOMERS);
   };
 
+  // Credit operations - now using Firebase credits
+  // Note: Actual deduction happens on the backend when using Gemini
+  // This is for local UI feedback; real credits are managed by Cloud Functions
   const deductCredit = (amount: number) => {
-    setCredits(prev => Math.max(0, prev - amount));
+    // Refresh credits from server after operations that use credits
+    refreshCredits();
   };
-  
+
   const addCredits = (amount: number) => {
-      setCredits(prev => prev + amount);
+    // Credits are added via Stripe checkout on the backend
+    // This is kept for legacy compatibility but refreshes from server
+    refreshCredits();
+  };
+
+  // Show loading state while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#F9F6F0] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 bg-[#4A4A4A] text-[#F9F6F0] rounded-full flex items-center justify-center font-serif font-bold text-xl shadow-md mx-auto mb-4 animate-pulse">
+            R8.
+          </div>
+          <p className="text-[#4A4A4A]/70">Loading...</p>
+        </div>
+      </div>
+    );
   }
 
   // Landing Page is a full-screen view
@@ -378,8 +404,8 @@ const NavButton = ({ active, onClick, icon, label, collapsed }: { active: boolea
   <button
     onClick={onClick}
     className={`flex items-center px-4 py-3 rounded-xl transition-all duration-300 group ${
-      active 
-        ? 'bg-white shadow-sm border border-[#EFEBE4]' 
+      active
+        ? 'bg-white shadow-sm border border-[#EFEBE4]'
         : 'hover:bg-[#F9F6F0] hover:text-[#4A4A4A]'
     } ${collapsed ? 'justify-center w-full' : 'w-full'}`}
     title={collapsed ? label : undefined}
@@ -388,3 +414,12 @@ const NavButton = ({ active, onClick, icon, label, collapsed }: { active: boolea
     {!collapsed && <span className={`ml-3 font-medium hidden lg:block whitespace-nowrap text-sm ${active ? 'text-[#4A4A4A] font-semibold' : 'text-[#4A4A4A]/70 group-hover:text-[#4A4A4A]'}`}>{label}</span>}
   </button>
 );
+
+// Main App component wrapped with AuthProvider
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
+}
