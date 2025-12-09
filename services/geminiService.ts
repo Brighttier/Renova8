@@ -65,33 +65,33 @@ export const safeParseJSON = (text: string) => {
 
 export const findLeadsWithMaps = async (query: string, location: string) => {
   const ai = await getClient();
-  const prompt = `Find 5 potential local business leads for "${query}" near "${location}". 
+  const prompt = `Find 5 potential local business leads for "${query}" near "${location}".
   For each business, provide a name, a short description of what they do, and why they might need a new website or marketing.
-  
+
   Please also extract their Phone Number and Email address if available in the listing or context.
-  
+
   You MUST return a strictly valid JSON array with objects containing:
   - businessName
   - location
   - details
   - phone (string or null)
   - email (string or null)
-  
+
   IMPORTANT: Ensure all strings are properly escaped. Do not use unescaped newlines or control characters inside string values.
   Do not include markdown formatting. Just the raw JSON.`;
 
-  // Using Flash with Maps grounding for discovery
+  // Using gemini-2.0-flash with Google Search grounding for discovery
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: 'gemini-2.0-flash',
     contents: prompt,
     config: {
-      tools: [{ googleMaps: {} }],
+      tools: [{ googleSearch: {} }],
       maxOutputTokens: 2000,
     }
   });
 
   const parsedLeads = safeParseJSON(response.text || "[]");
-  
+
   return {
     leads: Array.isArray(parsedLeads) ? parsedLeads : [],
     grounding: response.candidates?.[0]?.groundingMetadata?.groundingChunks
@@ -401,4 +401,99 @@ export const promptForKeySelection = async () => {
     if (window.aistudio) {
         await window.aistudio.openSelectKey();
     }
+}
+
+// AI Website Editor - Edit website via natural language prompts
+export const editWebsiteWithAI = async (
+  currentCode: string,
+  userPrompt: string,
+  selectedElement?: { tagName: string; className: string; textContent?: string; outerHTML: string }
+) => {
+    const ai = await getClient();
+
+    const elementContext = selectedElement
+      ? `\n\nThe user has selected this specific element to modify:\nTag: ${selectedElement.tagName}\nClasses: ${selectedElement.className}\nContent: ${selectedElement.textContent || 'N/A'}\nHTML: ${selectedElement.outerHTML.substring(0, 500)}...`
+      : '';
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: `You are an expert web developer. The user wants to modify their website.
+
+Current HTML code:
+\`\`\`html
+${currentCode.substring(0, 20000)}
+\`\`\`
+${elementContext}
+
+User's request: "${userPrompt}"
+
+Instructions:
+1. Make ONLY the changes requested by the user
+2. Preserve all existing functionality, styles, and structure
+3. Keep Tailwind CSS classes and CDN imports intact
+4. If the user asks about a specific element, focus changes on that element
+5. Return the COMPLETE updated HTML code, not just the changed parts
+6. Do not add markdown code blocks - return raw HTML starting with <!DOCTYPE html>
+
+Return the updated HTML code:`,
+        config: {
+            maxOutputTokens: 16000,
+        }
+    });
+
+    const text = response.text || '';
+    // Clean up any markdown formatting
+    return text.replace(/```html/g, '').replace(/```/g, '').trim();
+}
+
+// Generate a summary of changes made to the website
+export const summarizeWebsiteChanges = async (oldCode: string, newCode: string, userPrompt: string) => {
+    const ai = await getClient();
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: `Compare these two HTML versions and summarize what changed in 1-2 sentences.
+
+User's request was: "${userPrompt}"
+
+Old code length: ${oldCode.length} chars
+New code length: ${newCode.length} chars
+
+Provide a brief, user-friendly summary of what was changed (e.g., "Changed the hero section background to blue and updated the headline text").`,
+        config: {
+            maxOutputTokens: 200,
+        }
+    });
+
+    return response.text || 'Changes applied successfully.';
+}
+
+// Generate initial website from description
+export const generateWebsiteFromPrompt = async (description: string, businessName: string) => {
+    const ai = await getClient();
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: `Create a complete, professional single-page website for: "${businessName}"
+
+Description/Requirements: ${description}
+
+Requirements:
+1. Use Tailwind CSS via CDN (<script src="https://cdn.tailwindcss.com"></script>)
+2. Use Google Fonts (Inter or similar modern font)
+3. Include all standard sections: Header/Nav, Hero, Features/Services, About, Testimonials, Contact, Footer
+4. Make it fully responsive and mobile-friendly
+5. Use modern design patterns with proper spacing and typography
+6. Include placeholder images from unsplash.com/photos/random
+7. Use a professional color scheme that fits the business type
+8. Add smooth scroll behavior and hover effects
+9. Return ONLY raw HTML starting with <!DOCTYPE html>. No markdown code blocks.
+
+Generate the complete HTML:`,
+        config: {
+            maxOutputTokens: 16000,
+        }
+    });
+
+    const text = response.text || '';
+    return text.replace(/```html/g, '').replace(/```/g, '').trim();
 }

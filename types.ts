@@ -152,6 +152,8 @@ export enum AppView {
   INVOICING = 'INVOICING',
   VIDEO_STUDIO = 'VIDEO_STUDIO',
   WEBSITE_EDITOR = 'WEBSITE_EDITOR',
+  AI_WEBSITE_EDITOR = 'AI_WEBSITE_EDITOR', // AI-powered website editor (Lovable/Bolt style)
+  SITES_MANAGER = 'SITES_MANAGER', // Sites Manager Dashboard
   SETTINGS = 'SETTINGS',
 
   // User Pages
@@ -161,6 +163,39 @@ export enum AppView {
   PAYMENT_SETUP = 'PAYMENT_SETUP',
   EMAIL_CONFIG = 'EMAIL_CONFIG',
   HELP_SUPPORT = 'HELP_SUPPORT'
+}
+
+// AI Website Editor Types
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: number;
+  codeChanges?: string; // HTML code changes made
+  versionId?: string; // Associated version snapshot
+}
+
+export interface WebsiteVersion {
+  id: string;
+  name: string;
+  htmlCode: string;
+  timestamp: number;
+  messageId?: string; // Associated chat message
+  thumbnail?: string; // Base64 preview image
+}
+
+export interface SelectedElement {
+  selector: string;
+  tagName: string;
+  className: string;
+  textContent?: string;
+  outerHTML: string;
+  rect?: {
+    top: number;
+    left: number;
+    width: number;
+    height: number;
+  };
 }
 
 export enum ImageSize {
