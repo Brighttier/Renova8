@@ -1,0 +1,84 @@
+rules_version = '2';
+
+/**
+ * Firestore Security Rules for Renova8
+ *
+ * These rules ensure:
+ * - Users can only access their own data
+ * - Credit transactions and usage logs are write-protected (Cloud Functions only)
+ * - Token packs are readable but not writable by users
+ * - Processed Stripe events are completely private
+ */
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============================================
+    // User Documents
+    // ============================================
+    match /users/{userId} {
+      // Users can read their own document
+      allow read: if request.auth != null && request.auth.uid == userId;
+
+      // Users can create their own document (fallback if auth trigger fails)
+      allow create: if request.auth != null && request.auth.uid == userId;
+
+      // Users can update non-sensitive fields
+      // tokenBalance and stripeCustomerId can only be updated by Cloud Functions
+      allow update: if request.auth != null
+        && request.auth.uid == userId
+        && !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['tokenBalance', 'stripeCustomerId']);
+
+      // Users cannot delete their own document
+      allow delete: if false;
+
+      // ============================================
+      // Credit Transactions Subcollection
+      // ============================================
+      match /creditTransactions/{transactionId} {
+        // Users can read their own transactions
+        allow read: if request.auth != null && request.auth.uid == userId;
+
+        // Only Cloud Functions can write transactions
+        allow write: if false;
+      }
+
+      // ============================================
+      // Gemini Usage Logs Subcollection
+      // ============================================
+      match /geminiUsageLogs/{logId} {
+        // Users can read their own usage logs
+        allow read: if request.auth != null && request.auth.uid == userId;
+
+        // Only Cloud Functions can write usage logs
+        allow write: if false;
+      }
+    }
+
+    // ============================================
+    // Token Packs Collection
+    // ============================================
+    match /tokenPacks/{packId} {
+      // Any authenticated user can read token pack configurations
+      allow read: if request.auth != null;
+
+      // Only admins via Cloud Functions can modify token packs
+      allow write: if false;
+    }
+
+    // ============================================
+    // Processed Stripe Events Collection
+    // ============================================
+    match /processedStripeEvents/{eventId} {
+      // Completely private - only Cloud Functions access
+      allow read, write: if false;
+    }
+
+    // ============================================
+    // Catch-all: Deny everything else
+    // ============================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
