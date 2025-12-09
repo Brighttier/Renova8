@@ -13,6 +13,8 @@ import { Header } from './components/Header';
 import { Wizard } from './components/Wizard';
 import { Inbox } from './components/Inbox';
 import { WebsiteEditor } from './components/WebsiteEditor';
+import { SitesManager } from './components/SitesManager';
+import { AIWebsiteEditor } from './components/AIWebsiteEditor';
 import { UserProfile, GeneralSettings, UserPassword, PaymentSetup, EmailConfig, HelpSupport } from './components/UserPages';
 import { LandingPage } from './components/LandingPage';
 import { GuidedWalkthrough } from './components/GuidedWalkthrough';
@@ -138,7 +140,53 @@ function AppContent() {
         customers={myCustomers}
         selectedCustomer={selectedLead}
         onUpdateCustomer={updateCustomer}
+        onBack={() => setCurrentView(AppView.SITES_MANAGER)}
+      />
+    );
+  }
+
+  // Sites Manager is a full-screen view
+  if (currentView === AppView.SITES_MANAGER) {
+    return (
+      <SitesManager
+        customers={myCustomers}
+        onEditSite={(customer) => {
+          setSelectedLead(customer);
+          setCurrentView(AppView.WEBSITE_EDITOR);
+        }}
+        onPreviewSite={(customer) => {
+          if (customer.websiteUrl) {
+            window.open(customer.websiteUrl, '_blank');
+          }
+        }}
+        onDeleteSite={(customer) => {
+          if (confirm(`Are you sure you want to delete the website for ${customer.businessName}?`)) {
+            updateCustomer({
+              ...customer,
+              websiteUrl: undefined,
+              websiteConceptImage: undefined
+            });
+          }
+        }}
         onBack={() => setCurrentView(AppView.MY_CUSTOMERS)}
+        onGoToWizard={() => setCurrentView(AppView.WIZARD)}
+        onAIEditor={(customer) => {
+          setSelectedLead(customer);
+          setCurrentView(AppView.AI_WEBSITE_EDITOR);
+        }}
+      />
+    );
+  }
+
+  // AI Website Editor is a full-screen view (Lovable/Bolt style)
+  if (currentView === AppView.AI_WEBSITE_EDITOR) {
+    return (
+      <AIWebsiteEditor
+        customers={myCustomers}
+        selectedCustomer={selectedLead}
+        onUpdateCustomer={updateCustomer}
+        onBack={() => setCurrentView(AppView.SITES_MANAGER)}
+        onUseCredit={deductCredit}
       />
     );
   }
@@ -216,10 +264,10 @@ function AppContent() {
             */}
             <div data-walkthrough="editor">
               <NavButton
-                active={currentView === AppView.WEBSITE_EDITOR}
-                onClick={() => setCurrentView(AppView.WEBSITE_EDITOR)}
+                active={currentView === AppView.SITES_MANAGER || currentView === AppView.WEBSITE_EDITOR || currentView === AppView.AI_WEBSITE_EDITOR}
+                onClick={() => setCurrentView(AppView.SITES_MANAGER)}
                 icon={<EditIcon />}
-                label="Website Editor"
+                label="Website Studio"
                 collapsed={isSidebarCollapsed}
               />
             </div>
