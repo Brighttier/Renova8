@@ -152,7 +152,7 @@ export const generatePitchEmail = async (businessName: string, websiteUrl: strin
 
   // Switched to Flash for better JSON reliability
   const response = await ai.models.generateContent({
-    model: 'gemini-2.5-flash',
+    model: 'gemini-2.0-flash',
     contents: prompt,
     config: {
         maxOutputTokens: 1000,

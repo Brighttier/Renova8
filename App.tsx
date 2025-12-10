@@ -47,9 +47,18 @@ function AppContent() {
 
   const [currentView, setCurrentView] = useState<AppView>(AppView.LANDING);
   const [leads, setLeads] = useState<Lead[]>([]); // Search results
-  const [myCustomers, setMyCustomers] = useState<Lead[]>([]); // Saved customers
+  // Load saved customers from localStorage on mount
+  const [myCustomers, setMyCustomers] = useState<Lead[]>(() => {
+    try {
+      const saved = localStorage.getItem('renova8_customers');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | null>(null);
 
   // Walkthrough state - check localStorage for completion status
   const [showWalkthrough, setShowWalkthrough] = useState(false);
@@ -83,6 +92,29 @@ function AppContent() {
     setHasSeenWalkthrough(false);
     setShowWalkthrough(true);
   };
+
+  // Auto-save customers to localStorage with debounce
+  useEffect(() => {
+    // Skip saving on initial load (empty array)
+    if (myCustomers.length === 0 && !localStorage.getItem('renova8_customers')) {
+      return;
+    }
+
+    setSaveStatus('saving');
+    const timeoutId = setTimeout(() => {
+      try {
+        localStorage.setItem('renova8_customers', JSON.stringify(myCustomers));
+        setSaveStatus('saved');
+        // Clear the "saved" status after 2 seconds
+        setTimeout(() => setSaveStatus(null), 2000);
+      } catch (e) {
+        console.error('Failed to save customers to localStorage:', e);
+        setSaveStatus(null);
+      }
+    }, 500); // Debounce: wait 500ms before saving
+
+    return () => clearTimeout(timeoutId);
+  }, [myCustomers]);
 
   // Add leads from Search to "My Customers"
   const saveCustomer = (lead: Lead) => {

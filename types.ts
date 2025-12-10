@@ -102,6 +102,7 @@ export interface Lead {
   // CRM Data
   addedAt?: number;
   websiteUrl?: string; // The deployed URL
+  websiteCode?: string; // The actual HTML code for the website
   websiteConceptImage?: string; // The initial AI concept image
 
   // AI Generated Data

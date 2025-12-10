@@ -142,7 +142,7 @@ export const AIWebsiteEditor: React.FC<AIWebsiteEditorProps> = ({
   // State
   const [activeCustomer, setActiveCustomer] = useState<Lead | null>(selectedCustomer || null);
   const [showCustomerSelector, setShowCustomerSelector] = useState(!selectedCustomer);
-  const [htmlCode, setHtmlCode] = useState(DEFAULT_WEBSITE);
+  const [htmlCode, setHtmlCode] = useState(selectedCustomer?.websiteCode || DEFAULT_WEBSITE);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
@@ -174,11 +174,45 @@ export const AIWebsiteEditor: React.FC<AIWebsiteEditorProps> = ({
 
   // Initialize with customer's existing website if available
   useEffect(() => {
-    if (activeCustomer?.websiteUrl) {
-      // If customer has deployed website, we'd fetch it
-      // For now, use default or stored code
+    if (activeCustomer?.websiteCode) {
+      // Load the customer's existing website code
+      setHtmlCode(activeCustomer.websiteCode);
+    } else if (activeCustomer) {
+      // Customer exists but no website code - use default
+      setHtmlCode(DEFAULT_WEBSITE);
     }
   }, [activeCustomer]);
+
+  // Auto-save state
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const initialHtmlRef = useRef(selectedCustomer?.websiteCode || DEFAULT_WEBSITE);
+
+  // Auto-save website code changes to customer (debounced)
+  useEffect(() => {
+    // Skip if no customer selected or code hasn't changed from initial
+    if (!activeCustomer || htmlCode === initialHtmlRef.current) {
+      return;
+    }
+
+    setIsSaving(true);
+    const timeoutId = setTimeout(() => {
+      // Update the customer with new website code
+      const updatedCustomer = {
+        ...activeCustomer,
+        websiteCode: htmlCode,
+        // Also update blob URL for preview
+        websiteUrl: URL.createObjectURL(new Blob([htmlCode], { type: 'text/html' }))
+      };
+      onUpdateCustomer(updatedCustomer);
+      setActiveCustomer(updatedCustomer);
+      initialHtmlRef.current = htmlCode; // Update reference to prevent re-saves
+      setIsSaving(false);
+      setLastSaved(new Date());
+    }, 1000); // Debounce: wait 1s before saving
+
+    return () => clearTimeout(timeoutId);
+  }, [htmlCode, activeCustomer, onUpdateCustomer]);
 
   // Scroll chat to bottom
   useEffect(() => {
@@ -678,6 +712,17 @@ export const AIWebsiteEditor: React.FC<AIWebsiteEditorProps> = ({
             <span className="font-semibold text-[#4A4A4A]">
               {activeCustomer?.businessName || 'New Website'}
             </span>
+            {/* Auto-save status indicator */}
+            {isSaving && (
+              <span className="text-xs text-gray-400 flex items-center gap-1">
+                <span className="animate-pulse">●</span> Saving...
+              </span>
+            )}
+            {!isSaving && lastSaved && (
+              <span className="text-xs text-green-500 flex items-center gap-1">
+                ✓ Saved
+              </span>
+            )}
           </div>
         </div>
 

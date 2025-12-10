@@ -42,18 +42,31 @@ const STEPS = [
     { title: "Step 5: Pitch", icon: "💌", desc: "Send Email" }
 ];
 
+// localStorage key for wizard progress
+const WIZARD_PROGRESS_KEY = 'renova8_wizard_progress';
+
 export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead, existingLead }) => {
-    const [hasStarted, setHasStarted] = useState(false);
-    const [currentStep, setCurrentStep] = useState(0);
+    // Load saved progress from localStorage
+    const savedProgress = React.useMemo(() => {
+        try {
+            const saved = localStorage.getItem(WIZARD_PROGRESS_KEY);
+            return saved ? JSON.parse(saved) : null;
+        } catch {
+            return null;
+        }
+    }, []);
+
+    const [hasStarted, setHasStarted] = useState(savedProgress?.hasStarted || false);
+    const [currentStep, setCurrentStep] = useState(savedProgress?.currentStep || 0);
     const [loading, setLoading] = useState(false);
-    const [activeLead, setActiveLead] = useState<Lead | null>(existingLead || null);
+    const [activeLead, setActiveLead] = useState<Lead | null>(existingLead || savedProgress?.activeLead || null);
     const [showKeyModal, setShowKeyModal] = useState(false);
     const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
 
     // Step 1 State: Search
-    const [searchQuery, setSearchQuery] = useState('');
-    const [location, setLocation] = useState('');
-    const [searchResults, setSearchResults] = useState<Lead[]>([]);
+    const [searchQuery, setSearchQuery] = useState(savedProgress?.searchQuery || '');
+    const [location, setLocation] = useState(savedProgress?.location || '');
+    const [searchResults, setSearchResults] = useState<Lead[]>(savedProgress?.searchResults || []);
 
     // Step 4 State: Strategy
     const [strategyGoal, setStrategyGoal] = useState('Increase local awareness and sales');
@@ -74,6 +87,38 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
             setActiveLead(existingLead);
         }
     }, [existingLead]);
+
+    // Auto-save wizard progress to localStorage
+    useEffect(() => {
+        // Only save if wizard has started
+        if (!hasStarted && currentStep === 0 && !activeLead) {
+            return;
+        }
+
+        const progressData = {
+            hasStarted,
+            currentStep,
+            activeLead,
+            searchQuery,
+            location,
+            searchResults
+        };
+
+        const timeoutId = setTimeout(() => {
+            try {
+                localStorage.setItem(WIZARD_PROGRESS_KEY, JSON.stringify(progressData));
+            } catch (e) {
+                console.error('Failed to save wizard progress:', e);
+            }
+        }, 500);
+
+        return () => clearTimeout(timeoutId);
+    }, [hasStarted, currentStep, activeLead, searchQuery, location, searchResults]);
+
+    // Clear saved progress when wizard completes (email sent)
+    const clearWizardProgress = () => {
+        localStorage.removeItem(WIZARD_PROGRESS_KEY);
+    };
 
     const scrollToTop = () => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -304,6 +349,7 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
             const updated = {
                 ...activeLead,
                 websiteUrl: url,
+                websiteCode: code, // Store the actual HTML code for editing
                 history: [...(activeLead.history || []), historyItem]
             };
             setActiveLead(updated);
@@ -753,11 +799,12 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
                                          >
                                              Open in Mail App 🚀
                                          </a>
-                                         <button 
+                                         <button
                                             onClick={() => {
                                                 const updated = { ...activeLead, status: 'contacted' as const };
                                                 onUpdateLead(updated);
                                                 setActiveLead(updated);
+                                                clearWizardProgress(); // Clear saved progress on completion
                                                 alert("Marked as Contacted! Great work!");
                                             }}
                                             className="flex-1 border-2 border-[#D4AF37] text-[#D4AF37] py-4 rounded-xl font-bold hover:bg-[#F9F6F0] transition-all text-lg"
