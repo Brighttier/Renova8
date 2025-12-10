@@ -24,7 +24,7 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
 } from "firebase/auth";
-import { auth } from "../lib/firebase";
+import { auth, isFirebaseConfigured } from "../lib/firebase";
 
 // ============================================
 // Types
@@ -65,15 +65,24 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Check if Firebase is configured
+  const firebaseEnabled = isFirebaseConfigured();
+
   // Listen to auth state changes
   useEffect(() => {
+    // If Firebase isn't configured, just set loading to false and run in demo mode
+    if (!firebaseEnabled || !auth) {
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       setLoading(false);
     });
 
     return unsubscribe;
-  }, []);
+  }, [firebaseEnabled]);
 
   // Clear error
   const clearError = useCallback(() => {
@@ -82,6 +91,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Sign in with email/password
   const signIn = useCallback(async (email: string, password: string) => {
+    if (!firebaseEnabled || !auth) {
+      setError("Firebase not configured. Authentication is unavailable.");
+      throw new Error("Firebase not configured");
+    }
+
     setError(null);
     setLoading(true);
 
@@ -94,11 +108,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [firebaseEnabled]);
 
   // Sign up with email/password
   const signUp = useCallback(
     async (email: string, password: string, displayName?: string) => {
+      if (!firebaseEnabled || !auth) {
+        setError("Firebase not configured. Authentication is unavailable.");
+        throw new Error("Firebase not configured");
+      }
+
       setError(null);
       setLoading(true);
 
@@ -121,11 +140,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
         setLoading(false);
       }
     },
-    []
+    [firebaseEnabled]
   );
 
   // Sign out
   const signOut = useCallback(async () => {
+    if (!firebaseEnabled || !auth) {
+      // In demo mode, just clear the user (no-op)
+      return;
+    }
+
     setError(null);
 
     try {
@@ -135,10 +159,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setError(message);
       throw new Error(message);
     }
-  }, []);
+  }, [firebaseEnabled]);
 
   // Sign in with Google
   const signInWithGoogle = useCallback(async () => {
+    if (!firebaseEnabled || !auth) {
+      setError("Firebase not configured. Authentication is unavailable.");
+      throw new Error("Firebase not configured");
+    }
+
     setError(null);
     setLoading(true);
 
@@ -152,10 +181,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [firebaseEnabled]);
 
   // Reset password
   const resetPassword = useCallback(async (email: string) => {
+    if (!firebaseEnabled || !auth) {
+      setError("Firebase not configured. Authentication is unavailable.");
+      throw new Error("Firebase not configured");
+    }
+
     setError(null);
 
     try {
@@ -165,7 +199,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setError(message);
       throw new Error(message);
     }
-  }, []);
+  }, [firebaseEnabled]);
 
   // Update user profile
   const updateUserProfile = useCallback(

@@ -42,21 +42,28 @@ const firebaseConfig = {
 // Initialize Firebase
 // ============================================
 
-let app: FirebaseApp;
-let auth: Auth;
-let db: Firestore;
-let functions: Functions;
+let app: FirebaseApp | null = null;
+let auth: Auth | null = null;
+let db: Firestore | null = null;
+let functions: Functions | null = null;
 
-// Check if Firebase is already initialized
-if (getApps().length === 0) {
-  app = initializeApp(firebaseConfig);
+// Only initialize Firebase if config is present
+const hasConfig = firebaseConfig.apiKey && firebaseConfig.projectId;
+
+if (hasConfig) {
+  // Check if Firebase is already initialized
+  if (getApps().length === 0) {
+    app = initializeApp(firebaseConfig);
+  } else {
+    app = getApps()[0];
+  }
+
+  auth = getAuth(app);
+  db = getFirestore(app);
+  functions = getFunctions(app);
 } else {
-  app = getApps()[0];
+  console.warn("Firebase not configured. Running in demo mode without authentication.");
 }
-
-auth = getAuth(app);
-db = getFirestore(app);
-functions = getFunctions(app);
 
 // ============================================
 // Connect to Emulators in Development
@@ -64,7 +71,7 @@ functions = getFunctions(app);
 
 const USE_EMULATORS = import.meta.env.DEV && import.meta.env.VITE_USE_EMULATORS === "true";
 
-if (USE_EMULATORS) {
+if (USE_EMULATORS && hasConfig && auth && db && functions) {
   console.log("🔧 Connecting to Firebase emulators...");
 
   try {
@@ -127,29 +134,33 @@ export interface GeminiChatResponse {
 // Cloud Function Callables
 // ============================================
 
+// Create dummy callables that throw helpful errors when Firebase isn't configured
+const createDummyCallable = <TReq, TRes>(name: string) => {
+  return (() => {
+    throw new Error(`Firebase not configured. Cannot call ${name}. Please set up Firebase credentials.`);
+  }) as unknown as ReturnType<typeof httpsCallable<TReq, TRes>>;
+};
+
 /**
  * Get user's credit balance and recent transactions
  */
-export const getCredits = httpsCallable<void, GetCreditsResponse>(
-  functions,
-  "getCredits"
-);
+export const getCredits = functions
+  ? httpsCallable<void, GetCreditsResponse>(functions, "getCredits")
+  : createDummyCallable<void, GetCreditsResponse>("getCredits");
 
 /**
  * Create a Stripe Checkout session for purchasing tokens
  */
-export const createTokenCheckout = httpsCallable<
-  CreateCheckoutRequest,
-  CreateCheckoutResponse
->(functions, "createTokenCheckout");
+export const createTokenCheckout = functions
+  ? httpsCallable<CreateCheckoutRequest, CreateCheckoutResponse>(functions, "createTokenCheckout")
+  : createDummyCallable<CreateCheckoutRequest, CreateCheckoutResponse>("createTokenCheckout");
 
 /**
  * Call Gemini AI with automatic credit deduction
  */
-export const geminiChat = httpsCallable<GeminiChatRequest, GeminiChatResponse>(
-  functions,
-  "geminiChat"
-);
+export const geminiChat = functions
+  ? httpsCallable<GeminiChatRequest, GeminiChatResponse>(functions, "geminiChat")
+  : createDummyCallable<GeminiChatRequest, GeminiChatResponse>("geminiChat");
 
 // ============================================
 // Helper Functions

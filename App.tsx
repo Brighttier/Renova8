@@ -19,6 +19,10 @@ import { GuidedWalkthrough } from './components/GuidedWalkthrough';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { useCredits } from './hooks/useCredits';
 import { AuthPage } from './components/AuthPage';
+import WizardLoaderPreview from './components/WizardLoaderPreview';
+
+// PREVIEW MODE - Set to true to see WizardLoader preview
+const PREVIEW_WIZARD_LOADER = false;
 
 // Sidebar Icons (Styled for Bloom/Renova8)
 const SearchIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>;
@@ -417,6 +421,11 @@ const NavButton = ({ active, onClick, icon, label, collapsed }: { active: boolea
 
 // Main App component wrapped with AuthProvider
 export default function App() {
+  // Preview mode for WizardLoader component
+  if (PREVIEW_WIZARD_LOADER) {
+    return <WizardLoaderPreview />;
+  }
+
   return (
     <AuthProvider>
       <AppContent />
