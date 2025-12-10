@@ -14,6 +14,7 @@ import { verifyWebsiteAgainstSpec } from '../services/verificationService';
 import { ApiKeyModal } from './ApiKeyModal';
 import { DesignSpecReview } from './DesignSpecReview';
 import { DesignVerificationModal } from './DesignVerificationModal';
+import WizardLoader from './WizardLoader';
 
 interface Props {
     onUseCredit: (amount: number) => void;
@@ -676,13 +677,22 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
                              </div>
 
                              {!generatedCode ? (
-                                 <div className="flex-1 flex flex-col items-center justify-center py-12 text-center bg-[#F9F6F0] rounded-[2rem] border-2 border-dashed border-[#D4AF37]/30">
-                                     <div className="text-7xl mb-6">💻</div>
-                                     <p className="text-[#4A4A4A]/70 mb-8 max-w-md text-lg">We will generate a full HTML/Tailwind website based on the analysis and concept we created.</p>
-                                     <button onClick={handleBuild} disabled={loading} className="bg-[#4A4A4A] text-white px-10 py-4 rounded-xl font-bold text-lg shadow-xl hover:bg-[#333] transition-all">
-                                        {loading ? 'Coding...' : 'Build Website Now (10 Cr)'}
-                                    </button>
-                                 </div>
+                                 loading ? (
+                                     <div className="flex-1 flex items-center justify-center bg-white rounded-[2rem] border border-[#EFEBE4] shadow-xl">
+                                         <WizardLoader
+                                             title="Building your website..."
+                                             subtitle="The AI wizard is crafting something magical"
+                                         />
+                                     </div>
+                                 ) : (
+                                     <div className="flex-1 flex flex-col items-center justify-center py-12 text-center bg-[#F9F6F0] rounded-[2rem] border-2 border-dashed border-[#D4AF37]/30">
+                                         <div className="text-7xl mb-6">💻</div>
+                                         <p className="text-[#4A4A4A]/70 mb-8 max-w-md text-lg">We will generate a full HTML/Tailwind website based on the analysis and concept we created.</p>
+                                         <button onClick={handleBuild} disabled={loading} className="bg-[#4A4A4A] text-white px-10 py-4 rounded-xl font-bold text-lg shadow-xl hover:bg-[#333] transition-all">
+                                            Build Website Now (10 Cr)
+                                        </button>
+                                     </div>
+                                 )
                              ) : (
                                  <div className="flex-1 border-[6px] border-[#4A4A4A] rounded-[1.5rem] overflow-hidden relative min-h-[500px] shadow-2xl flex flex-col bg-white">
                                      <div className="bg-[#4A4A4A] text-white text-xs px-4 py-3 flex items-center justify-between shrink-0">

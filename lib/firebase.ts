@@ -48,13 +48,9 @@ let db: Firestore | null = null;
 let functions: Functions | null = null;
 
 // Only initialize Firebase if config is present
-const isConfigured = !!(
-  firebaseConfig.apiKey &&
-  firebaseConfig.projectId &&
-  firebaseConfig.authDomain
-);
+const hasConfig = firebaseConfig.apiKey && firebaseConfig.projectId;
 
-if (isConfigured) {
+if (hasConfig) {
   // Check if Firebase is already initialized
   if (getApps().length === 0) {
     app = initializeApp(firebaseConfig);
@@ -66,8 +62,7 @@ if (isConfigured) {
   db = getFirestore(app);
   functions = getFunctions(app);
 } else {
-  console.warn("⚠️ Firebase is not configured. Auth features will be disabled.");
-  console.warn("   Add Firebase config to your .env file to enable authentication.");
+  console.warn("Firebase not configured. Running in demo mode without authentication.");
 }
 
 // ============================================
@@ -76,7 +71,7 @@ if (isConfigured) {
 
 const USE_EMULATORS = import.meta.env.DEV && import.meta.env.VITE_USE_EMULATORS === "true";
 
-if (USE_EMULATORS && isConfigured && auth && db && functions) {
+if (USE_EMULATORS && hasConfig && auth && db && functions) {
   console.log("🔧 Connecting to Firebase emulators...");
 
   try {
@@ -139,29 +134,33 @@ export interface GeminiChatResponse {
 // Cloud Function Callables
 // ============================================
 
+// Create dummy callables that throw helpful errors when Firebase isn't configured
+const createDummyCallable = <TReq, TRes>(name: string) => {
+  return (() => {
+    throw new Error(`Firebase not configured. Cannot call ${name}. Please set up Firebase credentials.`);
+  }) as unknown as ReturnType<typeof httpsCallable<TReq, TRes>>;
+};
+
 /**
  * Get user's credit balance and recent transactions
  */
-export const getCredits = httpsCallable<void, GetCreditsResponse>(
-  functions,
-  "getCredits"
-);
+export const getCredits = functions
+  ? httpsCallable<void, GetCreditsResponse>(functions, "getCredits")
+  : createDummyCallable<void, GetCreditsResponse>("getCredits");
 
 /**
  * Create a Stripe Checkout session for purchasing tokens
  */
-export const createTokenCheckout = httpsCallable<
-  CreateCheckoutRequest,
-  CreateCheckoutResponse
->(functions, "createTokenCheckout");
+export const createTokenCheckout = functions
+  ? httpsCallable<CreateCheckoutRequest, CreateCheckoutResponse>(functions, "createTokenCheckout")
+  : createDummyCallable<CreateCheckoutRequest, CreateCheckoutResponse>("createTokenCheckout");
 
 /**
  * Call Gemini AI with automatic credit deduction
  */
-export const geminiChat = httpsCallable<GeminiChatRequest, GeminiChatResponse>(
-  functions,
-  "geminiChat"
-);
+export const geminiChat = functions
+  ? httpsCallable<GeminiChatRequest, GeminiChatResponse>(functions, "geminiChat")
+  : createDummyCallable<GeminiChatRequest, GeminiChatResponse>("geminiChat");
 
 // ============================================
 // Helper Functions
@@ -173,8 +172,7 @@ export const geminiChat = httpsCallable<GeminiChatRequest, GeminiChatResponse>(
 export function isFirebaseConfigured(): boolean {
   return !!(
     firebaseConfig.apiKey &&
-    firebaseConfig.projectId &&
-    firebaseConfig.authDomain
+    firebaseConfig.projectId
   );
 }
 
