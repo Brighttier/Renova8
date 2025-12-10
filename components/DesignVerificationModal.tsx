@@ -8,8 +8,10 @@ interface DesignVerificationModalProps {
   designSpec: DesignSpecification;
   onApprove: () => void;
   onRegenerate: () => void;
+  onFixIssues: () => void;
   onUploadAsset: (type: string, file: File) => void;
   onClose: () => void;
+  isFixing?: boolean;
 }
 
 const ScoreBar: React.FC<{ label: string; value: number }> = ({ label, value }) => {
@@ -56,8 +58,10 @@ export const DesignVerificationModal: React.FC<DesignVerificationModalProps> = (
   designSpec,
   onApprove,
   onRegenerate,
+  onFixIssues,
   onUploadAsset,
-  onClose
+  onClose,
+  isFixing = false
 }) => {
   const [activeView, setActiveView] = useState<'comparison' | 'discrepancies' | 'assets'>('comparison');
   const [uploadingAsset, setUploadingAsset] = useState<string | null>(null);
@@ -347,16 +351,42 @@ export const DesignVerificationModal: React.FC<DesignVerificationModalProps> = (
           <div className="flex gap-3">
             <button
               onClick={onRegenerate}
-              className="px-5 py-2.5 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2"
+              disabled={isFixing}
+              className="px-5 py-2.5 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
               </svg>
               Regenerate
             </button>
+            {verificationResult.discrepancies.length > 0 && (
+              <button
+                onClick={onFixIssues}
+                disabled={isFixing}
+                className="px-5 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isFixing ? (
+                  <>
+                    <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Fixing...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008z" />
+                    </svg>
+                    Fix Issues
+                  </>
+                )}
+              </button>
+            )}
             <button
               onClick={onApprove}
-              className={`px-5 py-2.5 rounded-lg transition-colors font-medium flex items-center gap-2 ${
+              disabled={isFixing}
+              className={`px-5 py-2.5 rounded-lg transition-colors font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed ${
                 overallPassed
                   ? 'bg-[#D4AF37] text-white hover:bg-[#C4A030]'
                   : 'bg-orange-500 text-white hover:bg-orange-600'

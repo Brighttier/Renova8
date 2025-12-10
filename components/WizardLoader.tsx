@@ -8,16 +8,45 @@ import React from 'react';
  * - Floating code blocks and wireframe elements
  * - Magic sparkles and glowing orb
  * - Smooth CSS animations
+ * - Configurable size (small, medium, large)
  */
-const WizardLoader: React.FC<{
+
+interface WizardLoaderProps {
   title?: string;
   subtitle?: string;
-}> = ({
+  size?: 'small' | 'medium' | 'large';
+}
+
+const sizeConfig = {
+  small: {
+    container: 'w-40 h-40',
+    minHeight: 'min-h-[240px]',
+    text: 'text-base',
+    subtext: 'text-xs'
+  },
+  medium: {
+    container: 'w-56 h-56',
+    minHeight: 'min-h-[320px]',
+    text: 'text-lg',
+    subtext: 'text-sm'
+  },
+  large: {
+    container: 'w-72 h-72',
+    minHeight: 'min-h-[400px]',
+    text: 'text-xl',
+    subtext: 'text-sm'
+  }
+};
+
+const WizardLoader: React.FC<WizardLoaderProps> = ({
   title = "Constructing your vision...",
-  subtitle = "AI is assembling the layout"
+  subtitle = "AI is assembling the layout",
+  size = 'medium'
 }) => {
+  const config = sizeConfig[size];
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-[400px] bg-white w-full">
+    <div className={`flex flex-col items-center justify-center ${config.minHeight} bg-white w-full`}>
       {/* CSS Keyframes - injected via style tag */}
       <style>{`
         @keyframes float {
@@ -71,7 +100,7 @@ const WizardLoader: React.FC<{
       `}</style>
 
       {/* ANIMATION CONTAINER */}
-      <div className="relative w-72 h-72">
+      <div className={`relative ${config.container}`}>
 
         {/* Floating Code Block - Top Right */}
         <div
@@ -309,9 +338,9 @@ const WizardLoader: React.FC<{
       </div>
 
       {/* LOADING TEXT */}
-      <div className="mt-6 text-center">
-        <h3 className="text-xl font-bold text-slate-800">{title}</h3>
-        <p className="text-slate-500 text-sm mt-2">{subtitle}</p>
+      <div className="mt-4 text-center">
+        <h3 className={`${config.text} font-bold text-slate-800`}>{title}</h3>
+        <p className={`text-slate-500 ${config.subtext} mt-1`}>{subtitle}</p>
 
         {/* Animated dots */}
         <div className="flex justify-center gap-1 mt-4">

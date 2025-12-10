@@ -7,7 +7,8 @@ import {
     generateCampaignStrategy,
     generateWebsiteStructure,
     generatePitchEmail,
-    promptForKeySelection
+    promptForKeySelection,
+    fixWebsiteIssues
 } from '../services/geminiService';
 import { extractDesignSpecFromImage, createDefaultDesignSpec } from '../services/designExtractionService';
 import { verifyWebsiteAgainstSpec } from '../services/verificationService';
@@ -74,12 +75,16 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
     // Step 5 State: Builder
     const [generatedCode, setGeneratedCode] = useState('');
 
+    // Logo upload state
+    const [uploadedLogo, setUploadedLogo] = useState<string | null>(savedProgress?.uploadedLogo || null);
+
     // Design Consistency State
     const [extractedDesignSpec, setExtractedDesignSpec] = useState<DesignSpecification | null>(null);
     const [showDesignSpecReview, setShowDesignSpecReview] = useState(false);
     const [showVerificationModal, setShowVerificationModal] = useState(false);
     const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
     const [isExtractingSpecs, setIsExtractingSpecs] = useState(false);
+    const [isFixingIssues, setIsFixingIssues] = useState(false);
 
     // Update active lead if prop changes (sync from external updates)
     useEffect(() => {
@@ -101,7 +106,8 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
             activeLead,
             searchQuery,
             location,
-            searchResults
+            searchResults,
+            uploadedLogo
         };
 
         const timeoutId = setTimeout(() => {
@@ -113,7 +119,7 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
         }, 500);
 
         return () => clearTimeout(timeoutId);
-    }, [hasStarted, currentStep, activeLead, searchQuery, location, searchResults]);
+    }, [hasStarted, currentStep, activeLead, searchQuery, location, searchResults, uploadedLogo]);
 
     // Clear saved progress when wizard completes (email sent)
     const clearWizardProgress = () => {
@@ -183,6 +189,76 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
             onUpdateLead(updated);
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Handle logo upload
+    const handleLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            alert('Please upload an image file');
+            return;
+        }
+
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Logo file must be less than 5MB');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const base64 = reader.result as string;
+            setUploadedLogo(base64);
+
+            // Store logo in lead's brandGuidelines if available
+            if (activeLead?.brandGuidelines) {
+                const updated = {
+                    ...activeLead,
+                    brandGuidelines: {
+                        ...activeLead.brandGuidelines,
+                        designSpec: {
+                            ...activeLead.brandGuidelines.designSpec,
+                            assets: {
+                                ...activeLead.brandGuidelines.designSpec?.assets,
+                                logo: {
+                                    url: base64,
+                                    type: file.type,
+                                    source: 'uploaded'
+                                }
+                            }
+                        }
+                    }
+                };
+                setActiveLead(updated);
+                onUpdateLead(updated);
+            }
+        };
+        reader.readAsDataURL(file);
+    };
+
+    // Remove uploaded logo
+    const handleRemoveLogo = () => {
+        setUploadedLogo(null);
+        if (activeLead?.brandGuidelines) {
+            const updated = {
+                ...activeLead,
+                brandGuidelines: {
+                    ...activeLead.brandGuidelines,
+                    designSpec: {
+                        ...activeLead.brandGuidelines.designSpec,
+                        assets: {
+                            ...activeLead.brandGuidelines.designSpec?.assets,
+                            logo: undefined
+                        }
+                    }
+                }
+            };
+            setActiveLead(updated);
+            onUpdateLead(updated);
         }
     };
 
@@ -371,6 +447,49 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
         await handleBuild();
     };
 
+    // Handle fix issues request from verification modal
+    const handleFixIssues = async () => {
+        if (!verificationResult || !extractedDesignSpec || !generatedCode) return;
+
+        setIsFixingIssues(true);
+        try {
+            // Call the AI to fix the specific issues
+            const fixedCode = await fixWebsiteIssues(
+                generatedCode,
+                verificationResult.discrepancies,
+                extractedDesignSpec
+            );
+
+            // Update the generated code
+            setGeneratedCode(fixedCode);
+
+            // Create blob URL for preview
+            const blob = new Blob([fixedCode], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+
+            // Update the lead with fixed code
+            if (activeLead) {
+                const updated = {
+                    ...activeLead,
+                    websiteUrl: url,
+                    websiteCode: fixedCode
+                };
+                setActiveLead(updated);
+                onUpdateLead(updated);
+            }
+
+            // Re-run verification to check improvements
+            const newVerification = await verifyWebsiteAgainstSpec(fixedCode, extractedDesignSpec);
+            setVerificationResult(newVerification);
+
+        } catch (error) {
+            console.error('Error fixing issues:', error);
+            alert('Failed to fix issues. Please try again.');
+        } finally {
+            setIsFixingIssues(false);
+        }
+    };
+
     // Handle asset upload from verification modal
     const handleAssetUpload = (type: string, file: File) => {
         const reader = new FileReader();
@@ -509,8 +628,10 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
                     designSpec={extractedDesignSpec}
                     onApprove={handleVerificationApprove}
                     onRegenerate={handleRegenerate}
+                    onFixIssues={handleFixIssues}
                     onUploadAsset={handleAssetUpload}
                     onClose={() => setShowVerificationModal(false)}
+                    isFixing={isFixingIssues}
                 />
             )}
 
@@ -668,6 +789,44 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
                                             <h3 className="font-bold text-[#D4AF37] mb-4 uppercase text-xs tracking-widest">Strategic Insight</h3>
                                             <p className="text-[#4A4A4A] leading-relaxed font-serif italic text-lg bg-white p-6 rounded-xl shadow-sm border border-[#EFEBE4]">"{activeLead.brandGuidelines.suggestions}"</p>
                                         </div>
+
+                                        {/* Logo Upload Section */}
+                                        <div className="col-span-1 md:col-span-2 mt-4">
+                                            <h3 className="font-bold text-[#D4AF37] mb-4 uppercase text-xs tracking-widest">Customer Logo (Optional)</h3>
+                                            <div className="bg-white p-6 rounded-xl shadow-sm border border-[#EFEBE4]">
+                                                {uploadedLogo ? (
+                                                    <div className="flex items-center gap-6">
+                                                        <img
+                                                            src={uploadedLogo}
+                                                            alt="Customer Logo"
+                                                            className="w-24 h-24 object-contain rounded-lg border border-[#EFEBE4] bg-gray-50 p-2"
+                                                        />
+                                                        <div className="flex-1">
+                                                            <p className="text-sm text-[#4A4A4A] mb-2">Logo uploaded successfully!</p>
+                                                            <p className="text-xs text-[#4A4A4A]/60 mb-3">This logo will be used in the website concept and final website.</p>
+                                                            <button
+                                                                onClick={handleRemoveLogo}
+                                                                className="text-red-500 text-sm font-medium hover:text-red-600 transition-colors"
+                                                            >
+                                                                Remove Logo
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <label className="flex flex-col items-center justify-center cursor-pointer py-4 border-2 border-dashed border-[#D4AF37]/30 rounded-xl hover:border-[#D4AF37]/50 transition-colors">
+                                                        <div className="text-4xl mb-2">📷</div>
+                                                        <span className="text-sm font-medium text-[#4A4A4A]">Upload Customer Logo</span>
+                                                        <span className="text-xs text-[#4A4A4A]/60 mt-1">PNG, JPG, SVG (max 5MB)</span>
+                                                        <input
+                                                            type="file"
+                                                            accept="image/*"
+                                                            onChange={handleLogoUpload}
+                                                            className="hidden"
+                                                        />
+                                                    </label>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
                                     <div className="mt-10 text-right">
                                         <button onClick={nextStep} className="bg-[#2E7D32] text-white px-8 py-3 rounded-xl font-bold shadow-lg hover:bg-[#256628] transition-all transform hover:-translate-y-1">
@@ -728,6 +887,7 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
                                          <WizardLoader
                                              title="Building your website..."
                                              subtitle="The AI wizard is crafting something magical"
+                                             size="small"
                                          />
                                      </div>
                                  ) : (

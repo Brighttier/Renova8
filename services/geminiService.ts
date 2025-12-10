@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { ImageSize, AspectRatio, DesignSpecification } from "../types";
+import { ImageSize, AspectRatio, DesignSpecification, DiscrepancyReport } from "../types";
 
 // Helper to ensure we get a valid client instance
 // For Veo/Pro Image, we need to check for selected API key flow
@@ -594,6 +594,62 @@ Requirements:
 9. Return ONLY raw HTML starting with <!DOCTYPE html>. No markdown code blocks.
 
 Generate the complete HTML:`,
+        config: {
+            maxOutputTokens: 16000,
+        }
+    });
+
+    const text = response.text || '';
+    return text.replace(/```html/g, '').replace(/```/g, '').trim();
+}
+
+/**
+ * Fix website issues based on discrepancies between concept and generated website
+ * Takes the current HTML code and specific discrepancies to fix
+ */
+export const fixWebsiteIssues = async (
+    currentCode: string,
+    discrepancies: DiscrepancyReport[],
+    designSpec: DesignSpecification
+): Promise<string> => {
+    const ai = await getClient();
+
+    // Build specific fix instructions from discrepancies
+    const fixInstructions = discrepancies.map((d, i) =>
+        `${i + 1}. ${d.element}: Change from "${d.actual}" to "${d.expected}" (${d.severity} priority)`
+    ).join('\n');
+
+    // Build design spec context
+    const colorContext = designSpec.colors ?
+        `Primary: ${designSpec.colors.primary}, Secondary: ${designSpec.colors.secondary}, Accent: ${designSpec.colors.accent}, Background: ${designSpec.colors.background}, Text: ${designSpec.colors.text}` : '';
+
+    const typographyContext = designSpec.typography ?
+        `Headings: ${designSpec.typography.headingFont}, Body: ${designSpec.typography.bodyFont}` : '';
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: `You are a precise HTML/CSS code editor. Fix the following website code to match the design specifications exactly.
+
+CURRENT HTML CODE:
+${currentCode}
+
+ISSUES TO FIX:
+${fixInstructions}
+
+DESIGN SPECIFICATIONS TO MATCH:
+Colors: ${colorContext}
+Typography: ${typographyContext}
+
+INSTRUCTIONS:
+1. Fix ONLY the specific issues listed above
+2. Maintain all existing functionality and structure
+3. Ensure colors match the design spec exactly (use the hex values provided)
+4. Ensure typography matches the specified fonts
+5. Keep all existing content, sections, and layout intact
+6. Return the COMPLETE fixed HTML code starting with <!DOCTYPE html>
+7. Do NOT add any markdown code blocks or explanations
+
+Return ONLY the corrected HTML code:`,
         config: {
             maxOutputTokens: 16000,
         }
