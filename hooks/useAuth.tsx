@@ -24,7 +24,7 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
 } from "firebase/auth";
-import { auth } from "../lib/firebase";
+import { auth, isFirebaseConfigured } from "../lib/firebase";
 
 // ============================================
 // Types
@@ -67,6 +67,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Listen to auth state changes
   useEffect(() => {
+    // If Firebase is not configured, skip auth and show app
+    if (!isFirebaseConfigured() || !auth) {
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       setLoading(false);
@@ -82,6 +88,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Sign in with email/password
   const signIn = useCallback(async (email: string, password: string) => {
+    if (!auth) {
+      throw new Error("Firebase is not configured. Please add Firebase config to enable authentication.");
+    }
     setError(null);
     setLoading(true);
 
@@ -99,6 +108,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Sign up with email/password
   const signUp = useCallback(
     async (email: string, password: string, displayName?: string) => {
+      if (!auth) {
+        throw new Error("Firebase is not configured. Please add Firebase config to enable authentication.");
+      }
       setError(null);
       setLoading(true);
 
@@ -126,6 +138,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Sign out
   const signOut = useCallback(async () => {
+    if (!auth) {
+      return; // No auth, nothing to sign out
+    }
     setError(null);
 
     try {
@@ -139,6 +154,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Sign in with Google
   const signInWithGoogle = useCallback(async () => {
+    if (!auth) {
+      throw new Error("Firebase is not configured. Please add Firebase config to enable authentication.");
+    }
     setError(null);
     setLoading(true);
 
@@ -156,6 +174,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Reset password
   const resetPassword = useCallback(async (email: string) => {
+    if (!auth) {
+      throw new Error("Firebase is not configured. Please add Firebase config to enable authentication.");
+    }
     setError(null);
 
     try {
