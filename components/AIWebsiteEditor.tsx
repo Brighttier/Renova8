@@ -1,6 +1,25 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Lead, ChatMessage, WebsiteVersion, SelectedElement } from '../types';
-import { editWebsiteWithAI, generateWebsiteFromPrompt, summarizeWebsiteChanges } from '../services/geminiService';
+import { editWebsiteWithAI, generateWebsiteFromPrompt, summarizeWebsiteChanges, addPageToWebsite } from '../services/geminiService';
+
+// Page templates for multi-page support
+const PAGE_TEMPLATES = [
+  { id: 'about', label: 'About Us', desc: 'Company story, team, mission' },
+  { id: 'services', label: 'Services', desc: 'Service offerings, pricing' },
+  { id: 'gallery', label: 'Gallery', desc: 'Portfolio, image gallery' },
+  { id: 'pricing', label: 'Pricing', desc: 'Pricing plans, packages' },
+  { id: 'contact', label: 'Contact', desc: 'Contact form, location, info' },
+  { id: 'faq', label: 'FAQ', desc: 'Frequently asked questions' },
+  { id: 'blog', label: 'Blog', desc: 'Blog posts list' },
+  { id: 'testimonials', label: 'Testimonials', desc: 'Customer reviews' },
+];
+
+// Detect existing pages from HTML code
+const detectPages = (htmlCode: string): string[] => {
+  const pageMatches = htmlCode.match(/id="page-([^"]+)"/g) || [];
+  const pages = pageMatches.map(m => m.match(/page-([^"]+)/)?.[1] || '').filter(Boolean);
+  return pages.length > 0 ? pages : ['home'];
+};
 
 interface AIWebsiteEditorProps {
   customers: Lead[];
@@ -119,6 +138,8 @@ const PublishIcon = () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 2
 const AttachmentIcon = () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" /></svg>;
 const ImageAttachIcon = () => <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>;
 const CloseIcon = () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>;
+const PlusIcon = () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>;
+const PageIcon = () => <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>;
 
 // Suggestion prompts
 const PROMPT_SUGGESTIONS = [
@@ -165,6 +186,12 @@ export const AIWebsiteEditor: React.FC<AIWebsiteEditorProps> = ({
   const [showPublishModal, setShowPublishModal] = useState(false);
   const [attachments, setAttachments] = useState<Array<{ id: string; name: string; type: string; url: string; size: number }>>([]);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
+
+  // Multi-page support state
+  const [pages, setPages] = useState<string[]>(['home']);
+  const [activePage, setActivePage] = useState('home');
+  const [showAddPageModal, setShowAddPageModal] = useState(false);
+  const [isAddingPage, setIsAddingPage] = useState(false);
 
   // Refs
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -213,6 +240,16 @@ export const AIWebsiteEditor: React.FC<AIWebsiteEditorProps> = ({
 
     return () => clearTimeout(timeoutId);
   }, [htmlCode, activeCustomer, onUpdateCustomer]);
+
+  // Detect pages when HTML code changes
+  useEffect(() => {
+    const detectedPages = detectPages(htmlCode);
+    setPages(detectedPages);
+    // If active page no longer exists, switch to home
+    if (!detectedPages.includes(activePage)) {
+      setActivePage('home');
+    }
+  }, [htmlCode]);
 
   // Scroll chat to bottom
   useEffect(() => {
@@ -583,6 +620,76 @@ export const AIWebsiteEditor: React.FC<AIWebsiteEditorProps> = ({
     }]);
 
     setIsPublishing(false);
+  };
+
+  // Navigate to a specific page in the preview
+  const navigateToPage = useCallback((pageId: string) => {
+    setActivePage(pageId);
+    const iframe = iframeRef.current;
+    if (iframe?.contentWindow) {
+      iframe.contentWindow.location.hash = pageId;
+    }
+  }, []);
+
+  // Handle adding a new page
+  const handleAddPage = async (pageType: string, pageLabel: string) => {
+    if (isAddingPage) return;
+
+    setIsAddingPage(true);
+    setShowAddPageModal(false);
+
+    // Add system message
+    setMessages(prev => [...prev, {
+      id: `msg-${Date.now()}`,
+      role: 'system',
+      content: `Adding "${pageLabel}" page to your website...`,
+      timestamp: Date.now()
+    }]);
+
+    try {
+      // Save current state before changes
+      saveVersion(`Before adding ${pageLabel} page`, htmlCode);
+
+      // Get business context
+      const businessContext = activeCustomer
+        ? `Business: ${activeCustomer.businessName}. ${activeCustomer.details || ''}`
+        : 'Generic business website';
+
+      // Call AI to add the page
+      const newCode = await addPageToWebsite(
+        htmlCode,
+        pageType,
+        pageLabel,
+        businessContext
+      );
+
+      // Use credit
+      onUseCredit(8);
+
+      setHtmlCode(newCode);
+
+      // Add success message
+      setMessages(prev => [...prev, {
+        id: `msg-${Date.now()}`,
+        role: 'assistant',
+        content: `I've added the "${pageLabel}" page to your website! You can now click on the page tabs above to navigate between pages, or continue making changes via chat.`,
+        timestamp: Date.now()
+      }]);
+
+      // Navigate to the new page
+      setTimeout(() => navigateToPage(pageType), 500);
+
+    } catch (error: any) {
+      console.error('Add Page Error:', error);
+      setMessages(prev => [...prev, {
+        id: `msg-${Date.now()}`,
+        role: 'assistant',
+        content: `Sorry, I couldn't add the page: ${error.message || 'Please try again.'}`,
+        timestamp: Date.now()
+      }]);
+    } finally {
+      setIsAddingPage(false);
+    }
   };
 
   // Resize panel handler
@@ -1073,6 +1180,46 @@ export const AIWebsiteEditor: React.FC<AIWebsiteEditorProps> = ({
 
         {/* Right Panel - Preview */}
         <div className="flex-1 flex flex-col bg-gray-100 overflow-hidden">
+          {/* Page Navigation Tabs */}
+          <div className="bg-white border-b border-gray-200 px-4 py-2 flex items-center gap-2 flex-shrink-0">
+            <span className="text-sm font-medium text-gray-500 mr-2 flex items-center gap-1">
+              <PageIcon />
+              Pages:
+            </span>
+            <div className="flex items-center gap-1 flex-wrap">
+              {pages.map(page => (
+                <button
+                  key={page}
+                  onClick={() => navigateToPage(page)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all capitalize ${
+                    activePage === page
+                      ? 'bg-[#D4AF37] text-white shadow-sm'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+              <button
+                onClick={() => setShowAddPageModal(true)}
+                disabled={isAddingPage}
+                className="px-3 py-1.5 rounded-lg text-sm font-medium bg-gradient-to-r from-[#D4AF37] to-[#B8963A] text-white hover:shadow-md transition-all flex items-center gap-1 disabled:opacity-50"
+              >
+                <PlusIcon />
+                Add Page
+              </button>
+            </div>
+            {isAddingPage && (
+              <span className="text-sm text-gray-500 ml-2 flex items-center gap-1">
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                Adding page...
+              </span>
+            )}
+          </div>
+
           {/* Preview Area */}
           <div className="flex-1 overflow-auto p-4 flex justify-center">
             <div
@@ -1146,6 +1293,72 @@ export const AIWebsiteEditor: React.FC<AIWebsiteEditorProps> = ({
           </div>
         )}
       </div>
+
+      {/* Add Page Modal */}
+      {showAddPageModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-hidden">
+            <div className="p-6 border-b border-gray-100">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-serif font-bold text-[#4A4A4A]">Add New Page</h2>
+                <button
+                  onClick={() => setShowAddPageModal(false)}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <CloseIcon />
+                </button>
+              </div>
+              <p className="text-gray-500 text-sm mt-1">
+                Select a page type to add to your website
+              </p>
+            </div>
+
+            <div className="p-4 max-h-[50vh] overflow-y-auto">
+              <div className="grid gap-3">
+                {PAGE_TEMPLATES
+                  .filter(template => !pages.includes(template.id))
+                  .map(template => (
+                    <button
+                      key={template.id}
+                      onClick={() => handleAddPage(template.id, template.label)}
+                      className="w-full p-4 rounded-xl border border-gray-200 hover:border-[#D4AF37] hover:bg-[#F9F6F0] transition-all text-left group"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-semibold text-[#4A4A4A] group-hover:text-[#D4AF37] transition-colors">
+                            {template.label}
+                          </div>
+                          <div className="text-sm text-gray-500 mt-1">
+                            {template.desc}
+                          </div>
+                        </div>
+                        <div className="text-gray-300 group-hover:text-[#D4AF37] transition-colors">
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                {PAGE_TEMPLATES.filter(t => !pages.includes(t.id)).length === 0 && (
+                  <div className="text-center py-8 text-gray-500">
+                    <p>All available page types have been added!</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-gray-100 bg-gray-50">
+              <button
+                onClick={() => setShowAddPageModal(false)}
+                className="w-full px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

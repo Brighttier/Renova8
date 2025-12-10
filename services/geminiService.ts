@@ -604,6 +604,66 @@ Generate the complete HTML:`,
 }
 
 /**
+ * Add a new page to an existing website using SPA hash-based routing
+ * This is used in the AI Website Editor for multi-page support
+ */
+export const addPageToWebsite = async (
+    currentCode: string,
+    pageType: string,
+    pageLabel: string,
+    businessContext: string
+): Promise<string> => {
+    const ai = await getClient();
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: `You are modifying an existing website to add a new page with SPA-style hash routing.
+
+CURRENT WEBSITE HTML:
+${currentCode}
+
+TASK: Add a new "${pageLabel}" page (id: ${pageType}) to this website.
+
+REQUIREMENTS:
+1. Add a new <section id="page-${pageType}" class="page-section" style="display:none"> containing appropriate content for a ${pageLabel} page
+2. Add navigation link in the header nav: <a href="#${pageType}" class="nav-link">${pageLabel}</a>
+3. CRITICAL: Match the existing design exactly (colors, fonts, spacing, button styles, section patterns)
+4. Include appropriate content for a ${pageLabel} page based on the business context
+5. Business context: ${businessContext}
+
+IF the website doesn't have the hash routing script yet, add this script before </body>:
+<script>
+function showPage(pageId) {
+  document.querySelectorAll('.page-section').forEach(s => s.style.display = 'none');
+  const page = document.getElementById('page-' + (pageId || 'home'));
+  if (page) page.style.display = 'block';
+  // Update active nav link
+  document.querySelectorAll('.nav-link').forEach(a => a.classList.remove('active'));
+  const activeLink = document.querySelector('a[href="#' + (pageId || 'home') + '"]');
+  if (activeLink) activeLink.classList.add('active');
+}
+window.addEventListener('hashchange', () => showPage(location.hash.slice(1)));
+document.addEventListener('DOMContentLoaded', () => showPage(location.hash.slice(1) || 'home'));
+</script>
+
+IF the existing main content (hero, features, etc.) is NOT already wrapped in a page section, wrap it in:
+<section id="page-home" class="page-section">
+  <!-- existing main content here -->
+</section>
+
+The header and footer should remain OUTSIDE the page sections (always visible).
+
+Return the COMPLETE updated HTML code starting with <!DOCTYPE html>. No markdown code blocks.`,
+        config: {
+            maxOutputTokens: 20000,
+        }
+    });
+
+    const text = response.text || '';
+    return text.replace(/```html/g, '').replace(/```/g, '').trim();
+}
+
+/**
  * Fix website issues based on discrepancies between concept and generated website
  * Takes the current HTML code and specific discrepancies to fix
  */
