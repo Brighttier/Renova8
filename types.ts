@@ -314,3 +314,295 @@ export interface VerificationResult {
   missingAssets: { type: string; description: string; placement: string; required: boolean; }[];
   approved: boolean;
 }
+
+// ============================================
+// Platform Admin Types
+// ============================================
+
+export type AdminRole = 'super_admin' | 'finance_admin' | 'support_admin' | 'technical_admin' | 'analytics_admin';
+
+export interface PlatformAdmin {
+  id: string;
+  email: string;
+  displayName: string;
+  role: AdminRole;
+  permissions: AdminPermission[];
+  isActive: boolean;
+  isSuperAdmin: boolean;
+  createdAt: number;
+  lastLoginAt?: number;
+  createdBy?: string; // ID of admin who created this admin
+}
+
+export type AdminPermission =
+  | 'users.view' | 'users.edit' | 'users.delete' | 'users.suspend'
+  | 'revenue.view' | 'revenue.refund' | 'revenue.export'
+  | 'hosting.view' | 'hosting.suspend' | 'hosting.delete'
+  | 'support.view' | 'support.respond' | 'support.escalate'
+  | 'analytics.view' | 'analytics.export'
+  | 'settings.view' | 'settings.edit'
+  | 'admins.view' | 'admins.create' | 'admins.edit' | 'admins.delete';
+
+export interface AdminSession {
+  adminId: string;
+  email: string;
+  role: AdminRole;
+  permissions: AdminPermission[];
+  expiresAt: number;
+  createdAt: number;
+}
+
+// Admin Dashboard View Types
+export enum AdminView {
+  OVERVIEW = 'OVERVIEW',
+  USERS = 'USERS',
+  USER_DETAIL = 'USER_DETAIL',
+  REVENUE = 'REVENUE',
+  HOSTING = 'HOSTING',
+  SITE_DETAIL = 'SITE_DETAIL',
+  ANALYTICS = 'ANALYTICS',
+  SUPPORT = 'SUPPORT',
+  TICKET_DETAIL = 'TICKET_DETAIL',
+  PERFORMANCE = 'PERFORMANCE',
+  SETTINGS = 'SETTINGS',
+  ADMIN_MANAGEMENT = 'ADMIN_MANAGEMENT'
+}
+
+// Platform User (as seen by admin)
+export interface PlatformUser {
+  id: string;
+  email: string;
+  displayName: string;
+  phone?: string;
+  company?: string;
+  location?: string;
+  photoURL?: string;
+
+  // Account Status
+  status: 'active' | 'suspended' | 'deleted';
+  emailVerified: boolean;
+
+  // Subscription Info
+  subscriptionId?: string;
+  planId: 'free' | 'starter' | 'pro' | 'enterprise';
+  planStatus: 'active' | 'cancelled' | 'past_due' | 'trialing';
+  trialEndsAt?: number;
+
+  // Usage Tracking
+  credits: number;
+  websitesCreated: number;
+  websitesLimit: number;
+
+  // Billing
+  lifetimeValue: number;
+  lastPaymentAt?: number;
+
+  // Metadata
+  createdAt: number;
+  updatedAt: number;
+  lastLoginAt?: number;
+
+  // Admin Notes
+  adminNotes?: string;
+  tags?: string[];
+}
+
+// Revenue Types
+export interface RevenueMetrics {
+  totalRevenue: number;
+  subscriptionRevenue: number;
+  creditRevenue: number;
+  hostingRevenue: number;
+  refunds: number;
+  mrr: number; // Monthly Recurring Revenue
+  arr: number; // Annual Recurring Revenue
+  arpu: number; // Average Revenue Per User
+  churnRate: number;
+
+  // Comparisons
+  revenueChange: number;
+  mrrChange: number;
+  churnChange: number;
+}
+
+export interface Transaction {
+  id: string;
+  userId: string;
+  userEmail: string;
+  userName: string;
+  type: 'subscription' | 'credit_pack' | 'hosting' | 'refund';
+  amount: number;
+  currency: string;
+  status: 'succeeded' | 'pending' | 'failed' | 'refunded';
+  stripePaymentIntentId?: string;
+  metadata?: {
+    planId?: string;
+    creditAmount?: number;
+    siteId?: string;
+    refundReason?: string;
+  };
+  createdAt: number;
+}
+
+export interface SubscriptionPlan {
+  id: string;
+  name: string;
+  price: number;
+  interval: 'month' | 'year';
+  credits: number;
+  websitesLimit: number;
+  features: string[];
+  activeSubscriptions: number;
+}
+
+// Hosted Website Types (Admin View)
+export interface HostedWebsite {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+
+  // Site Info
+  name: string;
+  description?: string;
+
+  // Hosting
+  subdomain: string;
+  customDomain?: string;
+  sslStatus: 'pending' | 'active' | 'failed';
+
+  // Status
+  status: 'active' | 'suspended' | 'deleted';
+
+  // Metrics
+  bandwidth: number;
+  storage: number;
+  pageViews: number;
+  uptime: number;
+  avgResponseTime: number;
+
+  // Metadata
+  createdAt: number;
+  updatedAt: number;
+  lastDeployedAt?: number;
+}
+
+// Support Ticket Types
+export type TicketPriority = 'urgent' | 'high' | 'normal' | 'low';
+export type TicketStatus = 'open' | 'in_progress' | 'awaiting_reply' | 'resolved' | 'closed';
+export type TicketCategory = 'billing' | 'technical' | 'account' | 'feature_request' | 'general';
+
+export interface SupportTicket {
+  id: string;
+  ticketNumber: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userPlan: string;
+
+  subject: string;
+  category: TicketCategory;
+  priority: TicketPriority;
+  status: TicketStatus;
+
+  messages: TicketMessage[];
+
+  assignedTo?: string;
+  assignedToName?: string;
+
+  tags?: string[];
+
+  createdAt: number;
+  updatedAt: number;
+  resolvedAt?: number;
+  firstResponseAt?: number;
+}
+
+export interface TicketMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderType: 'user' | 'admin';
+  content: string;
+  isInternal: boolean; // Internal admin note
+  attachments?: { name: string; url: string; size: number }[];
+  createdAt: number;
+}
+
+// Analytics Types
+export interface PlatformAnalytics {
+  // User Metrics
+  totalUsers: number;
+  activeUsers: number;
+  newUsersToday: number;
+  newUsersThisMonth: number;
+  userGrowthRate: number;
+
+  // Engagement
+  dau: number; // Daily Active Users
+  wau: number; // Weekly Active Users
+  mau: number; // Monthly Active Users
+  avgSessionDuration: number;
+  actionsPerSession: number;
+
+  // Feature Usage
+  featureUsage: { feature: string; count: number; change: number }[];
+
+  // Conversion Funnel
+  visitors: number;
+  signups: number;
+  trials: number;
+  paidUsers: number;
+
+  // AI Usage
+  aiGenerations: { type: string; count: number; cost: number }[];
+  totalApiCost: number;
+}
+
+// Performance Monitoring Types
+export interface SystemHealth {
+  services: ServiceStatus[];
+  webVitals: WebVitals;
+  errors: ErrorSummary;
+  resourceUsage: ResourceUsage;
+}
+
+export interface ServiceStatus {
+  name: string;
+  status: 'online' | 'degraded' | 'offline';
+  latency: number;
+  uptime: number;
+  requests: number;
+}
+
+export interface WebVitals {
+  lcp: number; // Largest Contentful Paint
+  fid: number; // First Input Delay
+  cls: number; // Cumulative Layout Shift
+  ttfb: number; // Time to First Byte
+}
+
+export interface ErrorSummary {
+  total: number;
+  critical: number;
+  warnings: number;
+  info: number;
+  recentErrors: ErrorLog[];
+}
+
+export interface ErrorLog {
+  id: string;
+  severity: 'critical' | 'warning' | 'info';
+  message: string;
+  service: string;
+  count: number;
+  lastSeen: number;
+  status: 'active' | 'resolved';
+}
+
+export interface ResourceUsage {
+  firebase: { service: string; usage: number; limit: number; cost: number }[];
+  externalApis: { api: string; requests: number; quota: number; cost: number }[];
+  projectedCost: number;
+  budget: number;
+}

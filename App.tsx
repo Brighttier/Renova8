@@ -23,6 +23,10 @@ import { useCredits } from './hooks/useCredits';
 import { AuthPage } from './components/AuthPage';
 import WizardLoaderPreview from './components/WizardLoaderPreview';
 
+// Admin Panel Imports
+import { AdminAuthProvider, useAdminAuth } from './hooks/useAdminAuth';
+import { AdminLoginPage, AdminDashboard } from './components/admin';
+
 // PREVIEW MODE - Set to true to see WizardLoader preview
 const PREVIEW_WIZARD_LOADER = false;
 
@@ -499,6 +503,60 @@ const NavButton = ({ active, onClick, icon, label, collapsed }: { active: boolea
   </button>
 );
 
+// Admin Panel Component
+function AdminPanel() {
+  const { isAuthenticated, isLoading } = useAdminAuth();
+  const [showLogin, setShowLogin] = useState(true);
+
+  // Show loading while checking auth state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-[#D4AF37]/20 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse">
+            <svg className="w-8 h-8 text-[#D4AF37]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+          </div>
+          <p className="text-white/70">Loading admin portal...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If authenticated, show dashboard; otherwise show login
+  if (isAuthenticated) {
+    return (
+      <AdminDashboard onLogout={() => setShowLogin(true)} />
+    );
+  }
+
+  return (
+    <AdminLoginPage onLoginSuccess={() => setShowLogin(false)} />
+  );
+}
+
+// Route handler to determine if we're on admin route
+function useIsAdminRoute(): boolean {
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    // Check if current URL is /admin
+    const checkRoute = () => {
+      const path = window.location.pathname;
+      setIsAdmin(path === '/admin' || path.startsWith('/admin/'));
+    };
+
+    checkRoute();
+
+    // Listen for route changes
+    window.addEventListener('popstate', checkRoute);
+    return () => window.removeEventListener('popstate', checkRoute);
+  }, []);
+
+  return isAdmin;
+}
+
 // Main App component wrapped with AuthProvider
 export default function App() {
   // Preview mode for WizardLoader component
@@ -506,6 +564,18 @@ export default function App() {
     return <WizardLoaderPreview />;
   }
 
+  const isAdminRoute = useIsAdminRoute();
+
+  // Render Admin Panel if on /admin route
+  if (isAdminRoute) {
+    return (
+      <AdminAuthProvider>
+        <AdminPanel />
+      </AdminAuthProvider>
+    );
+  }
+
+  // Render main app
   return (
     <AuthProvider>
       <AppContent />

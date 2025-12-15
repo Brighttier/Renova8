@@ -318,42 +318,263 @@ export const generateSocialMediaImage = async (
   return imageUrl;
 };
 
-export const generateWebsiteStructure = async (prompt: string, designSpec?: DesignSpecification) => {
+export const generateWebsiteStructure = async (prompt: string, designSpec?: DesignSpecification, conceptImage?: string) => {
     const ai = await getClient();
 
-    // If design spec is provided, use strict generation
+    // If concept image is provided, use TWO-STEP process for better replication
+    if (conceptImage) {
+        // Remove data URL prefix if present
+        const imageData = conceptImage.includes(',')
+            ? conceptImage.split(',')[1]
+            : conceptImage;
+
+        // Determine image mime type
+        const mimeType = conceptImage.includes('image/jpeg') ? 'image/jpeg' : 'image/png';
+
+        try {
+            // STEP 1: Analyze the image in extreme detail
+            console.log('Step 1: Analyzing concept image...');
+            const analysisPrompt = `Analyze this website mockup image in EXTREME detail. I need to recreate it exactly in HTML/CSS.
+
+Describe EVERY visual element you see:
+
+1. HEADER:
+   - Background color (exact shade)
+   - Logo text/image and position
+   - Navigation menu items (list each one)
+   - Any buttons and their colors
+   - Is it sticky/fixed?
+
+2. HERO SECTION:
+   - Background (color, gradient, or image description)
+   - Main headline text (exact words if visible)
+   - Subheadline/description text
+   - CTA buttons (text, colors, shape)
+   - Any images and their position (left/right/background)
+   - Layout (text left with image right? centered? etc.)
+
+3. OTHER SECTIONS (describe each one you see):
+   - Section type (features, services, testimonials, about, gallery, etc.)
+   - Layout (grid columns, cards, etc.)
+   - Content in each card/item
+   - Colors and styling
+
+4. FOOTER:
+   - Background color
+   - Content layout
+   - Links and text
+
+5. OVERALL STYLE:
+   - Primary color (hex estimate)
+   - Secondary color (hex estimate)
+   - Accent/button color (hex estimate)
+   - Background colors
+   - Font style (serif, sans-serif, modern, elegant, etc.)
+   - Overall mood (professional, playful, luxury, minimal, etc.)
+
+Be extremely specific about colors, layout positions, and visual hierarchy.`;
+
+            const analysisResponse = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: [
+                    {
+                        role: 'user',
+                        parts: [
+                            { inlineData: { mimeType: mimeType, data: imageData } },
+                            { text: analysisPrompt }
+                        ]
+                    }
+                ],
+                config: { maxOutputTokens: 4000 }
+            });
+
+            const imageAnalysis = analysisResponse.text || '';
+            console.log('Image analysis complete, length:', imageAnalysis.length);
+
+            // STEP 2: Generate HTML based on the detailed analysis
+            console.log('Step 2: Generating HTML from analysis...');
+            const htmlPrompt = `You are an expert frontend developer. Create a pixel-perfect HTML website based on this detailed design analysis:
+
+=== DESIGN ANALYSIS ===
+${imageAnalysis}
+
+=== BUSINESS CONTEXT ===
+${prompt}
+
+${designSpec ? `
+=== EXTRACTED COLORS ===
+Primary: ${designSpec.colors.primary}
+Secondary: ${designSpec.colors.secondary}
+Accent: ${designSpec.colors.accent}
+Background: ${designSpec.colors.background}
+Text: ${designSpec.colors.text}
+Fonts: ${designSpec.typography.headingFont} (headings), ${designSpec.typography.bodyFont} (body)
+` : ''}
+
+=== REQUIREMENTS ===
+Create a COMPLETE single-file HTML website that matches the description above EXACTLY.
+
+1. Start with <!DOCTYPE html>
+2. Include Tailwind CSS:
+   <script src="https://cdn.tailwindcss.com"></script>
+   <script>
+   tailwind.config = {
+     theme: {
+       extend: {
+         colors: {
+           primary: '${designSpec?.colors.primary || '#D4AF37'}',
+           secondary: '${designSpec?.colors.secondary || '#4A4A4A'}',
+           accent: '${designSpec?.colors.accent || '#2E7D32'}',
+         }
+       }
+     }
+   }
+   </script>
+
+3. Import Google Fonts that match the style described
+
+4. Add smooth scrolling:
+   <style>html { scroll-behavior: smooth; }</style>
+
+5. NAVIGATION: Add id to each section, use anchor links (href="#services")
+
+6. SIZING:
+   - Hero: min-h-[600px] or min-h-screen
+   - Sections: py-16 md:py-20 lg:py-24
+   - Container: max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
+
+7. IMAGES - USE THESE EXACT WORKING URLs (choose appropriate ones):
+   Hero backgrounds:
+   - https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&h=1080&fit=crop (modern office)
+   - https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=1920&h=1080&fit=crop (workspace)
+   - https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=1920&h=1080&fit=crop (business meeting)
+
+   Restaurant/Food:
+   - https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1200&h=800&fit=crop (restaurant interior)
+   - https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1200&h=800&fit=crop (food platter)
+   - https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=800&h=600&fit=crop (pizza)
+
+   Services/Business:
+   - https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200&h=800&fit=crop (team working)
+   - https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=800&fit=crop (collaboration)
+   - https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=800&h=600&fit=crop (professional)
+
+   People/Testimonials:
+   - https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop (man portrait)
+   - https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop (woman portrait)
+   - https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop (professional man)
+
+   Icons/Features - use emoji or SVG icons instead of images
+
+8. Match the EXACT layout, colors, and structure from the analysis
+
+Return ONLY the complete HTML code starting with <!DOCTYPE html>. No markdown.`;
+
+            const htmlResponse = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: htmlPrompt,
+                config: { maxOutputTokens: 32000 }
+            });
+
+            let text = htmlResponse.text || '';
+
+            // Clean up the response
+            text = text.replace(/```html\s*/gi, '').replace(/```\s*/g, '').trim();
+
+            // Ensure it starts with DOCTYPE
+            if (!text.toLowerCase().startsWith('<!doctype')) {
+                const doctypeIndex = text.toLowerCase().indexOf('<!doctype');
+                if (doctypeIndex > -1) {
+                    text = text.substring(doctypeIndex);
+                }
+            }
+
+            console.log('HTML generated successfully, length:', text.length);
+            return text;
+
+        } catch (error) {
+            console.error('Two-step generation failed, falling back to text-based:', error);
+            // Fall through to design spec based generation
+        }
+    }
+
+    // If design spec is provided, use strict text-based generation
     if (designSpec) {
         const strictPrompt = buildStrictWebsitePrompt(prompt, designSpec);
         const response = await ai.models.generateContent({
-            model: 'gemini-3-pro-preview',
+            model: 'gemini-2.5-flash',
             contents: strictPrompt,
             config: {
-                maxOutputTokens: 8192,
+                maxOutputTokens: 32000,
             }
         });
-        const text = response.text || '';
-        return text.replace(/```html/g, '').replace(/```/g, '');
+        let text = response.text || '';
+        text = text.replace(/```html\s*/gi, '').replace(/```\s*/g, '').trim();
+        if (!text.toLowerCase().startsWith('<!doctype')) {
+            const doctypeIndex = text.toLowerCase().indexOf('<!doctype');
+            if (doctypeIndex > -1) {
+                text = text.substring(doctypeIndex);
+            }
+        }
+        return text;
     }
 
     // Fallback to basic generation without strict specs
     const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview', // High quality for code generation
-        contents: `Create a complete, single-file HTML website code for: ${prompt}.
+        model: 'gemini-2.5-flash',
+        contents: `Create a complete, professional single-page HTML website for: ${prompt}
 
-        Requirements:
-        1. Use Tailwind CSS via CDN (script tag).
-        2. Use Google Fonts (Quicksand or similar).
-        3. Include a Header (Logo, Nav), Hero Section (with placeholder image using unsplash source if needed), Services/Features, Testimonials, and Contact Form.
-        4. Be fully responsive and mobile-friendly.
-        5. Return ONLY the raw HTML string, starting with <!DOCTYPE html>. Do not wrap in markdown code blocks.`,
+STRUCTURE REQUIREMENTS:
+1. Start with <!DOCTYPE html> - NO markdown code blocks
+2. Include Tailwind CSS: <script src="https://cdn.tailwindcss.com"></script>
+3. Configure custom colors: <script>tailwind.config = { theme: { extend: { colors: { primary: '#D4AF37', secondary: '#4A4A4A', accent: '#2E7D32' }}}}</script>
+4. Import Google Fonts: Playfair Display for headings, Inter for body
+5. Add smooth scrolling: <style>html { scroll-behavior: smooth; }</style>
+
+NAVIGATION - CRITICAL:
+- Fixed header with navigation links
+- Each section needs an id: id="home", id="services", id="about", id="contact"
+- Nav links use anchors: <a href="#services">Services</a>
+- Include mobile menu toggle with JavaScript
+
+SECTIONS (FULL SIZE):
+1. HEADER: Fixed nav, logo left, menu center/right, CTA button
+2. HERO (id="home"): min-h-screen, large headline (text-5xl), subtext, 2 CTA buttons, background image
+3. SERVICES (id="services"): py-20, 3-4 column grid of service cards
+4. ABOUT/TESTIMONIALS (id="about"): py-20, customer reviews or about content
+5. CONTACT (id="contact"): py-20, contact form with name, email, message fields
+6. FOOTER: Dark background, links, social icons, copyright
+
+SIZING:
+- Container: max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
+- Hero: min-h-screen with centered content
+- Sections: py-16 md:py-20 lg:py-24
+- Headlines: text-4xl md:text-5xl lg:text-6xl
+- Buttons: px-6 py-3 rounded-lg with hover effects
+
+IMAGES - USE THESE EXACT WORKING URLS:
+- Hero: https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&h=1080&fit=crop
+- Business: https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200&h=800&fit=crop
+- Team: https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=800&fit=crop
+- Person 1: https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop
+- Person 2: https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop
+- Person 3: https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop
+
+Return ONLY complete HTML starting with <!DOCTYPE html>`,
         config: {
-            maxOutputTokens: 8192, // High token limit for full code
+            maxOutputTokens: 32000,
         }
     });
 
-    // Clean up markdown if present
-    const text = response.text || '';
-    return text.replace(/```html/g, '').replace(/```/g, '');
+    let text = response.text || '';
+    text = text.replace(/```html\s*/gi, '').replace(/```\s*/g, '').trim();
+    if (!text.toLowerCase().startsWith('<!doctype')) {
+        const doctypeIndex = text.toLowerCase().indexOf('<!doctype');
+        if (doctypeIndex > -1) {
+            text = text.substring(doctypeIndex);
+        }
+    }
+    return text;
 }
 
 /**
@@ -427,12 +648,35 @@ ${spec.assets.logo?.url ? `- Logo: <img src="${spec.assets.logo.url}" alt="Logo"
 ${spec.assets.heroImage?.url ? `- Hero Image: <img src="${spec.assets.heroImage.url}">` : '- Hero Image: Use a professional placeholder from unsplash.com matching the business type'}
 
 ## REQUIREMENTS
-1. Use Tailwind CSS via CDN
-2. Import the exact Google Fonts specified above
-3. Use inline style for custom colors: style="color: ${spec.colors.primary}; background-color: ${spec.colors.background};"
-4. Be fully responsive and mobile-friendly
-5. Return ONLY the raw HTML string, starting with <!DOCTYPE html>
-6. Do not wrap in markdown code blocks
+1. Use Tailwind CSS via CDN: <script src="https://cdn.tailwindcss.com"></script>
+2. Configure Tailwind with custom colors:
+   <script>tailwind.config = { theme: { extend: { colors: { primary: '${spec.colors.primary}', secondary: '${spec.colors.secondary}', accent: '${spec.colors.accent}' }}}}</script>
+3. Import the exact Google Fonts specified above
+4. Add smooth scrolling: <style>html { scroll-behavior: smooth; }</style>
+5. Be fully responsive and mobile-friendly
+6. Return ONLY the raw HTML string, starting with <!DOCTYPE html>
+7. Do not wrap in markdown code blocks
+
+## NAVIGATION - CRITICAL
+- Add id attributes to sections: id="home", id="about", id="services", id="contact"
+- Navigation links must use anchor hrefs: <a href="#services">Services</a>
+- Include mobile menu toggle with JavaScript
+
+## SIZING - FULL SIZE WEBSITE
+- Container: max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
+- Hero: min-h-screen or min-h-[600px]
+- Sections: py-16 md:py-20 lg:py-24 for proper spacing
+- Headlines: text-4xl md:text-5xl lg:text-6xl
+
+## IMAGES - USE THESE EXACT WORKING URLS:
+- Hero: https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&h=1080&fit=crop
+- Business: https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200&h=800&fit=crop
+- Team: https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=800&fit=crop
+- Food: https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1200&h=800&fit=crop
+- Restaurant: https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1200&h=800&fit=crop
+- Person 1: https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop
+- Person 2: https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop
+- Person 3: https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop
 
 ## STRICT RULES - VIOLATIONS ARE NOT ACCEPTABLE
 - DO NOT substitute any colors with similar shades

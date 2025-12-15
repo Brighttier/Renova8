@@ -86,6 +86,9 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
     const [isExtractingSpecs, setIsExtractingSpecs] = useState(false);
     const [isFixingIssues, setIsFixingIssues] = useState(false);
 
+    // Error state for user feedback
+    const [error, setError] = useState<string | null>(null);
+
     // Update active lead if prop changes (sync from external updates)
     useEffect(() => {
         if (existingLead && existingLead.id === activeLead?.id) {
@@ -266,12 +269,17 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
     const handleVisualize = async (skipKeyCheck = false) => {
         if (!activeLead) return;
         setLoading(true);
+        setError(null);
         try {
             onUseCredit(5);
             const brandColors = activeLead.brandGuidelines?.colors?.join(', ') || '';
             const prompt = `Modern website homepage for ${activeLead.businessName} (${activeLead.details}). Colors: ${brandColors}. Professional, inviting UI/UX.`;
 
             const img = await generateWebsiteConceptImage(prompt, AspectRatio.LANDSCAPE, ImageSize.S_1K, skipKeyCheck);
+
+            if (!img) {
+                throw new Error('Failed to generate image. Please try again.');
+            }
 
             const historyItem: HistoryItem = {
                 id: `wiz-${Date.now()}`, type: 'WEBSITE_CONCEPT', timestamp: Date.now(), content: img,
@@ -320,9 +328,12 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
                 setIsExtractingSpecs(false);
             }
         } catch (e: any) {
-            if (e.message.includes("API_KEY_REQUIRED")) {
+            console.error('Error generating concept:', e);
+            if (e.message?.includes("API_KEY_REQUIRED")) {
                 setPendingAction(() => () => handleVisualize(true));
                 setShowKeyModal(true);
+            } else {
+                setError(e.message || 'Failed to generate concept. Please try again.');
             }
         } finally {
             setLoading(false);
@@ -381,17 +392,47 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
     const handleBuild = async () => {
         if (!activeLead) return;
         setLoading(true);
+        setError(null);
         try {
             onUseCredit(10);
             const brandColors = activeLead.brandGuidelines?.colors?.join(', ') || '';
-            const prompt = `A single page website for ${activeLead.businessName}. ${activeLead.details}.
-            Style: ${activeLead.brandGuidelines?.tone || 'Professional'}.
-            Primary Colors: ${brandColors}.
-            Include Hero, Services, Reviews, Contact.`;
+            const businessType = activeLead.details?.split('.')[0] || 'business';
+
+            const prompt = `${activeLead.businessName} - ${businessType}.
+Style: ${activeLead.brandGuidelines?.tone || 'Professional, modern'}.
+Brand Colors: ${brandColors || 'Use professional color scheme'}.
+Location: ${activeLead.location || 'Local business'}.
+Sections needed: Hero with call-to-action, About/Services, Features/Benefits, Testimonials, Contact form with map placeholder.`;
 
             // Use design spec if available for strict consistency
             const designSpec = activeLead.brandGuidelines?.designSpec || extractedDesignSpec;
-            const code = await generateWebsiteStructure(prompt, designSpec || undefined);
+
+            // Pass the concept image for exact visual replication
+            const conceptImage = activeLead.websiteConceptImage;
+
+            console.log('Building website with:', {
+                hasConceptImage: !!conceptImage,
+                hasDesignSpec: !!designSpec,
+                businessName: activeLead.businessName
+            });
+
+            const code = await generateWebsiteStructure(prompt, designSpec || undefined, conceptImage);
+
+            // Validate the generated code
+            if (!code) {
+                throw new Error('No code was generated. Please try again.');
+            }
+
+            const hasDoctype = code.toLowerCase().includes('<!doctype');
+            const hasHtml = code.toLowerCase().includes('<html');
+            const hasBody = code.toLowerCase().includes('<body');
+
+            if (!hasDoctype && !hasHtml) {
+                console.error('Invalid HTML generated:', code.substring(0, 500));
+                throw new Error('Generated code is not valid HTML. Please try again.');
+            }
+
+            console.log('Website generated successfully, length:', code.length);
             setGeneratedCode(code);
 
             // Verify the generated website against design specs
@@ -430,6 +471,9 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
             };
             setActiveLead(updated);
             onUpdateLead(updated);
+        } catch (e: any) {
+            console.error('Error building website:', e);
+            setError(e.message || 'Failed to build website. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -842,12 +886,27 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
                     {currentStep === 2 && activeLead && (
                          <div className="max-w-4xl mx-auto animate-fadeIn text-center w-full">
                             <h2 className="text-3xl font-bold mb-8 font-serif text-[#4A4A4A]">Dream up a Concept</h2>
-                            
+
+                            {/* Error Display */}
+                            {error && (
+                                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 flex items-center gap-3">
+                                    <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span>{error}</span>
+                                    <button onClick={() => setError(null)} className="ml-auto text-red-500 hover:text-red-700">
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            )}
+
                             {!activeLead.websiteConceptImage ? (
                                 <div className="py-12 bg-[#F9F6F0] rounded-3xl border border-dashed border-[#D4AF37]/30">
                                     <div className="text-7xl mb-6">🎨</div>
                                     <p className="text-[#4A4A4A]/70 mb-8 max-w-md mx-auto text-lg">Create a stunning, high-fidelity website mockup using Nano Banana Pro AI.</p>
-                                    <button onClick={() => handleVisualize(false)} disabled={loading} className="bg-gradient-to-r from-[#D4AF37] to-[#C5A572] text-white px-10 py-4 rounded-xl font-bold text-lg shadow-xl hover:opacity-90 transition-all transform hover:scale-105">
+                                    <button onClick={() => handleVisualize(false)} disabled={loading} className="bg-gradient-to-r from-[#D4AF37] to-[#C5A572] text-white px-10 py-4 rounded-xl font-bold text-lg shadow-xl hover:opacity-90 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed">
                                         {loading ? 'Painting...' : 'Generate Visual Concept (5 Cr)'}
                                     </button>
                                 </div>
@@ -857,10 +916,14 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
                                         <img src={activeLead.websiteConceptImage} alt="Concept" className="w-full h-auto" />
                                     </div>
                                     <div className="flex justify-center gap-6">
-                                        <button onClick={() => handleVisualize(false)} className="px-8 py-3 text-[#4A4A4A] font-bold hover:bg-[#F9F6F0] rounded-xl transition-colors border border-transparent hover:border-[#EFEBE4]">
-                                            ↻ Regenerate
+                                        <button
+                                            onClick={() => handleVisualize(false)}
+                                            disabled={loading}
+                                            className="px-8 py-3 text-[#4A4A4A] font-bold hover:bg-[#F9F6F0] rounded-xl transition-colors border border-transparent hover:border-[#EFEBE4] disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            {loading ? '↻ Regenerating...' : '↻ Regenerate'}
                                         </button>
-                                        <button onClick={nextStep} className="bg-[#2E7D32] text-white px-10 py-3 rounded-xl font-bold shadow-lg hover:bg-[#256628] transition-all transform hover:-translate-y-1">
+                                        <button onClick={nextStep} disabled={loading} className="bg-[#2E7D32] text-white px-10 py-3 rounded-xl font-bold shadow-lg hover:bg-[#256628] transition-all transform hover:-translate-y-1 disabled:opacity-50 disabled:cursor-not-allowed">
                                             Love it, Next →
                                         </button>
                                     </div>
@@ -881,6 +944,31 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
                                 )}
                              </div>
 
+                             {/* Error Display */}
+                             {error && (
+                                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 flex items-center gap-3">
+                                    <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span>{error}</span>
+                                    <button onClick={() => setError(null)} className="ml-auto text-red-500 hover:text-red-700">
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                </div>
+                             )}
+
+                             {/* Concept Image Reference */}
+                             {activeLead.websiteConceptImage && !generatedCode && !loading && (
+                                <div className="mb-6 p-4 bg-[#F9F6F0] border border-[#EFEBE4] rounded-xl">
+                                    <p className="text-sm text-[#4A4A4A] mb-3 font-medium">The website will be built to match this concept:</p>
+                                    <div className="rounded-lg overflow-hidden border border-[#EFEBE4] max-w-md mx-auto">
+                                        <img src={activeLead.websiteConceptImage} alt="Concept to replicate" className="w-full h-auto" />
+                                    </div>
+                                </div>
+                             )}
+
                              {!generatedCode ? (
                                  loading ? (
                                      <div className="flex-1 flex items-center justify-center bg-white rounded-[2rem] border border-[#EFEBE4] shadow-xl">
@@ -900,23 +988,72 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
                                      </div>
                                  )
                              ) : (
-                                 <div className="flex-1 border-[6px] border-[#4A4A4A] rounded-[1.5rem] overflow-hidden relative min-h-[500px] shadow-2xl flex flex-col bg-white">
-                                     <div className="bg-[#4A4A4A] text-white text-xs px-4 py-3 flex items-center justify-between shrink-0">
-                                         <div className="flex gap-2">
-                                             <div className="w-3 h-3 rounded-full bg-[#FF5F57]"></div>
-                                             <div className="w-3 h-3 rounded-full bg-[#FEBC2E]"></div>
-                                             <div className="w-3 h-3 rounded-full bg-[#28C840]"></div>
+                                 <div className="flex-1 flex flex-col gap-4">
+                                     {/* Side by side comparison header */}
+                                     {activeLead.websiteConceptImage && (
+                                         <div className="flex items-center justify-between bg-[#F9F6F0] rounded-xl p-3 border border-[#EFEBE4]">
+                                             <span className="text-sm text-[#4A4A4A] font-medium">Compare: Concept vs Generated Website</span>
+                                             <button
+                                                 onClick={handleBuild}
+                                                 disabled={loading}
+                                                 className="px-4 py-2 bg-[#D4AF37] text-white rounded-lg text-sm font-medium hover:bg-[#C5A572] transition-colors disabled:opacity-50"
+                                             >
+                                                 {loading ? 'Rebuilding...' : '↻ Rebuild Website'}
+                                             </button>
                                          </div>
-                                         <span className="opacity-50 font-mono tracking-widest text-[10px] uppercase">Live Preview</span>
-                                         <button 
-                                            onClick={() => activeLead.websiteUrl && window.open(activeLead.websiteUrl, '_blank')}
-                                            className="text-gray-400 hover:text-white transition-colors flex items-center gap-1 font-bold hover:bg-white/10 px-2 py-1 rounded"
-                                            title="Open in new tab"
-                                        >
-                                            ↗️ Full Screen
-                                        </button>
+                                     )}
+
+                                     {/* Side by side view */}
+                                     <div className={`flex-1 flex gap-4 ${activeLead.websiteConceptImage ? 'flex-row' : ''}`}>
+                                         {/* Concept image thumbnail */}
+                                         {activeLead.websiteConceptImage && (
+                                             <div className="w-1/3 flex flex-col">
+                                                 <div className="text-xs font-bold text-[#D4AF37] uppercase tracking-widest mb-2">Concept Design</div>
+                                                 <div className="flex-1 border-2 border-[#EFEBE4] rounded-xl overflow-hidden bg-gray-50">
+                                                     <img
+                                                         src={activeLead.websiteConceptImage}
+                                                         alt="Concept"
+                                                         className="w-full h-full object-cover object-top"
+                                                     />
+                                                 </div>
+                                             </div>
+                                         )}
+
+                                         {/* Generated website preview */}
+                                         <div className={`${activeLead.websiteConceptImage ? 'w-2/3' : 'w-full'} flex flex-col`}>
+                                             <div className="text-xs font-bold text-[#4A4A4A] uppercase tracking-widest mb-2">Generated Website</div>
+                                             <div className="flex-1 border-[6px] border-[#4A4A4A] rounded-[1.5rem] overflow-hidden shadow-2xl flex flex-col bg-white" style={{ minHeight: '600px' }}>
+                                                 <div className="bg-[#4A4A4A] text-white text-xs px-4 py-3 flex items-center justify-between shrink-0">
+                                                     <div className="flex gap-2">
+                                                         <div className="w-3 h-3 rounded-full bg-[#FF5F57]"></div>
+                                                         <div className="w-3 h-3 rounded-full bg-[#FEBC2E]"></div>
+                                                         <div className="w-3 h-3 rounded-full bg-[#28C840]"></div>
+                                                     </div>
+                                                     <span className="opacity-50 font-mono tracking-widest text-[10px] uppercase">Live Preview</span>
+                                                     <button
+                                                        onClick={() => {
+                                                            const newWindow = window.open('', '_blank');
+                                                            if (newWindow && generatedCode) {
+                                                                newWindow.document.write(generatedCode);
+                                                                newWindow.document.close();
+                                                            }
+                                                        }}
+                                                        className="text-gray-400 hover:text-white transition-colors flex items-center gap-1 font-bold hover:bg-white/10 px-2 py-1 rounded"
+                                                        title="Open in new tab"
+                                                    >
+                                                        ↗️ Full Screen
+                                                    </button>
+                                                 </div>
+                                                 <iframe
+                                                    srcDoc={generatedCode}
+                                                    className="w-full bg-white flex-1"
+                                                    style={{ minHeight: '550px', height: '100%' }}
+                                                    title="Website Preview"
+                                                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                                                 />
+                                             </div>
+                                         </div>
                                      </div>
-                                     <iframe src={activeLead.websiteUrl} className="w-full h-full bg-white flex-1" title="Preview" />
                                  </div>
                              )}
                          </div>
