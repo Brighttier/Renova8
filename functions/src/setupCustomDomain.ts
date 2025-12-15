@@ -8,7 +8,19 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
-import { requestCustomDomain } from "./lib/firebaseHosting";
+import * as dns from "dns";
+import { promisify } from "util";
+import {
+  requestCustomDomain,
+  addCustomDomain,
+  getDomainStatus,
+  removeCustomDomainFromHosting,
+} from "./lib/firebaseHosting";
+
+// DNS lookup functions
+const resolveTxt = promisify(dns.resolveTxt);
+const resolve4 = promisify(dns.resolve4);
+const resolveCname = promisify(dns.resolveCname);
 
 // Get Firestore instance
 const getDb = () => admin.firestore();
@@ -50,6 +62,86 @@ function isValidDomain(domain: string): boolean {
   // Basic domain validation
   const domainRegex = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
   return domainRegex.test(domain);
+}
+
+/**
+ * Verify DNS records are configured correctly
+ * Performs real DNS lookups to check if records exist
+ */
+async function verifyDnsRecords(
+  domain: string,
+  dnsRecords: DnsRecord[]
+): Promise<{ verified: boolean; errors: string[]; details: string[] }> {
+  const errors: string[] = [];
+  const details: string[] = [];
+
+  for (const record of dnsRecords) {
+    try {
+      if (record.type === "TXT") {
+        // For TXT records, check the subdomain (e.g., _firebase.example.com)
+        const lookupDomain =
+          record.name === "@" ? domain : `${record.name}.${domain}`;
+        try {
+          const txtRecords = await resolveTxt(lookupDomain);
+          const flatRecords = txtRecords.flat();
+          const found = flatRecords.some((r) => r.includes(record.value));
+          if (found) {
+            details.push(`✓ TXT record found at ${lookupDomain}`);
+          } else {
+            errors.push(
+              `TXT record at ${lookupDomain} does not contain expected value`
+            );
+          }
+        } catch (e) {
+          errors.push(`TXT record not found at ${lookupDomain}`);
+        }
+      } else if (record.type === "A") {
+        // For A records, check the domain points to Firebase IP
+        const lookupDomain = record.name === "@" ? domain : `${record.name}.${domain}`;
+        try {
+          const aRecords = await resolve4(lookupDomain);
+          if (aRecords.includes(record.value)) {
+            details.push(`✓ A record found: ${lookupDomain} → ${record.value}`);
+          } else {
+            errors.push(
+              `A record for ${lookupDomain} points to ${aRecords.join(", ")} instead of ${record.value}`
+            );
+          }
+        } catch (e) {
+          errors.push(`A record not found for ${lookupDomain}`);
+        }
+      } else if (record.type === "CNAME") {
+        // For CNAME records, check the subdomain points to Firebase
+        const lookupDomain =
+          record.name === "@" ? domain : `${record.name}.${domain}`;
+        try {
+          const cnameRecords = await resolveCname(lookupDomain);
+          // CNAME values often have trailing dot, normalize for comparison
+          const normalizedExpected = record.value.replace(/\.$/, "");
+          const found = cnameRecords.some(
+            (r) => r.replace(/\.$/, "") === normalizedExpected
+          );
+          if (found) {
+            details.push(`✓ CNAME record found: ${lookupDomain} → ${record.value}`);
+          } else {
+            errors.push(
+              `CNAME for ${lookupDomain} points to ${cnameRecords.join(", ")} instead of ${record.value}`
+            );
+          }
+        } catch (e) {
+          errors.push(`CNAME record not found for ${lookupDomain}`);
+        }
+      }
+    } catch (e) {
+      errors.push(`Failed to verify ${record.type} record: ${e}`);
+    }
+  }
+
+  return {
+    verified: errors.length === 0,
+    errors,
+    details,
+  };
 }
 
 /**
@@ -216,7 +308,8 @@ export const setupCustomDomain = functions.https.onCall(
 /**
  * Check Domain Status - Callable Cloud Function
  *
- * Checks the verification and SSL status of a custom domain.
+ * Checks the real verification and SSL status from Firebase Hosting API.
+ * Updates local Firestore status if Firebase Hosting reports active.
  */
 export const checkDomainStatus = functions.https.onCall(
   async (
@@ -264,30 +357,80 @@ export const checkDomainStatus = functions.https.onCall(
         };
       }
 
-      const status = website.customDomainStatus || "pending";
-      const sslStatus = website.sslStatus || "provisioning";
+      let localStatus = website.customDomainStatus || "pending";
+      let localSslStatus = website.sslStatus || "provisioning";
+
+      // If domain is verified but not yet active, check Firebase Hosting for real status
+      if (localStatus === "verified" && localSslStatus !== "active") {
+        try {
+          const hostingStatus = await getDomainStatus(website.customDomain);
+
+          functions.logger.info("Firebase Hosting domain status", {
+            websiteId,
+            domain: website.customDomain,
+            hostingStatus,
+          });
+
+          // Check if SSL is now active
+          // Firebase Hosting returns status like "ACTIVE", "NEEDS_SETUP", etc.
+          if (
+            hostingStatus.status === "ACTIVE" ||
+            hostingStatus.provisioning?.certStatus === "CERT_ACTIVE"
+          ) {
+            // Update local status to active
+            await websiteRef.update({
+              customDomainStatus: "active",
+              sslStatus: "active",
+              updatedAt: Timestamp.now(),
+            });
+
+            localStatus = "active";
+            localSslStatus = "active";
+
+            functions.logger.info("Domain SSL is now active", {
+              websiteId,
+              domain: website.customDomain,
+            });
+          } else if (hostingStatus.provisioning?.certStatus === "CERT_PENDING") {
+            // Still provisioning
+            localSslStatus = "provisioning";
+          }
+        } catch (hostingError) {
+          // If we can't reach Firebase Hosting API, use local status
+          functions.logger.warn("Could not fetch Firebase Hosting status", {
+            websiteId,
+            domain: website.customDomain,
+            error:
+              hostingError instanceof Error
+                ? hostingError.message
+                : "Unknown error",
+          });
+        }
+      }
 
       let message = "";
-      switch (status) {
+      switch (localStatus) {
         case "pending":
-          message = "Waiting for DNS configuration. Please add the DNS records and try again.";
+          message =
+            "Waiting for DNS configuration. Please add the DNS records and click Verify.";
           break;
         case "verified":
-          message = sslStatus === "active"
-            ? "Domain verified! SSL certificate is active."
-            : "Domain verified! SSL certificate is being provisioned (1-24 hours).";
+          message =
+            localSslStatus === "active"
+              ? "Domain verified! SSL certificate is active."
+              : "Domain verified! SSL certificate is being provisioned (typically 15 min - 24 hours).";
           break;
         case "active":
-          message = "Your custom domain is fully active with SSL.";
+          message = `Your custom domain is fully active! Visit https://${website.customDomain}`;
           break;
         default:
           message = "Unknown status. Please contact support.";
       }
 
       return {
-        status: status as "pending" | "verified" | "active" | "error",
+        status: localStatus as "pending" | "verified" | "active" | "error",
         domain: website.customDomain,
-        sslStatus: sslStatus as "provisioning" | "active",
+        sslStatus: localSslStatus as "provisioning" | "active",
         message,
       };
     } catch (error) {
@@ -312,8 +455,8 @@ export const checkDomainStatus = functions.https.onCall(
 /**
  * Verify Domain - Callable Cloud Function
  *
- * Attempts to verify that DNS records have been configured correctly.
- * Updates the domain status if verification succeeds.
+ * Performs real DNS verification and registers domain with Firebase Hosting.
+ * Updates the domain status based on actual DNS lookup results.
  */
 export const verifyDomain = functions.https.onCall(
   async (
@@ -361,36 +504,71 @@ export const verifyDomain = functions.https.onCall(
         );
       }
 
-      // In a production environment, you would:
-      // 1. Query DNS to verify TXT record exists
-      // 2. Query DNS to verify A/CNAME records point correctly
-      // 3. Check Firebase Hosting API for domain status
-      //
-      // For now, we'll simulate verification by checking if the
-      // request is made at least 5 minutes after setup (simulating DNS propagation)
+      const dnsRecords = website.dnsRecords || [];
 
-      const setupTime = website.updatedAt?.toDate?.() || new Date();
-      const now = new Date();
-      const minutesSinceSetup = (now.getTime() - setupTime.getTime()) / 1000 / 60;
+      // Step 1: Perform real DNS verification
+      functions.logger.info("Verifying DNS records", {
+        websiteId,
+        domain: website.customDomain,
+        recordCount: dnsRecords.length,
+      });
 
-      // Require at least 5 minutes for "DNS propagation"
-      if (minutesSinceSetup < 5) {
-        const remainingMinutes = Math.ceil(5 - minutesSinceSetup);
+      const { verified, errors, details } = await verifyDnsRecords(
+        website.customDomain,
+        dnsRecords
+      );
+
+      if (!verified) {
+        functions.logger.info("DNS verification failed", {
+          websiteId,
+          domain: website.customDomain,
+          errors,
+        });
+
         return {
           status: "pending",
           domain: website.customDomain,
-          message: `Please wait ${remainingMinutes} more minute(s) for DNS propagation before verifying.`,
+          message: `DNS records not configured correctly:\n${errors.join("\n")}\n\nPlease check your DNS settings and try again in a few minutes.`,
         };
       }
 
-      // Update status to verified
+      // Step 2: Register domain with Firebase Hosting
+      functions.logger.info("DNS verified, registering with Firebase Hosting", {
+        websiteId,
+        domain: website.customDomain,
+        details,
+      });
+
+      try {
+        await addCustomDomain(website.customDomain);
+        functions.logger.info("Domain registered with Firebase Hosting", {
+          websiteId,
+          domain: website.customDomain,
+        });
+      } catch (hostingError) {
+        // Domain might already be registered, check if it's our domain
+        const errorMessage =
+          hostingError instanceof Error ? hostingError.message : "Unknown error";
+        functions.logger.warn("Firebase Hosting registration response", {
+          websiteId,
+          domain: website.customDomain,
+          error: errorMessage,
+        });
+
+        // If domain already exists, that's okay - continue
+        if (!errorMessage.includes("already exists")) {
+          throw hostingError;
+        }
+      }
+
+      // Step 3: Update Firestore status
       await websiteRef.update({
         customDomainStatus: "verified",
         sslStatus: "provisioning",
         updatedAt: Timestamp.now(),
       });
 
-      functions.logger.info("Domain verified", {
+      functions.logger.info("Domain verified and connected", {
         websiteId,
         userId,
         domain: website.customDomain,
@@ -401,7 +579,7 @@ export const verifyDomain = functions.https.onCall(
         domain: website.customDomain,
         sslStatus: "provisioning",
         message:
-          "Domain verified! SSL certificate is being provisioned. This typically takes 1-24 hours.",
+          "Domain verified and connected to Firebase Hosting! SSL certificate is being provisioned. This typically takes 15 minutes to 24 hours.",
       };
     } catch (error) {
       if (error instanceof functions.https.HttpsError) {
@@ -425,7 +603,7 @@ export const verifyDomain = functions.https.onCall(
 /**
  * Remove Custom Domain - Callable Cloud Function
  *
- * Removes the custom domain configuration from a website.
+ * Removes the custom domain from Firebase Hosting and Firestore.
  */
 export const removeCustomDomain = functions.https.onCall(
   async (
@@ -466,7 +644,28 @@ export const removeCustomDomain = functions.https.onCall(
         );
       }
 
-      // Remove custom domain fields
+      // Try to remove domain from Firebase Hosting
+      if (website.customDomain && website.customDomainStatus !== "pending") {
+        try {
+          await removeCustomDomainFromHosting(website.customDomain);
+          functions.logger.info("Domain removed from Firebase Hosting", {
+            websiteId,
+            domain: website.customDomain,
+          });
+        } catch (hostingError) {
+          // Log but don't fail - domain might not exist in Firebase Hosting
+          functions.logger.warn("Could not remove domain from Firebase Hosting", {
+            websiteId,
+            domain: website.customDomain,
+            error:
+              hostingError instanceof Error
+                ? hostingError.message
+                : "Unknown error",
+          });
+        }
+      }
+
+      // Remove custom domain fields from Firestore
       await websiteRef.update({
         customDomain: admin.firestore.FieldValue.delete(),
         customDomainStatus: admin.firestore.FieldValue.delete(),

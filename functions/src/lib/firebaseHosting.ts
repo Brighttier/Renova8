@@ -438,3 +438,89 @@ export async function requestCustomDomain(domain: string): Promise<{
     routingRecords: getRequiredDnsRecords(domain),
   };
 }
+
+/**
+ * Add custom domain to Firebase Hosting site
+ * This registers the domain with Firebase and starts SSL provisioning
+ */
+export async function addCustomDomain(
+  domain: string,
+  siteId: string = DEFAULT_SITE_ID
+): Promise<{ status: string; domainName: string }> {
+  const accessToken = await getAccessToken();
+
+  const response = await fetch(
+    `https://firebasehosting.googleapis.com/v1beta1/sites/${siteId}/domains`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ domainName: domain }),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to add domain: ${response.status} ${error}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Get domain status from Firebase Hosting
+ * Returns the current provisioning/SSL status of the domain
+ */
+export async function getDomainStatus(
+  domain: string,
+  siteId: string = DEFAULT_SITE_ID
+): Promise<{
+  status: string;
+  domainName: string;
+  provisioning?: {
+    certStatus: string;
+    dnsStatus: string;
+  };
+  updateTime?: string;
+}> {
+  const accessToken = await getAccessToken();
+
+  const response = await fetch(
+    `https://firebasehosting.googleapis.com/v1beta1/sites/${siteId}/domains/${encodeURIComponent(domain)}`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to get domain status: ${response.status} ${error}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Remove custom domain from Firebase Hosting site
+ */
+export async function removeCustomDomainFromHosting(
+  domain: string,
+  siteId: string = DEFAULT_SITE_ID
+): Promise<void> {
+  const accessToken = await getAccessToken();
+
+  const response = await fetch(
+    `https://firebasehosting.googleapis.com/v1beta1/sites/${siteId}/domains/${encodeURIComponent(domain)}`,
+    {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Failed to remove domain: ${response.status} ${error}`);
+  }
+}
