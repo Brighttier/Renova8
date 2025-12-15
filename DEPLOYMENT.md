@@ -1,13 +1,13 @@
 # Renova8 Production Deployment Guide
 
-This guide walks you through deploying Renova8 to Firebase App Hosting for production use.
+This guide walks you through deploying Renova8 to **Firebase App Hosting** for production use.
 
 ## Prerequisites
 
 - Node.js 18+
 - Firebase CLI installed (`npm install -g firebase-tools`)
-- A Firebase project (Project ID: `claude-476618`)
-- GitHub account with repository access
+- Firebase project (Project ID: `claude-476618`)
+- GitHub repository connected to Firebase App Hosting
 
 ---
 
@@ -19,77 +19,59 @@ firebase login
 
 ---
 
-## Step 2: Set Up Firebase Secrets
+## Step 2: Connect GitHub to Firebase App Hosting
 
-The application requires several secrets to be configured in Firebase. Run these commands:
-
-### For Cloud Functions
+If not already connected:
 
 ```bash
-# Stripe API Keys
-firebase functions:secrets:set STRIPE_SECRET_KEY
-# Enter your Stripe secret key when prompted
-
-firebase functions:secrets:set STRIPE_WEBHOOK_SECRET
-# Enter your Stripe webhook secret when prompted
-
-# Google AI / Gemini API Key
-firebase functions:secrets:set GOOGLE_API_KEY
-# Enter your Gemini API key when prompted
+firebase apphosting:backends:create --project claude-476618
 ```
 
-### For App Hosting (Frontend)
-
-```bash
-# Gemini API Key for frontend
-firebase apphosting:secrets:set gemini-api-key
-
-# Firebase Web App Configuration
-firebase apphosting:secrets:set firebase-api-key
-firebase apphosting:secrets:set firebase-messaging-sender-id
-firebase apphosting:secrets:set firebase-app-id
-```
+This will:
+- Link your GitHub repository
+- Set up automatic deployments on push to main
+- Configure Cloud Build for your project
 
 ---
 
-## Step 3: Set Up GitHub Secrets
+## Step 3: Set Up Secrets in Google Secret Manager
 
-Go to your GitHub repository → Settings → Secrets and variables → Actions
+All secrets are managed via Google Secret Manager. Use Firebase CLI to set them:
 
-Add these secrets:
+### Frontend Secrets (App Hosting)
 
-| Secret Name | Description |
-|-------------|-------------|
-| `FIREBASE_SERVICE_ACCOUNT_CLAUDE_476618` | Service account JSON for Firebase deployment |
-| `VITE_API_KEY` | Gemini API key |
-| `VITE_FIREBASE_API_KEY` | Firebase Web API key |
-| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Firebase messaging sender ID |
-| `VITE_FIREBASE_APP_ID` | Firebase App ID |
+```bash
+# Gemini API Key for frontend
+firebase apphosting:secrets:set gemini-api-key --project claude-476618
 
-### Getting the Service Account Key
+# Firebase Web App Configuration
+firebase apphosting:secrets:set firebase-api-key --project claude-476618
+firebase apphosting:secrets:set firebase-messaging-sender-id --project claude-476618
+firebase apphosting:secrets:set firebase-app-id --project claude-476618
+```
 
-1. Go to Firebase Console → Project Settings → Service Accounts
-2. Click "Generate new private key"
-3. Copy the entire JSON content
-4. Add it as `FIREBASE_SERVICE_ACCOUNT_CLAUDE_476618` secret in GitHub
+### Backend Secrets (Cloud Functions)
+
+```bash
+# Stripe API Keys
+firebase apphosting:secrets:set stripe-secret-key --project claude-476618
+firebase apphosting:secrets:set stripe-webhook-secret --project claude-476618
+
+# Google AI / Gemini API Key for backend
+firebase apphosting:secrets:set google-api-key --project claude-476618
+```
 
 ---
 
 ## Step 4: Deploy Cloud Functions
-
-First, install dependencies and build:
 
 ```bash
 cd functions
 npm install
 npm run build
 cd ..
-```
 
-Deploy functions:
-
-```bash
-firebase deploy --only functions
+firebase deploy --only functions --project claude-476618
 ```
 
 ---
@@ -97,37 +79,26 @@ firebase deploy --only functions
 ## Step 5: Deploy Firestore Rules and Indexes
 
 ```bash
-firebase deploy --only firestore:rules,firestore:indexes
+firebase deploy --only firestore:rules,firestore:indexes --project claude-476618
 ```
 
 ---
 
-## Step 6: Deploy to Firebase Hosting
+## Step 6: Deploy Application
 
-### Option A: Manual Deployment
+### Automatic Deployment (Recommended)
+
+Push to the `main` branch and Firebase App Hosting will automatically:
+1. Detect the push via GitHub webhook
+2. Run Cloud Build to build your app
+3. Deploy to Firebase App Hosting
+4. Make it live at your App Hosting URL
+
+### Manual Deployment
 
 ```bash
-# Build the frontend
-npm run build
-
-# Deploy to Firebase Hosting
-firebase deploy --only hosting
+firebase apphosting:rollouts:create --project claude-476618
 ```
-
-### Option B: Automatic Deployment (Recommended)
-
-Push to the `main` branch, and GitHub Actions will automatically:
-1. Build the application
-2. Deploy to Firebase Hosting
-3. Deploy Cloud Functions (if functions/* changed)
-
----
-
-## Step 7: Configure Custom Domain (Optional)
-
-1. Go to Firebase Console → Hosting
-2. Click "Add custom domain"
-3. Follow the DNS verification steps
 
 ---
 
@@ -151,7 +122,7 @@ VITE_USE_EMULATORS=false
 
 ### Production (Firebase App Hosting)
 
-Environment variables are configured in `apphosting.yaml` and use Firebase secrets.
+All environment variables are configured in `apphosting.yaml` and reference secrets from Google Secret Manager.
 
 ---
 
@@ -163,7 +134,7 @@ Environment variables are configured in `apphosting.yaml` and use Firebase secre
    - `checkout.session.completed`
    - `payment_intent.succeeded`
 4. Copy the webhook signing secret
-5. Set it using: `firebase functions:secrets:set STRIPE_WEBHOOK_SECRET`
+5. Set it: `firebase apphosting:secrets:set stripe-webhook-secret --project claude-476618`
 
 ---
 
@@ -172,68 +143,74 @@ Environment variables are configured in `apphosting.yaml` and use Firebase secre
 To get your Firebase Web App configuration:
 
 1. Go to Firebase Console → Project Settings
-2. Under "Your apps", select the Web app
-3. Copy the `firebaseConfig` object values
-
-```javascript
-const firebaseConfig = {
-  apiKey: "your_api_key",           // VITE_FIREBASE_API_KEY
-  authDomain: "...",                 // Auto-configured
-  projectId: "...",                  // Auto-configured
-  storageBucket: "...",              // Auto-configured
-  messagingSenderId: "...",          // VITE_FIREBASE_MESSAGING_SENDER_ID
-  appId: "..."                       // VITE_FIREBASE_APP_ID
-};
-```
+2. Under "Your apps", select the Web app (or create one)
+3. Copy the `firebaseConfig` values and set them as secrets
 
 ---
 
 ## Deployment Checklist
 
 - [ ] Firebase CLI installed and logged in
-- [ ] All Firebase secrets configured
-- [ ] All GitHub secrets added
-- [ ] Cloud Functions deployed successfully
-- [ ] Firestore rules deployed
-- [ ] Firestore indexes deployed
-- [ ] Hosting deployed
+- [ ] GitHub repo connected to Firebase App Hosting
+- [ ] All secrets configured in Google Secret Manager
+- [ ] Cloud Functions deployed
+- [ ] Firestore rules and indexes deployed
 - [ ] Stripe webhook configured
 - [ ] Custom domain set up (optional)
 
 ---
 
-## Troubleshooting
-
-### Functions not deploying
+## Useful Commands
 
 ```bash
-# Check logs
-firebase functions:log
+# Check App Hosting status
+firebase apphosting:backends:list --project claude-476618
 
-# Rebuild and redeploy
-cd functions && npm run build && cd ..
-firebase deploy --only functions
+# View deployment logs
+firebase apphosting:rollouts:list --project claude-476618
+
+# View Cloud Functions logs
+firebase functions:log --project claude-476618
+
+# Deploy everything
+firebase deploy --project claude-476618
 ```
-
-### Authentication not working
-
-1. Verify Firebase Auth is enabled in Console
-2. Check that authorized domains include your hosting URL
-3. Verify environment variables are set correctly
-
-### Stripe webhook errors
-
-1. Check webhook secret is correct
-2. Verify endpoint URL is correct
-3. Check function logs for errors
 
 ---
 
 ## Production URLs
 
-- **Hosting**: https://claude-476618.web.app
+- **App Hosting**: Check Firebase Console for your App Hosting URL
 - **Functions**: https://us-central1-claude-476618.cloudfunctions.net
-- **Firestore Console**: https://console.firebase.google.com/project/claude-476618/firestore
+- **Console**: https://console.firebase.google.com/project/claude-476618
+
+---
+
+## Troubleshooting
+
+### Build fails in Cloud Build
+
+1. Check Cloud Build logs in Google Cloud Console
+2. Ensure `apphosting.yaml` is valid
+3. Verify all secrets are set
+
+### Functions not deploying
+
+```bash
+firebase functions:log --project claude-476618
+cd functions && npm run build && cd ..
+firebase deploy --only functions --project claude-476618
+```
+
+### Secrets not available
+
+```bash
+# List all secrets
+firebase apphosting:secrets:list --project claude-476618
+
+# Grant access to a secret
+firebase apphosting:secrets:grantaccess SECRET_NAME --project claude-476618
+```
 
 ---
 
@@ -243,7 +220,7 @@ firebase deploy --only functions
 2. **Rotate API keys** regularly
 3. **Monitor** Firebase usage and set budget alerts
 4. **Review** Firestore security rules periodically
-5. **Keep dependencies** updated for security patches
+5. All secrets stored in **Google Secret Manager** (encrypted at rest)
 
 ---
 

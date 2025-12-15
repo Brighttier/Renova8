@@ -1,31 +1,26 @@
 # Firebase App Hosting Configuration for Renova8
-# This configuration file defines the deployment settings for Firebase App Hosting
+# Deployment is automatic when pushing to the connected branch
 
 # Runtime configuration
 runConfig:
-  # Minimum number of instances to keep running (0 for cold starts)
   minInstances: 0
-  # Maximum number of instances to scale to
   maxInstances: 100
-  # Number of concurrent requests per instance
   concurrency: 80
-  # CPU allocation (1 = 1 vCPU)
   cpu: 1
-  # Memory allocation in MiB
   memoryMiB: 512
 
 # Environment variables
-# For secrets, use Firebase CLI: firebase apphosting:secrets:set SECRET_NAME
+# Secrets are managed via Google Secret Manager
+# Set them using: firebase apphosting:secrets:set SECRET_NAME
 env:
-  # Node environment
   - variable: NODE_ENV
     value: production
 
-  # Gemini API Key (stored as secret)
+  # Gemini API Key
   - variable: VITE_API_KEY
     secret: gemini-api-key
 
-  # Firebase Configuration (for client-side SDK)
+  # Firebase Web App Configuration
   - variable: VITE_FIREBASE_API_KEY
     secret: firebase-api-key
 
@@ -44,6 +39,13 @@ env:
   - variable: VITE_FIREBASE_APP_ID
     secret: firebase-app-id
 
-# Build settings
-buildCommand: npm run build
-outputDirectory: dist
+  # Stripe Configuration (for Cloud Functions)
+  - variable: STRIPE_SECRET_KEY
+    secret: stripe-secret-key
+
+  - variable: STRIPE_WEBHOOK_SECRET
+    secret: stripe-webhook-secret
+
+  # Google AI API Key (for Cloud Functions)
+  - variable: GOOGLE_API_KEY
+    secret: google-api-key
