@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Lead } from '../types';
+import { Lead, HistoryItem } from '../types';
 import { PageTour, EDITOR_TOUR_STEPS, usePageTour } from './PageTour';
+import { publishWebsite as publishToFirebase, isPublishingAvailable } from '../services/publishingService';
+import { CustomDomainSetup } from './CustomDomainSetup';
 
 interface WebsiteEditorProps {
   customers: Lead[];
@@ -659,6 +661,12 @@ export const WebsiteEditor: React.FC<WebsiteEditorProps> = ({
   const [showCustomerSelector, setShowCustomerSelector] = useState(!selectedCustomer);
   const [isDemoMode, setIsDemoMode] = useState(false);
 
+  // Firebase Publishing State
+  const [publishedWebsiteId, setPublishedWebsiteId] = useState<string | null>(null);
+  const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [showPublishSuccess, setShowPublishSuccess] = useState(false);
+
   // AI Prompt states
   const [showAIPrompt, setShowAIPrompt] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
@@ -868,22 +876,118 @@ export const WebsiteEditor: React.FC<WebsiteEditorProps> = ({
     setIsSaving(false);
   }, [websiteData]);
 
+  // Generate HTML from components (basic implementation)
+  const generateHtmlFromComponents = useCallback((): string => {
+    const { globalStyles, components } = websiteData;
+    const customerName = activeCustomer?.businessName || 'Website';
+
+    // Generate component HTML
+    const componentsHtml = components
+      .sort((a, b) => a.order - b.order)
+      .map(comp => {
+        const style = `background-color: ${comp.styles.backgroundColor || 'transparent'}; color: ${comp.styles.textColor || 'inherit'}; padding: ${comp.styles.padding || '2rem'};`;
+
+        switch (comp.type) {
+          case 'header':
+            return `<header style="${style}"><div style="max-width: 1200px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center;"><div style="font-weight: bold; font-size: 1.25rem;">${comp.content.logo || customerName}</div><nav style="display: flex; gap: 1.5rem;">${(comp.content.menuItems || []).map((item: string) => `<a href="#" style="text-decoration: none; color: inherit;">${item}</a>`).join('')}</nav></div></header>`;
+          case 'hero':
+            return `<section style="${style}; min-height: 60vh; display: flex; align-items: center;"><div style="max-width: 800px; margin: 0 auto; text-align: ${comp.content.alignment || 'center'};"><h1 style="font-size: 3rem; font-weight: bold; margin-bottom: 1rem;">${comp.content.headline || 'Welcome'}</h1><p style="font-size: 1.25rem; opacity: 0.8; margin-bottom: 2rem;">${comp.content.subheadline || ''}</p><button style="background-color: ${globalStyles.primaryColor}; color: white; padding: 0.75rem 1.5rem; border: none; border-radius: 0.5rem; font-weight: 500; cursor: pointer;">${comp.content.ctaText || 'Get Started'}</button></div></section>`;
+          case 'features':
+            return `<section style="${style}"><div style="max-width: 1200px; margin: 0 auto;"><h2 style="text-align: center; font-size: 2rem; margin-bottom: 2rem;">${comp.content.title || 'Features'}</h2><div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem;">${(comp.content.features || []).map((f: any) => `<div style="text-align: center;"><h3 style="font-size: 1.25rem; margin-bottom: 0.5rem;">${f.title || ''}</h3><p>${f.description || ''}</p></div>`).join('')}</div></div></section>`;
+          case 'about':
+            return `<section style="${style}"><div style="max-width: 800px; margin: 0 auto; text-align: center;"><h2 style="font-size: 2rem; margin-bottom: 1rem;">${comp.content.title || 'About Us'}</h2><p style="opacity: 0.8;">${comp.content.description || ''}</p></div></section>`;
+          case 'contact':
+            return `<section style="${style}"><div style="max-width: 600px; margin: 0 auto; text-align: center;"><h2 style="font-size: 2rem; margin-bottom: 1rem;">${comp.content.title || 'Contact Us'}</h2><p style="margin-bottom: 1rem;">${comp.content.email || ''}</p><p>${comp.content.phone || ''}</p><p>${comp.content.address || ''}</p></div></section>`;
+          case 'footer':
+            return `<footer style="${style}"><div style="max-width: 1200px; margin: 0 auto; text-align: center;"><p>${comp.content.copyright || `© ${new Date().getFullYear()} ${customerName}. All rights reserved.`}</p></div></footer>`;
+          default:
+            return `<section style="${style}"><div style="max-width: 1200px; margin: 0 auto;"><p>${comp.type} section</p></div></section>`;
+        }
+      })
+      .join('\n');
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${customerName}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: ${globalStyles.fontFamily || 'system-ui, sans-serif'}; background-color: ${globalStyles.backgroundColor || '#ffffff'}; }
+    a { color: ${globalStyles.primaryColor}; }
+  </style>
+</head>
+<body>
+${componentsHtml}
+</body>
+</html>`;
+  }, [websiteData, activeCustomer]);
+
   // Publish website
-  const publishWebsite = useCallback(async () => {
+  const publishWebsiteHandler = useCallback(async () => {
     setIsPublishing(true);
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    setPublishError(null);
 
-    const newData = {
-      ...websiteData,
-      publishedAt: Date.now(),
-      lastSavedAt: Date.now(),
-      isDraft: false
-    };
+    try {
+      // Check if Firebase publishing is available
+      if (isPublishingAvailable() && !isDemoMode) {
+        // Use existing websiteCode from customer if available, otherwise generate from components
+        const htmlContent = activeCustomer?.websiteCode || generateHtmlFromComponents();
 
-    setHistory(prev => ({ ...prev, present: newData }));
-    setIsPublishing(false);
-    setShowPublishModal(false);
-  }, [websiteData]);
+        const result = await publishToFirebase(
+          htmlContent,
+          activeCustomer?.businessName || websiteData.name || 'my-website',
+          activeCustomer?.id
+        );
+
+        setPublishedWebsiteId(result.websiteId);
+        setPublishedUrl(result.firebaseUrl);
+
+        // Update customer with published URL
+        if (activeCustomer && onUpdateCustomer) {
+          const historyItem: HistoryItem = {
+            id: `hist-${Date.now()}`,
+            type: 'WEBSITE_DEPLOY',
+            timestamp: Date.now(),
+            content: result.firebaseUrl,
+            metadata: {
+              prompt: 'Live Website Deployment',
+              websiteId: result.websiteId
+            }
+          };
+
+          onUpdateCustomer({
+            ...activeCustomer,
+            websiteUrl: result.firebaseUrl,
+            history: [...(activeCustomer.history || []), historyItem]
+          });
+        }
+
+        setShowPublishSuccess(true);
+      } else {
+        // Demo mode or Firebase not configured - simulate publishing
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        setPublishedUrl(`https://preview.renova8.app/demo/${websiteData.id}`);
+        setShowPublishSuccess(true);
+      }
+
+      const newData = {
+        ...websiteData,
+        publishedAt: Date.now(),
+        lastSavedAt: Date.now(),
+        isDraft: false
+      };
+
+      setHistory(prev => ({ ...prev, present: newData }));
+    } catch (error) {
+      console.error('Publishing failed:', error);
+      setPublishError(error instanceof Error ? error.message : 'Failed to publish website');
+    } finally {
+      setIsPublishing(false);
+      setShowPublishModal(false);
+    }
+  }, [websiteData, activeCustomer, isDemoMode, generateHtmlFromComponents, onUpdateCustomer]);
 
   // Load customer website
   const loadCustomerWebsite = useCallback((customer: Lead) => {
@@ -2543,14 +2647,19 @@ export const WebsiteEditor: React.FC<WebsiteEditorProps> = ({
             <p className="text-gray-400 mb-6">
               Are you ready to publish {activeCustomer?.businessName}'s website? This will make the changes live.
             </p>
+            {publishError && (
+              <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 mb-4">
+                <p className="text-red-400 text-sm">{publishError}</p>
+              </div>
+            )}
             <div className="bg-[#333] rounded-lg p-4 mb-6">
               <div className="flex items-center gap-3">
                 <svg className="w-8 h-8 text-[#D4AF37]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
                 </svg>
                 <div>
-                  <div className="font-medium">{activeCustomer?.businessName?.toLowerCase().replace(/\s+/g, '-')}.lovable.app</div>
-                  <div className="text-xs text-gray-500">Your website URL</div>
+                  <div className="font-medium">{activeCustomer?.businessName?.toLowerCase().replace(/\s+/g, '-')}.web.app</div>
+                  <div className="text-xs text-gray-500">Your website URL (Firebase Hosting)</div>
                 </div>
               </div>
             </div>
@@ -2558,7 +2667,7 @@ export const WebsiteEditor: React.FC<WebsiteEditorProps> = ({
               <button onClick={() => setShowPublishModal(false)} className="flex-1 py-3 bg-[#333] hover:bg-[#404040] rounded-lg transition-colors">
                 Cancel
               </button>
-              <button onClick={publishWebsite} disabled={isPublishing} className="flex-1 py-3 bg-[#D4AF37] text-black hover:bg-[#C4A030] rounded-lg transition-colors font-medium flex items-center justify-center gap-2">
+              <button onClick={publishWebsiteHandler} disabled={isPublishing} className="flex-1 py-3 bg-[#D4AF37] text-black hover:bg-[#C4A030] rounded-lg transition-colors font-medium flex items-center justify-center gap-2">
                 {isPublishing ? (
                   <>
                     <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
@@ -2569,6 +2678,77 @@ export const WebsiteEditor: React.FC<WebsiteEditorProps> = ({
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Publish Success Modal */}
+      {showPublishSuccess && publishedUrl && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#252525] rounded-2xl max-w-lg w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center">
+                <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">Website Published!</h2>
+                <p className="text-gray-400 text-sm">Your website is now live</p>
+              </div>
+            </div>
+
+            <div className="bg-[#333] rounded-lg p-4 mb-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <svg className="w-6 h-6 text-[#D4AF37]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                  </svg>
+                  <span className="text-sm text-white font-medium break-all">{publishedUrl.replace(/^https?:\/\//, '')}</span>
+                </div>
+                <button
+                  onClick={() => navigator.clipboard.writeText(publishedUrl)}
+                  className="text-[#D4AF37] hover:text-[#C4A030] p-2"
+                  title="Copy URL"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mb-6">
+              <a
+                href={publishedUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 py-3 bg-[#D4AF37] text-black hover:bg-[#C4A030] rounded-lg transition-colors font-medium flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+                Visit Site
+              </a>
+              <button
+                onClick={() => setShowPublishSuccess(false)}
+                className="flex-1 py-3 bg-[#333] hover:bg-[#404040] rounded-lg transition-colors"
+              >
+                Done
+              </button>
+            </div>
+
+            {/* Custom Domain Setup */}
+            {publishedWebsiteId && (
+              <div className="border-t border-[#333] pt-6">
+                <CustomDomainSetup
+                  websiteId={publishedWebsiteId}
+                  onDomainConfigured={(domain) => {
+                    console.log('Custom domain configured:', domain);
+                  }}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}

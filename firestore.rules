@@ -75,6 +75,19 @@ service cloud.firestore {
     }
 
     // ============================================
+    // Published Websites Collection
+    // ============================================
+    match /websites/{websiteId} {
+      // Users can read their own websites
+      allow read: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+
+      // Only Cloud Functions can create/update/delete websites
+      // This ensures all deployments go through proper validation
+      allow write: if false;
+    }
+
+    // ============================================
     // Catch-all: Deny everything else
     // ============================================
     match /{document=**} {

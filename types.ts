@@ -11,6 +11,7 @@ export interface HistoryItem {
     format?: string;
     amount?: number;
     status?: string;
+    websiteId?: string; // For website deployments
   };
 }
 
@@ -605,4 +606,52 @@ export interface ResourceUsage {
   externalApis: { api: string; requests: number; quota: number; cost: number }[];
   projectedCost: number;
   budget: number;
+}
+
+// ============================================
+// Website Publishing Types
+// ============================================
+
+export interface DnsRecord {
+  type: string;
+  name: string;
+  value: string;
+  purpose?: string;
+}
+
+export interface PublishedWebsite {
+  id: string;
+  userId: string;
+  leadId?: string;
+  name: string;
+  subdomain: string;
+  firebaseUrl: string;
+  customDomain?: string;
+  customDomainStatus?: 'pending' | 'verified' | 'active';
+  dnsRecords?: DnsRecord[];
+  publishedAt: number;
+  updatedAt: number;
+  sslStatus: 'provisioning' | 'active';
+  expireTime?: string;
+}
+
+export interface PublishWebsiteResult {
+  success: boolean;
+  websiteId: string;
+  firebaseUrl: string;
+  subdomain: string;
+  expireTime?: string;
+}
+
+export interface SetupDomainResult {
+  success: boolean;
+  dnsRecords: DnsRecord[];
+  instructions: string[];
+}
+
+export interface DomainStatusResult {
+  status: 'pending' | 'verified' | 'active' | 'error';
+  domain?: string;
+  sslStatus?: 'provisioning' | 'active';
+  message: string;
 }

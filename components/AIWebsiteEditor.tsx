@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Lead, ChatMessage, WebsiteVersion, SelectedElement } from '../types';
 import { editWebsiteWithAI, generateWebsiteFromPrompt, summarizeWebsiteChanges, addPageToWebsite } from '../services/geminiService';
+import { publishWebsite as publishToFirebase, isPublishingAvailable } from '../services/publishingService';
+import { CustomDomainSetup } from './CustomDomainSetup';
 
 // Page templates for multi-page support
 const PAGE_TEMPLATES = [
@@ -184,6 +186,10 @@ export const AIWebsiteEditor: React.FC<AIWebsiteEditorProps> = ({
   const [isResizing, setIsResizing] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [showPublishModal, setShowPublishModal] = useState(false);
+  const [showPublishSuccess, setShowPublishSuccess] = useState(false);
+  const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
+  const [publishedWebsiteId, setPublishedWebsiteId] = useState<string | null>(null);
+  const [publishError, setPublishError] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<Array<{ id: string; name: string; type: string; url: string; size: number }>>([]);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
 
@@ -577,49 +583,116 @@ export const AIWebsiteEditor: React.FC<AIWebsiteEditorProps> = ({
     window.open(url, '_blank');
   };
 
-  // Publish website
-  const handlePublish = async () => {
+  // Publish website - show confirmation modal first
+  const handlePublish = () => {
     if (!activeCustomer) {
       setShowPublishModal(true);
       return;
     }
+    setShowPublishModal(true);
+  };
+
+  // Execute the actual publish to Firebase Hosting
+  const executePublish = async () => {
+    if (!activeCustomer) return;
 
     setIsPublishing(true);
+    setPublishError(null);
 
-    // Simulate publishing delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    try {
+      // Check if Firebase publishing is available
+      if (isPublishingAvailable()) {
+        // Use real Firebase Hosting
+        const result = await publishToFirebase(
+          htmlCode,
+          activeCustomer.businessName || 'my-website',
+          activeCustomer.id
+        );
 
-    // Create a blob URL as the "deployed" website
-    const blob = new Blob([htmlCode], { type: 'text/html' });
-    const deployedUrl = URL.createObjectURL(blob);
+        const deployedUrl = result.firebaseUrl;
+        setPublishedUrl(deployedUrl);
+        setPublishedWebsiteId(result.websiteId);
 
-    // Update customer with the website URL
-    onUpdateCustomer({
-      ...activeCustomer,
-      websiteUrl: deployedUrl,
-      history: [
-        ...(activeCustomer.history || []),
-        {
-          id: `deploy-${Date.now()}`,
-          type: 'WEBSITE_DEPLOY',
-          timestamp: Date.now(),
-          content: deployedUrl,
-          metadata: {
-            description: 'Website published from AI Editor'
-          }
-        }
-      ]
-    });
+        // Update customer with the published URL
+        onUpdateCustomer({
+          ...activeCustomer,
+          websiteUrl: deployedUrl,
+          websiteCode: htmlCode,
+          history: [
+            ...(activeCustomer.history || []),
+            {
+              id: `deploy-${Date.now()}`,
+              type: 'WEBSITE_DEPLOY',
+              timestamp: Date.now(),
+              content: deployedUrl,
+              metadata: {
+                description: 'Website published to Firebase Hosting from AI Editor',
+                websiteId: result.websiteId
+              }
+            }
+          ]
+        });
 
-    // Add system message
-    setMessages(prev => [...prev, {
-      id: `msg-${Date.now()}`,
-      role: 'system',
-      content: `Website published successfully! Your site is now live.`,
-      timestamp: Date.now()
-    }]);
+        // Add system message
+        setMessages(prev => [...prev, {
+          id: `msg-${Date.now()}`,
+          role: 'system',
+          content: `Website published successfully to Firebase Hosting! Your site is now live at ${deployedUrl}`,
+          timestamp: Date.now()
+        }]);
 
-    setIsPublishing(false);
+        setShowPublishModal(false);
+        setShowPublishSuccess(true);
+      } else {
+        // Fallback to blob URL for demo/local mode
+        const blob = new Blob([htmlCode], { type: 'text/html' });
+        const deployedUrl = URL.createObjectURL(blob);
+
+        setPublishedUrl(deployedUrl);
+        setPublishedWebsiteId(null);
+
+        // Update customer with the website URL
+        onUpdateCustomer({
+          ...activeCustomer,
+          websiteUrl: deployedUrl,
+          websiteCode: htmlCode,
+          history: [
+            ...(activeCustomer.history || []),
+            {
+              id: `deploy-${Date.now()}`,
+              type: 'WEBSITE_DEPLOY',
+              timestamp: Date.now(),
+              content: deployedUrl,
+              metadata: {
+                description: 'Website published from AI Editor (demo mode)'
+              }
+            }
+          ]
+        });
+
+        // Add system message
+        setMessages(prev => [...prev, {
+          id: `msg-${Date.now()}`,
+          role: 'system',
+          content: `Website published successfully! Your site is now live (demo mode - Firebase not configured).`,
+          timestamp: Date.now()
+        }]);
+
+        setShowPublishModal(false);
+        setShowPublishSuccess(true);
+      }
+    } catch (error) {
+      console.error('Failed to publish website:', error);
+      setPublishError(error instanceof Error ? error.message : 'Failed to publish website');
+      setMessages(prev => [...prev, {
+        id: `msg-${Date.now()}`,
+        role: 'system',
+        content: `Failed to publish website: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        timestamp: Date.now()
+      }]);
+    } finally {
+      setIsPublishing(false);
+    }
   };
 
   // Navigate to a specific page in the preview
@@ -1356,6 +1429,136 @@ export const AIWebsiteEditor: React.FC<AIWebsiteEditorProps> = ({
                 Cancel
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Publish Confirmation Modal */}
+      {showPublishModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <h2 className="text-xl font-serif font-bold text-[#4A4A4A] mb-4">Publish Website</h2>
+            <p className="text-gray-500 mb-6">
+              {activeCustomer
+                ? `Are you ready to publish ${activeCustomer.businessName}'s website? This will make the changes live.`
+                : 'Please select a customer before publishing.'}
+            </p>
+            {publishError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                <p className="text-red-600 text-sm">{publishError}</p>
+              </div>
+            )}
+            {activeCustomer && (
+              <div className="bg-[#F9F6F0] rounded-lg p-4 mb-6">
+                <div className="flex items-center gap-3">
+                  <svg className="w-8 h-8 text-[#D4AF37]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                  </svg>
+                  <div>
+                    <div className="font-medium text-[#4A4A4A]">{activeCustomer.businessName?.toLowerCase().replace(/\s+/g, '-')}.web.app</div>
+                    <div className="text-xs text-gray-500">Your website URL (Firebase Hosting)</div>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowPublishModal(false);
+                  setPublishError(null);
+                }}
+                className="flex-1 px-4 py-3 border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={executePublish}
+                disabled={isPublishing || !activeCustomer}
+                className="flex-1 px-4 py-3 bg-[#D4AF37] text-white hover:bg-[#C4A030] rounded-lg transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isPublishing ? (
+                  <>
+                    <svg className="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Publishing...
+                  </>
+                ) : (
+                  <>Publish Now</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Publish Success Modal */}
+      {showPublishSuccess && publishedUrl && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-xl font-serif font-bold text-[#4A4A4A]">Website Published!</h2>
+                <p className="text-gray-500 text-sm">Your website is now live</p>
+              </div>
+            </div>
+
+            <div className="bg-[#F9F6F0] rounded-lg p-4 mb-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <svg className="w-6 h-6 text-[#D4AF37]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                  </svg>
+                  <span className="text-sm text-[#4A4A4A] font-medium break-all">{publishedUrl.replace(/^https?:\/\//, '')}</span>
+                </div>
+                <button
+                  onClick={() => navigator.clipboard.writeText(publishedUrl)}
+                  className="text-[#D4AF37] hover:text-[#C4A030] p-2"
+                  title="Copy URL"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mb-6">
+              <a
+                href={publishedUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-1 px-4 py-3 bg-[#D4AF37] text-white hover:bg-[#C4A030] rounded-lg transition-colors font-medium flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+                Visit Site
+              </a>
+              <button
+                onClick={() => setShowPublishSuccess(false)}
+                className="flex-1 px-4 py-3 border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+              >
+                Done
+              </button>
+            </div>
+
+            {/* Custom Domain Setup */}
+            {publishedWebsiteId && (
+              <div className="border-t border-gray-200 pt-6">
+                <CustomDomainSetup
+                  websiteId={publishedWebsiteId}
+                  onDomainConfigured={(domain) => {
+                    console.log('Custom domain configured:', domain);
+                  }}
+                />
+              </div>
+            )}
           </div>
         </div>
       )}

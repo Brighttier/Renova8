@@ -3,9 +3,11 @@ import { generateWebsiteConceptImage, generateWebsiteStructure, refineWebsiteCod
 import { ImageSize, AspectRatio, Lead, HistoryItem, DesignSpecification, VerificationResult } from '../types';
 import { extractDesignSpecFromImage, createDefaultDesignSpec } from '../services/designExtractionService';
 import { verifyWebsiteAgainstSpec } from '../services/verificationService';
+import { publishWebsite, isPublishingAvailable } from '../services/publishingService';
 import { ApiKeyModal } from './ApiKeyModal';
 import { DesignSpecReview } from './DesignSpecReview';
 import { DesignVerificationModal } from './DesignVerificationModal';
+import { CustomDomainSetup } from './CustomDomainSetup';
 
 interface Props {
   onUseCredit: () => void;
@@ -31,6 +33,10 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
 
   // Proposal State
   const [proposalSent, setProposalSent] = useState(false);
+
+  // Publishing State
+  const [websiteId, setWebsiteId] = useState<string | null>(null);
+  const [publishError, setPublishError] = useState<string | null>(null);
 
   // Design Consistency State
   const [designSpec, setDesignSpec] = useState<DesignSpecification | null>(null);
@@ -287,16 +293,62 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
       }
   }
 
-  const handleDeploy = () => {
+  const handleDeploy = async () => {
       if (!generatedCode) return;
-      
+
       setLoading(true);
-      // Simulate deployment delay
-      setTimeout(() => {
+      setPublishError(null);
+
+      // Check if real publishing is available (Firebase configured)
+      if (isPublishingAvailable()) {
+          try {
+              // Publish to Firebase Hosting
+              const result = await publishWebsite(
+                  generatedCode,
+                  selectedLead?.businessName || 'my-website',
+                  selectedLead?.id
+              );
+
+              setDeployedUrl(result.firebaseUrl);
+              setWebsiteId(result.websiteId);
+
+              // Save back to lead with real URL
+              if (selectedLead && onUpdateLead) {
+                  const historyItem: HistoryItem = {
+                      id: `hist-${Date.now()}`,
+                      type: 'WEBSITE_DEPLOY',
+                      timestamp: Date.now(),
+                      content: result.firebaseUrl,
+                      metadata: {
+                          prompt: 'Live Website Deployment',
+                          websiteId: result.websiteId
+                      }
+                  };
+
+                  onUpdateLead({
+                      ...selectedLead,
+                      websiteUrl: result.firebaseUrl,
+                      history: [...(selectedLead.history || []), historyItem]
+                  });
+              }
+
+              setActiveTab('deploy');
+          } catch (error) {
+              console.error('Publishing failed:', error);
+              setPublishError(error instanceof Error ? error.message : 'Failed to publish website');
+
+              // Fallback to blob URL for preview
+              const blob = new Blob([generatedCode], { type: 'text/html' });
+              const url = URL.createObjectURL(blob);
+              setDeployedUrl(url);
+              setActiveTab('deploy');
+          }
+      } else {
+          // Fallback: Use blob URL when Firebase isn't configured (demo mode)
           const blob = new Blob([generatedCode], { type: 'text/html' });
           const url = URL.createObjectURL(blob);
           setDeployedUrl(url);
-          
+
           // Save back to lead
           if (selectedLead && onUpdateLead) {
               const historyItem: HistoryItem = {
@@ -305,7 +357,7 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
                   timestamp: Date.now(),
                   content: url,
                   metadata: {
-                      prompt: 'Live Website Deployment'
+                      prompt: 'Live Website Deployment (Demo Mode)'
                   }
               };
 
@@ -317,8 +369,9 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
           }
 
           setActiveTab('deploy');
-          setLoading(false);
-      }, 2000);
+      }
+
+      setLoading(false);
   }
 
   const handleSendProposal = () => {
@@ -544,7 +597,21 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
       )}
 
       {activeTab === 'deploy' && deployedUrl && (
-          <div className="max-w-3xl mx-auto animate-fadeInUp">
+          <div className="max-w-3xl mx-auto animate-fadeInUp space-y-6">
+              {/* Error Banner */}
+              {publishError && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-start gap-3">
+                      <svg className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                      <div>
+                          <p className="font-medium text-yellow-800">Publishing to live hosting failed</p>
+                          <p className="text-sm text-yellow-700 mt-1">{publishError}</p>
+                          <p className="text-sm text-yellow-600 mt-2">Your website is available for preview below. Try publishing again or contact support.</p>
+                      </div>
+                  </div>
+              )}
+
               <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-green-100">
                   <div className="bg-green-500 p-8 text-white text-center">
                       <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
@@ -553,27 +620,57 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
                       <h2 className="text-3xl font-bold mb-2">Website is Live!</h2>
                       <p className="text-green-50 opacity-90">Your custom website is ready to be shared with the world.</p>
                   </div>
-                  
+
                   <div className="p-8 space-y-8">
                       {/* Link Section */}
                       <div className="space-y-2">
                           <label className="text-sm font-bold text-gray-500 uppercase tracking-wider">Public Link</label>
                           <div className="flex gap-2">
                               <div className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-gray-600 font-mono text-sm truncate">
-                                  {deployedUrl.startsWith('blob:') ? `https://mompreneur.app/sites/${selectedLead ? selectedLead.businessName.toLowerCase().replace(/[^a-z0-9]/g, '-') : 'site'}` : deployedUrl}
+                                  {deployedUrl.startsWith('blob:') ? `https://preview.renova8.app/sites/${selectedLead ? selectedLead.businessName.toLowerCase().replace(/[^a-z0-9]/g, '-') : 'site'}` : deployedUrl}
                               </div>
-                              <a 
-                                href={deployedUrl} 
-                                target="_blank" 
+                              <button
+                                onClick={() => navigator.clipboard.writeText(deployedUrl.startsWith('blob:') ? `Demo preview only` : deployedUrl)}
+                                className="px-4 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-colors"
+                                title="Copy Link"
+                              >
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                  </svg>
+                              </button>
+                              <a
+                                href={deployedUrl}
+                                target="_blank"
                                 rel="noreferrer"
                                 className="px-6 py-3 bg-purple-600 text-white rounded-xl font-bold hover:bg-purple-700 transition-colors"
                               >
                                   Open Site
                               </a>
                           </div>
+                          {deployedUrl.startsWith('blob:') && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                  This is a local preview. Sign in with Firebase to publish to a permanent URL.
+                              </p>
+                          )}
                       </div>
 
                       <hr className="border-gray-100" />
+
+                      {/* Custom Domain Section - Only show if published to Firebase */}
+                      {websiteId && !deployedUrl.startsWith('blob:') && (
+                          <>
+                              <CustomDomainSetup
+                                  websiteId={websiteId}
+                                  onDomainConfigured={(domain) => {
+                                      console.log('Custom domain configured:', domain);
+                                  }}
+                                  onDomainRemoved={() => {
+                                      console.log('Custom domain removed');
+                                  }}
+                              />
+                              <hr className="border-gray-100" />
+                          </>
+                      )}
 
                       {/* CRM Section */}
                       <div>
@@ -588,14 +685,14 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
                                       <p className="text-sm text-gray-500">{selectedLead?.location || 'Local Business'}</p>
                                   </div>
                               </div>
-                              
-                              <textarea 
+
+                              <textarea
                                 className="w-full p-4 rounded-xl border border-blue-200 bg-white mb-4 text-sm text-gray-700 h-32 resize-none focus:ring-2 focus:ring-blue-200 outline-none"
-                                defaultValue={`Hi there! \n\nI created a mock-up for a new website for ${selectedLead?.businessName || 'your business'}. \n\nCheck it out here: ${deployedUrl} \n\nLet me know what you think!`}
+                                defaultValue={`Hi there! \n\nI created a mock-up for a new website for ${selectedLead?.businessName || 'your business'}. \n\nCheck it out here: ${deployedUrl.startsWith('blob:') ? '[Live URL will be available after publishing]' : deployedUrl} \n\nLet me know what you think!`}
                               />
-                              
+
                               <div className="flex justify-end">
-                                  <button 
+                                  <button
                                     onClick={handleSendProposal}
                                     className={`px-6 py-3 rounded-xl font-bold text-white transition-all shadow-md flex items-center gap-2 ${proposalSent ? 'bg-green-500' : 'bg-blue-500 hover:bg-blue-600'}`}
                                   >
