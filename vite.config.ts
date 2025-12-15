@@ -18,6 +18,23 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         }
-      }
+      },
+      // Ensure all routes fall back to index.html for SPA
+      appType: 'spa',
+      build: {
+        // Output to dist folder for Firebase Hosting
+        outDir: 'dist',
+        // Generate sourcemaps for easier debugging
+        sourcemap: mode !== 'production',
+        // Optimize chunks
+        rollupOptions: {
+          output: {
+            manualChunks: {
+              vendor: ['react', 'react-dom'],
+              firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/functions'],
+            },
+          },
+        },
+      },
     };
 });

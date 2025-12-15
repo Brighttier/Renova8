@@ -2,6 +2,7 @@
 .env
 .env.local
 .env.*.local
+.env.production
 
 # Logs
 logs
@@ -27,3 +28,23 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Firebase
+.firebase/
+*-debug.log
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+.runtimeconfig.json
+
+# Firebase service account keys (NEVER commit these!)
+**/serviceAccount*.json
+**/service-account*.json
+**/*-key.json
+**/*-credentials.json
+
+# Firebase Functions build output
+functions/lib/
+
+# Firebase cache
+.firebaserc.local
