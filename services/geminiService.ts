@@ -13,6 +13,69 @@ const getClient = async (requiresPaidKey: boolean = false, skipKeyCheck: boolean
   return new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
 };
 
+/**
+ * Injects the approved concept image into the hero section of generated HTML.
+ * Replaces placeholder Unsplash URLs with the actual base64 concept image.
+ */
+const injectConceptImageIntoHero = (html: string, conceptImage: string): string => {
+    if (!conceptImage) return html;
+
+    // Ensure concept image has proper data URL format
+    const imageDataUrl = conceptImage.startsWith('data:')
+        ? conceptImage
+        : `data:image/png;base64,${conceptImage}`;
+
+    let modifiedHtml = html;
+
+    // Pattern 1: Replace background-image in hero section (inline styles)
+    // Matches: style="background-image: url('...')" or style="background-image: url(...)"
+    const heroSectionRegex = /(id=["'](?:home|hero)["'][^>]*>[\s\S]*?)(background-image:\s*url\(['"]?)([^'")\s]+)(['"]?\))/gi;
+    modifiedHtml = modifiedHtml.replace(heroSectionRegex, (match, before, urlStart, oldUrl, urlEnd) => {
+        // Only replace Unsplash or placeholder URLs
+        if (oldUrl.includes('unsplash.com') || oldUrl.includes('placeholder') || oldUrl.includes('via.placeholder')) {
+            return `${before}${urlStart}${imageDataUrl}${urlEnd}`;
+        }
+        return match;
+    });
+
+    // Pattern 2: Replace first hero background-image URL after id="home" or id="hero"
+    // This catches cases where the regex above might miss
+    const heroBackgroundRegex = /((?:id=["'](?:home|hero)["']|class=["'][^"']*hero[^"']*["'])[^>]*(?:>|style=["'][^"']*))background-image:\s*url\(['"]?(https?:\/\/[^'")\s]+)['"]?\)/gi;
+    modifiedHtml = modifiedHtml.replace(heroBackgroundRegex, (match, prefix, oldUrl) => {
+        if (oldUrl.includes('unsplash.com') || oldUrl.includes('placeholder')) {
+            return `${prefix}background-image: url('${imageDataUrl}')`;
+        }
+        return match;
+    });
+
+    // Pattern 3: Replace img src in hero section
+    // Look for img tags within the first major section (hero)
+    const heroImgRegex = /(<section[^>]*(?:id=["'](?:home|hero)["']|class=["'][^"']*hero[^"']*["'])[^>]*>[\s\S]*?<img[^>]*src=["'])([^"']+)(["'][^>]*>)/gi;
+    modifiedHtml = modifiedHtml.replace(heroImgRegex, (match, before, src, after) => {
+        if (src.includes('unsplash.com') || src.includes('placeholder')) {
+            return `${before}${imageDataUrl}${after}`;
+        }
+        return match;
+    });
+
+    // Pattern 4: Replace the very first large background image URL in the document
+    // (in case hero section isn't clearly marked)
+    let firstImageReplaced = false;
+    modifiedHtml = modifiedHtml.replace(
+        /background-image:\s*url\(['"]?(https:\/\/images\.unsplash\.com\/[^'")\s]+)['"]?\)/i,
+        (match, oldUrl) => {
+            if (!firstImageReplaced) {
+                firstImageReplaced = true;
+                return `background-image: url('${imageDataUrl}')`;
+            }
+            return match;
+        }
+    );
+
+    console.log('Concept image injected into hero section');
+    return modifiedHtml;
+};
+
 // Helper to safely parse JSON from AI response
 export const safeParseJSON = (text: string) => {
     const cleanup = (str: string) => str.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -490,6 +553,10 @@ Return ONLY the complete HTML code starting with <!DOCTYPE html>. No markdown.`;
             }
 
             console.log('HTML generated successfully, length:', text.length);
+
+            // Inject the approved concept image into the hero section
+            text = injectConceptImageIntoHero(text, conceptImage);
+
             return text;
 
         } catch (error) {
