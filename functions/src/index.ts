@@ -51,3 +51,14 @@ export {
   verifyDomain,
   removeCustomDomain,
 } from "./setupCustomDomain";
+
+// Export Platform Settings Functions (Admin)
+export {
+  getPlatformSettings,
+  addPlatformApiKey,
+  removePlatformApiKey,
+  updatePlatformApiKey,
+  updateApiKeyRotationStrategy,
+  updatePlatformRateLimits,
+  updatePlatformTokenLimits,
+} from "./platformSettingsFunctions";

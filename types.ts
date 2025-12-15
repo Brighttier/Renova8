@@ -655,3 +655,72 @@ export interface DomainStatusResult {
   sslStatus?: 'provisioning' | 'active';
   message: string;
 }
+
+// ============================================
+// Platform API Settings Types
+// ============================================
+
+export type ApiKeyRotationStrategy = 'round-robin' | 'failover' | 'usage-based';
+
+export interface ApiKeyConfig {
+  id: string;
+  key: string;           // Full key (stored encrypted server-side, masked in UI)
+  name: string;          // "Primary", "Backup 1", etc.
+  isActive: boolean;
+  usageCount: number;    // Requests today
+  totalUsage: number;    // Lifetime requests
+  lastUsed: number;      // Timestamp
+  dailyLimit?: number;   // Optional per-key daily limit
+  addedAt: number;
+  addedBy: string;
+}
+
+export interface RateLimitConfig {
+  enabled: boolean;
+  globalRequestsPerMinute: number;    // Platform-wide limit
+  perUserRequestsPerMinute: number;   // Per user per minute
+  perUserRequestsPerDay: number;      // Per user per day
+}
+
+export interface TokenLimitConfig {
+  initialSignupTokens: number;        // Tokens given to new users
+  maxTokensPerUser: number;           // Max tokens a user can hold (0 = unlimited)
+  minBalanceForCall: number;          // Minimum balance required for API call
+  profitMargin: number;               // 0-1 (e.g., 0.45 = 45%)
+}
+
+export interface PlatformAPISettings {
+  // API Keys
+  geminiApiKeys: ApiKeyConfig[];
+  currentKeyIndex: number;
+  rotationStrategy: ApiKeyRotationStrategy;
+
+  // Rate Limiting
+  rateLimits: RateLimitConfig;
+
+  // Token Limitations
+  tokenLimits: TokenLimitConfig;
+
+  // Metadata
+  updatedAt: number;
+  updatedBy: string;
+}
+
+// Default settings for new installations
+export const DEFAULT_PLATFORM_API_SETTINGS: Omit<PlatformAPISettings, 'updatedAt' | 'updatedBy'> = {
+  geminiApiKeys: [],
+  currentKeyIndex: 0,
+  rotationStrategy: 'round-robin',
+  rateLimits: {
+    enabled: false,
+    globalRequestsPerMinute: 60,
+    perUserRequestsPerMinute: 10,
+    perUserRequestsPerDay: 1000,
+  },
+  tokenLimits: {
+    initialSignupTokens: 2000,
+    maxTokensPerUser: 0, // 0 = unlimited
+    minBalanceForCall: 10,
+    profitMargin: 0.45,
+  },
+};

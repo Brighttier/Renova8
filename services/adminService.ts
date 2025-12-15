@@ -42,7 +42,15 @@ import {
   TicketPriority,
   TicketStatus,
   TicketCategory,
+  PlatformAPISettings,
+  ApiKeyConfig,
+  RateLimitConfig,
+  TokenLimitConfig,
+  ApiKeyRotationStrategy,
+  DEFAULT_PLATFORM_API_SETTINGS,
 } from '../types';
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { functions as firebaseFunctions } from '../lib/firebase';
 
 // ============================================
 // Constants
@@ -1062,4 +1070,201 @@ export async function getTransactionsPaginated(
     limit: options.limit,
   });
   return { transactions, total: transactions.length };
+}
+
+// ============================================
+// Platform API Settings
+// ============================================
+
+/**
+ * Get platform API settings (calls Cloud Function)
+ */
+export async function getPlatformAPISettings(): Promise<{
+  settings: PlatformAPISettings;
+  stats: {
+    totalKeys: number;
+    activeKeys: number;
+    totalUsageToday: number;
+    totalUsageAllTime: number;
+  };
+}> {
+  // Return demo data if Firebase not configured
+  if (!isFirebaseConfigured() || !firebaseFunctions) {
+    return {
+      settings: {
+        ...DEFAULT_PLATFORM_API_SETTINGS,
+        updatedAt: Date.now(),
+        updatedBy: 'demo',
+      },
+      stats: {
+        totalKeys: 0,
+        activeKeys: 0,
+        totalUsageToday: 0,
+        totalUsageAllTime: 0,
+      },
+    };
+  }
+
+  try {
+    const getPlatformSettingsFn = httpsCallable<void, {
+      success: boolean;
+      settings: PlatformAPISettings;
+      stats: any;
+    }>(firebaseFunctions, 'getPlatformSettings');
+
+    const result = await getPlatformSettingsFn();
+    return {
+      settings: result.data.settings,
+      stats: result.data.stats,
+    };
+  } catch (error) {
+    console.error('Error getting platform settings:', error);
+    throw error;
+  }
+}
+
+/**
+ * Add a new API key
+ */
+export async function addPlatformApiKey(
+  key: string,
+  name: string
+): Promise<{ success: boolean; keyId?: string; error?: string }> {
+  if (!isFirebaseConfigured() || !firebaseFunctions) {
+    return { success: false, error: 'Firebase not configured' };
+  }
+
+  try {
+    const addApiKeyFn = httpsCallable<
+      { key: string; name: string },
+      { success: boolean; keyId: string; message: string }
+    >(firebaseFunctions, 'addPlatformApiKey');
+
+    const result = await addApiKeyFn({ key, name });
+    return { success: result.data.success, keyId: result.data.keyId };
+  } catch (error: any) {
+    console.error('Error adding API key:', error);
+    return { success: false, error: error.message || 'Failed to add API key' };
+  }
+}
+
+/**
+ * Remove an API key
+ */
+export async function removePlatformApiKey(
+  keyId: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!isFirebaseConfigured() || !firebaseFunctions) {
+    return { success: false, error: 'Firebase not configured' };
+  }
+
+  try {
+    const removeApiKeyFn = httpsCallable<
+      { keyId: string },
+      { success: boolean; message: string }
+    >(firebaseFunctions, 'removePlatformApiKey');
+
+    const result = await removeApiKeyFn({ keyId });
+    return { success: result.data.success };
+  } catch (error: any) {
+    console.error('Error removing API key:', error);
+    return { success: false, error: error.message || 'Failed to remove API key' };
+  }
+}
+
+/**
+ * Update an API key
+ */
+export async function updatePlatformApiKey(
+  keyId: string,
+  updates: { name?: string; isActive?: boolean; dailyLimit?: number }
+): Promise<{ success: boolean; error?: string }> {
+  if (!isFirebaseConfigured() || !firebaseFunctions) {
+    return { success: false, error: 'Firebase not configured' };
+  }
+
+  try {
+    const updateApiKeyFn = httpsCallable<
+      { keyId: string; updates: typeof updates },
+      { success: boolean; message: string }
+    >(firebaseFunctions, 'updatePlatformApiKey');
+
+    const result = await updateApiKeyFn({ keyId, updates });
+    return { success: result.data.success };
+  } catch (error: any) {
+    console.error('Error updating API key:', error);
+    return { success: false, error: error.message || 'Failed to update API key' };
+  }
+}
+
+/**
+ * Update API key rotation strategy
+ */
+export async function updateRotationStrategy(
+  strategy: ApiKeyRotationStrategy
+): Promise<{ success: boolean; error?: string }> {
+  if (!isFirebaseConfigured() || !firebaseFunctions) {
+    return { success: false, error: 'Firebase not configured' };
+  }
+
+  try {
+    const updateStrategyFn = httpsCallable<
+      { strategy: ApiKeyRotationStrategy },
+      { success: boolean; message: string }
+    >(firebaseFunctions, 'updateApiKeyRotationStrategy');
+
+    const result = await updateStrategyFn({ strategy });
+    return { success: result.data.success };
+  } catch (error: any) {
+    console.error('Error updating rotation strategy:', error);
+    return { success: false, error: error.message || 'Failed to update strategy' };
+  }
+}
+
+/**
+ * Update rate limits
+ */
+export async function updatePlatformRateLimits(
+  rateLimits: Partial<RateLimitConfig>
+): Promise<{ success: boolean; error?: string }> {
+  if (!isFirebaseConfigured() || !firebaseFunctions) {
+    return { success: false, error: 'Firebase not configured' };
+  }
+
+  try {
+    const updateRateLimitsFn = httpsCallable<
+      { rateLimits: Partial<RateLimitConfig> },
+      { success: boolean; message: string }
+    >(firebaseFunctions, 'updatePlatformRateLimits');
+
+    const result = await updateRateLimitsFn({ rateLimits });
+    return { success: result.data.success };
+  } catch (error: any) {
+    console.error('Error updating rate limits:', error);
+    return { success: false, error: error.message || 'Failed to update rate limits' };
+  }
+}
+
+/**
+ * Update token limits
+ */
+export async function updatePlatformTokenLimits(
+  tokenLimits: Partial<TokenLimitConfig>
+): Promise<{ success: boolean; error?: string }> {
+  if (!isFirebaseConfigured() || !firebaseFunctions) {
+    return { success: false, error: 'Firebase not configured' };
+  }
+
+  try {
+    const updateTokenLimitsFn = httpsCallable<
+      { tokenLimits: Partial<TokenLimitConfig> },
+      { success: boolean; message: string }
+    >(firebaseFunctions, 'updatePlatformTokenLimits');
+
+    const result = await updateTokenLimitsFn({ tokenLimits });
+    return { success: result.data.success };
+  } catch (error: any) {
+    console.error('Error updating token limits:', error);
+    return { success: false, error: error.message || 'Failed to update token limits' };
+  }
 }
