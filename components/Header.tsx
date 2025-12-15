@@ -214,9 +214,6 @@ export const Header: React.FC<Props> = ({
 
                             <div className="my-1 border-t border-[#F9F6F0]"></div>
                             <div className="p-1">
-                                <button onClick={() => handleNav(AppView.HELP_SUPPORT)} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-[#F9F6F0] hover:text-[#4A4A4A] rounded-lg flex items-center gap-2">
-                                    <span>❓</span> Help & Support
-                                </button>
                                 {onRestartTour && (
                                     <button
                                         onClick={() => {

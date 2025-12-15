@@ -393,82 +393,156 @@ Be extremely specific about colors, layout positions, and visual hierarchy.`;
 
             // STEP 2: Generate HTML based on the detailed analysis
             console.log('Step 2: Generating HTML from analysis...');
-            const htmlPrompt = `You are an expert frontend developer. Create a pixel-perfect HTML website based on this detailed design analysis:
 
-=== DESIGN ANALYSIS ===
+            // Build comprehensive design requirements from extracted spec
+            const buildDesignRequirements = () => {
+                if (!designSpec) return '';
+
+                const { colors, typography, layout, components, content } = designSpec;
+
+                return `
+=== MANDATORY DESIGN SPECIFICATIONS (MUST MATCH EXACTLY) ===
+
+COLORS (use these EXACT hex codes):
+- Primary: ${colors.primary}
+- Secondary: ${colors.secondary}
+- Accent: ${colors.accent}
+- Background: ${colors.background}
+- Text: ${colors.text}
+${colors.headerBg ? `- Header Background: ${colors.headerBg}` : ''}
+${colors.footerBg ? `- Footer Background: ${colors.footerBg}` : ''}
+${colors.heroBg ? `- Hero Background: ${colors.heroBg}` : ''}
+${colors.cardBg ? `- Card Background: ${colors.cardBg}` : ''}
+
+TYPOGRAPHY:
+- Heading Font: "${typography.headingFont}" (MUST use this exact Google Font)
+- Body Font: "${typography.bodyFont}" (MUST use this exact Google Font)
+- H1 Size: ${typography.headingSizes.h1}
+- H2 Size: ${typography.headingSizes.h2}
+- H3 Size: ${typography.headingSizes.h3}
+${typography.fontWeight?.heading ? `- Heading Weight: ${typography.fontWeight.heading}` : ''}
+
+LAYOUT:
+- Max Width: ${layout.maxWidth}
+- Section Padding: ${layout.sectionPadding}
+- Grid Columns: ${layout.gridColumns}
+- Gutter Width: ${layout.gutterWidth}
+
+HEADER COMPONENT:
+- Style: ${components.header.style}
+- Logo Placement: ${components.header.logoPlacement}
+${components.header.logoText ? `- Logo Text: "${components.header.logoText}" (USE THIS EXACT TEXT)` : ''}
+${components.header.navItems?.length ? `- Navigation Items: ${components.header.navItems.map(item => `"${item}"`).join(', ')} (USE THESE EXACT ITEMS)` : ''}
+${components.header.backgroundColor ? `- Background Color: ${components.header.backgroundColor}` : ''}
+${components.header.textColor ? `- Text Color: ${components.header.textColor}` : ''}
+
+HERO SECTION:
+- Height: ${components.hero.height}
+- Alignment: ${components.hero.alignment}
+${components.hero.headline ? `- Headline: "${components.hero.headline}" (USE THIS EXACT TEXT)` : ''}
+${components.hero.subheadline ? `- Subheadline: "${components.hero.subheadline}" (USE THIS EXACT TEXT)` : ''}
+${components.hero.ctaButtons?.length ? `- CTA Buttons: ${components.hero.ctaButtons.map(btn => `"${btn}"`).join(', ')} (USE THESE EXACT TEXTS)` : ''}
+${components.hero.backgroundType ? `- Background Type: ${components.hero.backgroundType}` : ''}
+${components.hero.backgroundValue ? `- Background Value: ${components.hero.backgroundValue}` : ''}
+${components.hero.imagePosition ? `- Image Position: ${components.hero.imagePosition}` : ''}
+${components.hero.hasOverlay !== undefined ? `- Has Overlay: ${components.hero.hasOverlay}` : ''}
+
+BUTTONS:
+- Border Radius: ${components.buttons.borderRadius}
+- Style: ${components.buttons.style}
+${components.buttons.primaryColor ? `- Primary Button Color: ${components.buttons.primaryColor}` : ''}
+${components.buttons.primaryTextColor ? `- Primary Button Text: ${components.buttons.primaryTextColor}` : ''}
+${components.buttons.padding ? `- Padding: ${components.buttons.padding}` : ''}
+
+CARDS:
+- Border Radius: ${components.cards.borderRadius}
+- Shadow: ${components.cards.shadow}
+${components.cards.backgroundColor ? `- Background: ${components.cards.backgroundColor}` : ''}
+${components.cards.border ? `- Border: ${components.cards.border}` : ''}
+
+SECTIONS (in exact order):
+${content.sections.map((s, i) => `${i + 1}. ${s.type.toUpperCase()}${s.title ? ` - Title: "${s.title}"` : ''}${s.subtitle ? ` - Subtitle: "${s.subtitle}"` : ''}${s.backgroundColor ? ` - BG: ${s.backgroundColor}` : ''}${s.itemCount ? ` - ${s.itemCount} items` : ''}${s.layout ? ` - Layout: ${s.layout}` : ''}`).join('\n')}
+
+EXACT TEXT CONTENT TO USE:
+${content.exactText.logoText ? `- Logo: "${content.exactText.logoText}"` : ''}
+${content.exactText.heroHeadline ? `- Hero Headline: "${content.exactText.heroHeadline}"` : ''}
+${content.exactText.heroSubheadline ? `- Hero Subheadline: "${content.exactText.heroSubheadline}"` : ''}
+${content.exactText.ctaButtonTexts?.length ? `- CTA Buttons: ${content.exactText.ctaButtonTexts.map(t => `"${t}"`).join(', ')}` : ''}
+${content.exactText.navMenuItems?.length ? `- Nav Items: ${content.exactText.navMenuItems.map(t => `"${t}"`).join(', ')}` : ''}
+${content.exactText.sectionTitles?.length ? `- Section Titles: ${content.exactText.sectionTitles.map(t => `"${t}"`).join(', ')}` : ''}
+${content.exactText.footerText ? `- Footer: "${content.exactText.footerText}"` : ''}
+`;
+            };
+
+            const htmlPrompt = `You are an expert frontend developer. Your task is to create a PIXEL-PERFECT HTML website that is 100% IDENTICAL to the concept mockup.
+
+=== VISUAL ANALYSIS OF MOCKUP ===
 ${imageAnalysis}
 
 === BUSINESS CONTEXT ===
 ${prompt}
 
-${designSpec ? `
-=== EXTRACTED COLORS ===
-Primary: ${designSpec.colors.primary}
-Secondary: ${designSpec.colors.secondary}
-Accent: ${designSpec.colors.accent}
-Background: ${designSpec.colors.background}
-Text: ${designSpec.colors.text}
-Fonts: ${designSpec.typography.headingFont} (headings), ${designSpec.typography.bodyFont} (body)
-` : ''}
+${buildDesignRequirements()}
 
-=== REQUIREMENTS ===
-Create a COMPLETE single-file HTML website that matches the description above EXACTLY.
+=== CRITICAL REQUIREMENTS ===
+
+YOU MUST CREATE A WEBSITE THAT IS VISUALLY IDENTICAL TO THE MOCKUP. Every detail matters:
+- Use the EXACT colors specified (copy hex codes exactly)
+- Use the EXACT fonts specified
+- Use the EXACT text content (headlines, buttons, nav items)
+- Match the EXACT layout structure
+- Match the EXACT number of sections and their order
+- Match the EXACT spacing and sizing
+
+=== HTML STRUCTURE ===
 
 1. Start with <!DOCTYPE html>
-2. Include Tailwind CSS:
-   <script src="https://cdn.tailwindcss.com"></script>
-   <script>
-   tailwind.config = {
-     theme: {
-       extend: {
-         colors: {
-           primary: '${designSpec?.colors.primary || '#D4AF37'}',
-           secondary: '${designSpec?.colors.secondary || '#4A4A4A'}',
-           accent: '${designSpec?.colors.accent || '#2E7D32'}',
-         }
-       }
-     }
-   }
-   </script>
 
-3. Import Google Fonts that match the style described
+2. Include Tailwind CSS with EXACT color configuration:
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        primary: '${designSpec?.colors.primary || '#D4AF37'}',
+        secondary: '${designSpec?.colors.secondary || '#4A4A4A'}',
+        accent: '${designSpec?.colors.accent || '#2E7D32'}',
+        ${designSpec?.colors.headerBg ? `'header-bg': '${designSpec.colors.headerBg}',` : ''}
+        ${designSpec?.colors.footerBg ? `'footer-bg': '${designSpec.colors.footerBg}',` : ''}
+        ${designSpec?.colors.heroBg ? `'hero-bg': '${designSpec.colors.heroBg}',` : ''}
+        ${designSpec?.colors.cardBg ? `'card-bg': '${designSpec.colors.cardBg}',` : ''}
+      }
+    }
+  }
+}
+</script>
 
-4. Add smooth scrolling:
-   <style>html { scroll-behavior: smooth; }</style>
+3. Import the EXACT Google Fonts:
+<link href="https://fonts.googleapis.com/css2?family=${designSpec?.typography.headingFont?.replace(/ /g, '+') || 'Playfair+Display'}:wght@400;500;600;700&family=${designSpec?.typography.bodyFont?.replace(/ /g, '+') || 'Inter'}:wght@300;400;500;600&display=swap" rel="stylesheet">
 
-5. NAVIGATION: Add id to each section, use anchor links (href="#services")
+4. Add smooth scrolling and font styles:
+<style>
+  html { scroll-behavior: smooth; }
+  .font-heading { font-family: '${designSpec?.typography.headingFont || 'Playfair Display'}', serif; }
+  .font-body { font-family: '${designSpec?.typography.bodyFont || 'Inter'}', sans-serif; }
+  body { font-family: '${designSpec?.typography.bodyFont || 'Inter'}', sans-serif; }
+</style>
 
-6. SIZING:
-   - Hero: min-h-[600px] or min-h-screen
-   - Sections: py-16 md:py-20 lg:py-24
-   - Container: max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
+5. NAVIGATION: Add id to each section, use anchor links
 
-7. IMAGES - USE THESE EXACT WORKING URLs (choose appropriate ones):
-   Hero backgrounds:
-   - https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&h=1080&fit=crop (modern office)
-   - https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=1920&h=1080&fit=crop (workspace)
-   - https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=1920&h=1080&fit=crop (business meeting)
+6. IMAGES - USE THESE EXACT WORKING URLS:
+   Hero: https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&h=1080&fit=crop
+   Business: https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200&h=800&fit=crop
+   Team: https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=800&fit=crop
+   Person 1: https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop
+   Person 2: https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop
+   Restaurant: https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1200&h=800&fit=crop
+   Food: https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1200&h=800&fit=crop
 
-   Restaurant/Food:
-   - https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1200&h=800&fit=crop (restaurant interior)
-   - https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1200&h=800&fit=crop (food platter)
-   - https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=800&h=600&fit=crop (pizza)
-
-   Services/Business:
-   - https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200&h=800&fit=crop (team working)
-   - https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=800&fit=crop (collaboration)
-   - https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=800&h=600&fit=crop (professional)
-
-   People/Testimonials:
-   - https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop (man portrait)
-   - https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop (woman portrait)
-   - https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop (professional man)
-
-   Icons/Features - use emoji or SVG icons instead of images
-
-8. Match the EXACT layout, colors, and structure from the analysis
-
-Return ONLY the complete HTML code starting with <!DOCTYPE html>. No markdown.`;
+=== OUTPUT ===
+Return ONLY the complete HTML code starting with <!DOCTYPE html>. No markdown, no explanations.
+The website MUST be visually identical to the mockup.`;
 
             const htmlResponse = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
@@ -584,16 +658,31 @@ Return ONLY complete HTML starting with <!DOCTYPE html>`,
 const buildStrictWebsitePrompt = (businessPrompt: string, spec: DesignSpecification): string => {
     const sectionsOrder = spec.content.sections
         .sort((a, b) => a.order - b.order)
-        .map((s, i) => `${i + 1}. ${s.type.toUpperCase()}`)
+        .map((s, i) => {
+            let sectionStr = `${i + 1}. ${s.type.toUpperCase()}`;
+            if (s.title) sectionStr += ` - Title: "${s.title}"`;
+            if (s.subtitle) sectionStr += ` - Subtitle: "${s.subtitle}"`;
+            if (s.backgroundColor) sectionStr += ` - BG: ${s.backgroundColor}`;
+            if (s.itemCount) sectionStr += ` - ${s.itemCount} items`;
+            if (s.layout) sectionStr += ` - Layout: ${s.layout}`;
+            return sectionStr;
+        })
         .join('\n    ');
 
-    const exactTextEntries = Object.entries(spec.content.exactText || {})
-        .map(([key, value]) => `- ${key}: "${value}"`)
-        .join('\n    ');
+    // Build exact text content section
+    const exactText = spec.content.exactText;
+    let exactTextContent = '';
+    if (exactText.logoText) exactTextContent += `- Logo Text: "${exactText.logoText}"\n    `;
+    if (exactText.heroHeadline) exactTextContent += `- Hero Headline: "${exactText.heroHeadline}"\n    `;
+    if (exactText.heroSubheadline) exactTextContent += `- Hero Subheadline: "${exactText.heroSubheadline}"\n    `;
+    if (exactText.ctaButtonTexts?.length) exactTextContent += `- CTA Buttons: ${exactText.ctaButtonTexts.map(t => `"${t}"`).join(', ')}\n    `;
+    if (exactText.navMenuItems?.length) exactTextContent += `- Nav Items: ${exactText.navMenuItems.map(t => `"${t}"`).join(', ')}\n    `;
+    if (exactText.sectionTitles?.length) exactTextContent += `- Section Titles: ${exactText.sectionTitles.map(t => `"${t}"`).join(', ')}\n    `;
+    if (exactText.footerText) exactTextContent += `- Footer Text: "${exactText.footerText}"\n    `;
 
     return `Create a complete, single-file HTML website for: ${businessPrompt}
 
-=== CRITICAL: STRICT DESIGN SPECIFICATIONS - DO NOT DEVIATE ===
+=== CRITICAL: STRICT DESIGN SPECIFICATIONS - MUST MATCH EXACTLY ===
 
 ## 1. COLORS (USE EXACT HEX CODES - NO SUBSTITUTIONS)
 - Primary Color: ${spec.colors.primary}
@@ -601,9 +690,13 @@ const buildStrictWebsitePrompt = (businessPrompt: string, spec: DesignSpecificat
 - Accent/CTA Color: ${spec.colors.accent}
 - Background Color: ${spec.colors.background}
 - Text Color: ${spec.colors.text}
-${spec.colors.exactHexCodes.length > 0 ? `- Additional colors found in design: ${spec.colors.exactHexCodes.join(', ')}` : ''}
+${spec.colors.headerBg ? `- Header Background: ${spec.colors.headerBg}` : ''}
+${spec.colors.footerBg ? `- Footer Background: ${spec.colors.footerBg}` : ''}
+${spec.colors.heroBg ? `- Hero Background: ${spec.colors.heroBg}` : ''}
+${spec.colors.cardBg ? `- Card Background: ${spec.colors.cardBg}` : ''}
+${spec.colors.exactHexCodes.length > 0 ? `- Additional colors: ${spec.colors.exactHexCodes.join(', ')}` : ''}
 
-IMPORTANT: Use these EXACT hex values. Do not use Tailwind color classes like "blue-500" - use custom colors with these exact hex codes.
+IMPORTANT: Use these EXACT hex values. Do not use Tailwind color classes like "blue-500".
 
 ## 2. TYPOGRAPHY (USE EXACT FONTS)
 - Heading Font: "${spec.typography.headingFont}" (import from Google Fonts)
@@ -612,6 +705,8 @@ IMPORTANT: Use these EXACT hex values. Do not use Tailwind color classes like "b
 - H1 Size: ${spec.typography.headingSizes.h1}
 - H2 Size: ${spec.typography.headingSizes.h2}
 - H3 Size: ${spec.typography.headingSizes.h3}
+${spec.typography.fontWeight?.heading ? `- Heading Weight: ${spec.typography.fontWeight.heading}` : ''}
+${spec.typography.fontWeight?.body ? `- Body Weight: ${spec.typography.fontWeight.body}` : ''}
 
 ## 3. LAYOUT (MATCH EXACTLY)
 - Container Max Width: ${spec.layout.maxWidth}
@@ -620,42 +715,67 @@ IMPORTANT: Use these EXACT hex values. Do not use Tailwind color classes like "b
 - Grid Gap/Gutter: ${spec.layout.gutterWidth}
 
 ## 4. COMPONENT STYLES
-Header:
+
+HEADER:
 - Position: ${spec.components.header.style}
 - Logo Placement: ${spec.components.header.logoPlacement}
+${spec.components.header.logoText ? `- Logo Text: "${spec.components.header.logoText}" (USE THIS EXACT TEXT)` : ''}
+${spec.components.header.navItems?.length ? `- Nav Items: ${spec.components.header.navItems.map(item => `"${item}"`).join(', ')} (USE THESE EXACT ITEMS)` : ''}
+${spec.components.header.backgroundColor ? `- Background: ${spec.components.header.backgroundColor}` : ''}
+${spec.components.header.textColor ? `- Text Color: ${spec.components.header.textColor}` : ''}
 
-Hero Section:
+HERO SECTION:
 - Height: ${spec.components.hero.height}
 - Content Alignment: ${spec.components.hero.alignment}
+${spec.components.hero.headline ? `- Headline: "${spec.components.hero.headline}" (USE THIS EXACT TEXT)` : ''}
+${spec.components.hero.subheadline ? `- Subheadline: "${spec.components.hero.subheadline}" (USE THIS EXACT TEXT)` : ''}
+${spec.components.hero.ctaButtons?.length ? `- CTA Buttons: ${spec.components.hero.ctaButtons.map(btn => `"${btn}"`).join(', ')} (USE THESE EXACT TEXTS)` : ''}
+${spec.components.hero.backgroundType ? `- Background Type: ${spec.components.hero.backgroundType}` : ''}
+${spec.components.hero.backgroundValue ? `- Background Value: ${spec.components.hero.backgroundValue}` : ''}
+${spec.components.hero.imagePosition ? `- Image Position: ${spec.components.hero.imagePosition}` : ''}
+${spec.components.hero.hasOverlay !== undefined ? `- Has Overlay: ${spec.components.hero.hasOverlay}` : ''}
 
-Buttons:
+BUTTONS:
 - Border Radius: ${spec.components.buttons.borderRadius}
 - Style: ${spec.components.buttons.style}
-- Use accent color (${spec.colors.accent}) for primary buttons
+${spec.components.buttons.primaryColor ? `- Primary Color: ${spec.components.buttons.primaryColor}` : `- Primary Color: ${spec.colors.accent}`}
+${spec.components.buttons.primaryTextColor ? `- Primary Text: ${spec.components.buttons.primaryTextColor}` : ''}
+${spec.components.buttons.padding ? `- Padding: ${spec.components.buttons.padding}` : ''}
 
-Cards:
+CARDS:
 - Border Radius: ${spec.components.cards.borderRadius}
 - Shadow: ${spec.components.cards.shadow}
+${spec.components.cards.backgroundColor ? `- Background: ${spec.components.cards.backgroundColor}` : ''}
+${spec.components.cards.border ? `- Border: ${spec.components.cards.border}` : ''}
 
 ## 5. SECTIONS (IN THIS EXACT ORDER)
     ${sectionsOrder}
 
-## 6. EXACT CONTENT (DO NOT PARAPHRASE OR REWRITE)
-${exactTextEntries || '    - Use appropriate placeholder text that matches the business context'}
+## 6. EXACT TEXT CONTENT (COPY EXACTLY - DO NOT MODIFY)
+    ${exactTextContent || 'Use appropriate placeholder text matching the business context'}
 
 ## 7. ASSETS
 ${spec.assets.logo?.url ? `- Logo: <img src="${spec.assets.logo.url}" alt="Logo">` : '- Logo: Use text-based logo with business name'}
-${spec.assets.heroImage?.url ? `- Hero Image: <img src="${spec.assets.heroImage.url}">` : '- Hero Image: Use a professional placeholder from unsplash.com matching the business type'}
+${spec.assets.heroImage?.url ? `- Hero Image: <img src="${spec.assets.heroImage.url}">` : '- Hero Image: Use unsplash.com professional placeholder'}
 
 ## REQUIREMENTS
 1. Use Tailwind CSS via CDN: <script src="https://cdn.tailwindcss.com"></script>
-2. Configure Tailwind with custom colors:
-   <script>tailwind.config = { theme: { extend: { colors: { primary: '${spec.colors.primary}', secondary: '${spec.colors.secondary}', accent: '${spec.colors.accent}' }}}}</script>
-3. Import the exact Google Fonts specified above
-4. Add smooth scrolling: <style>html { scroll-behavior: smooth; }</style>
-5. Be fully responsive and mobile-friendly
-6. Return ONLY the raw HTML string, starting with <!DOCTYPE html>
-7. Do not wrap in markdown code blocks
+2. Configure Tailwind with ALL custom colors:
+   <script>tailwind.config = { theme: { extend: { colors: {
+     primary: '${spec.colors.primary}',
+     secondary: '${spec.colors.secondary}',
+     accent: '${spec.colors.accent}',
+     ${spec.colors.headerBg ? `'header-bg': '${spec.colors.headerBg}',` : ''}
+     ${spec.colors.footerBg ? `'footer-bg': '${spec.colors.footerBg}',` : ''}
+     ${spec.colors.cardBg ? `'card-bg': '${spec.colors.cardBg}',` : ''}
+   }}}}</script>
+3. Import EXACT Google Fonts:
+   <link href="https://fonts.googleapis.com/css2?family=${spec.typography.headingFont.replace(/ /g, '+')}:wght@400;500;600;700&family=${spec.typography.bodyFont.replace(/ /g, '+')}:wght@300;400;500;600&display=swap" rel="stylesheet">
+4. Add custom font classes in style tag
+5. Add smooth scrolling: <style>html { scroll-behavior: smooth; }</style>
+6. Be fully responsive and mobile-friendly
+7. Return ONLY raw HTML starting with <!DOCTYPE html>
+8. Do not wrap in markdown code blocks
 
 ## NAVIGATION - CRITICAL
 - Add id attributes to sections: id="home", id="about", id="services", id="contact"
@@ -665,7 +785,7 @@ ${spec.assets.heroImage?.url ? `- Hero Image: <img src="${spec.assets.heroImage.
 ## SIZING - FULL SIZE WEBSITE
 - Container: max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
 - Hero: min-h-screen or min-h-[600px]
-- Sections: py-16 md:py-20 lg:py-24 for proper spacing
+- Sections: py-16 md:py-20 lg:py-24
 - Headlines: text-4xl md:text-5xl lg:text-6xl
 
 ## IMAGES - USE THESE EXACT WORKING URLS:
@@ -684,7 +804,8 @@ ${spec.assets.heroImage?.url ? `- Hero Image: <img src="${spec.assets.heroImage.
 - DO NOT rearrange section order
 - DO NOT rewrite or paraphrase exact text content
 - DO NOT modify spacing ratios
-- DO NOT use default Tailwind colors - use the exact hex codes provided`;
+- DO NOT use default Tailwind colors - use the exact hex codes provided
+- COPY exact text content character-for-character where specified`;
 }
 
 export const refineWebsiteCode = async (currentCode: string, instructions: string) => {

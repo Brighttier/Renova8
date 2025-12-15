@@ -232,6 +232,10 @@ export interface DesignSpecification {
     accent: string;
     background: string;
     text: string;
+    headerBg?: string;
+    footerBg?: string;
+    heroBg?: string;
+    cardBg?: string;
     exactHexCodes: string[];
   };
   typography: {
@@ -242,6 +246,10 @@ export interface DesignSpecification {
       h1: string;
       h2: string;
       h3: string;
+    };
+    fontWeight?: {
+      heading?: string;
+      body?: string;
     };
   };
   layout: {
@@ -254,23 +262,49 @@ export interface DesignSpecification {
     header: {
       style: 'fixed' | 'sticky' | 'static';
       logoPlacement: 'left' | 'center';
+      backgroundColor?: string;
+      textColor?: string;
+      logoText?: string;
+      navItems?: string[];
     };
     hero: {
       height: string;
       alignment: 'left' | 'center' | 'right';
+      headline?: string;
+      subheadline?: string;
+      ctaButtons?: string[];
+      backgroundType?: string;
+      backgroundValue?: string;
+      imagePosition?: string;
+      hasOverlay?: boolean;
     };
     buttons: {
       borderRadius: string;
       style: 'solid' | 'outline' | 'ghost';
+      primaryColor?: string;
+      primaryTextColor?: string;
+      secondaryColor?: string;
+      padding?: string;
     };
     cards: {
       borderRadius: string;
       shadow: string;
+      backgroundColor?: string;
+      border?: string;
     };
   };
   content: {
     sections: SectionSpec[];
-    exactText: { [key: string]: string };
+    exactText: {
+      logoText?: string;
+      heroHeadline?: string;
+      heroSubheadline?: string;
+      ctaButtonTexts?: string[];
+      navMenuItems?: string[];
+      sectionTitles?: string[];
+      footerText?: string;
+      [key: string]: string | string[] | undefined;
+    };
   };
   assets: {
     logo?: AssetSpec;
@@ -286,6 +320,12 @@ export interface DesignSpecification {
 export interface SectionSpec {
   type: string;
   order: number;
+  title?: string;
+  subtitle?: string;
+  backgroundColor?: string;
+  itemCount?: number;
+  layout?: string;
+  items?: string[];
   requiredContent: string[];
 }
 

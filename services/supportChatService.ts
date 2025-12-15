@@ -366,7 +366,7 @@ Please respond helpfully. If this is a greeting, warmly greet the user and ask h
 
   try {
     // Use Gemini for response generation
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY || localStorage.getItem('gemini_api_key');
+    const apiKey = import.meta.env.VITE_API_KEY || import.meta.env.VITE_GEMINI_API_KEY || localStorage.getItem('gemini_api_key');
 
     if (!apiKey) {
       // Fallback to rule-based responses if no API key

@@ -22,6 +22,8 @@ import { AuthProvider, useAuth } from './hooks/useAuth';
 import { useCredits } from './hooks/useCredits';
 import { AuthPage } from './components/AuthPage';
 import WizardLoaderPreview from './components/WizardLoaderPreview';
+import { SupportChat } from './components/SupportChat';
+import { SupportContext } from './services/supportChatService';
 
 // Admin Panel Imports
 import { AdminAuthProvider, useAdminAuth } from './hooks/useAdminAuth';
@@ -63,6 +65,9 @@ function AppContent() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | null>(null);
+
+  // Support chat state
+  const [isSupportOpen, setIsSupportOpen] = useState(false);
 
   // Walkthrough state - check localStorage for completion status
   const [showWalkthrough, setShowWalkthrough] = useState(false);
@@ -358,9 +363,9 @@ function AppContent() {
                 {isSidebarCollapsed ? <ChevronRightIcon /> : <div className="flex items-center"><ChevronLeftIcon /><span className="ml-2 text-xs font-medium uppercase tracking-widest">Collapse</span></div>}
             </button>
 
-            <a
-                href="mailto:support@renova8.com?subject=Professional%20Help%20Request"
-                className={`group bg-gradient-to-br from-[#D4AF37] to-[#B8963A] rounded-xl p-4 ${isSidebarCollapsed ? 'flex flex-col items-center justify-center' : 'text-center'} border border-[#D4AF37]/30 hover:shadow-lg hover:shadow-[#D4AF37]/20 transition-all duration-300 cursor-pointer block`}
+            <button
+                onClick={() => setIsSupportOpen(true)}
+                className={`group bg-gradient-to-br from-[#D4AF37] to-[#B8963A] rounded-xl p-4 ${isSidebarCollapsed ? 'flex flex-col items-center justify-center' : 'text-center'} border border-[#D4AF37]/30 hover:shadow-lg hover:shadow-[#D4AF37]/20 transition-all duration-300 cursor-pointer w-full`}
                 title="Professional Help Needed – Contact Us"
             >
                 <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-center gap-2'} mb-2`}>
@@ -379,7 +384,7 @@ function AppContent() {
                         Help
                     </div>
                 )}
-            </a>
+            </button>
         </div>
       </aside>
 
@@ -484,8 +489,63 @@ function AppContent() {
             </div>
         </main>
       </div>
+
+      {/* Support Chat */}
+      <SupportChat
+        isOpen={isSupportOpen}
+        onClose={() => setIsSupportOpen(false)}
+        context={{
+          userId: user?.uid,
+          userEmail: user?.email || undefined,
+          userPlan: user ? 'pro' : 'free',
+          currentPage: getPageName(currentView),
+          systemStatus: { publishingAvailable: true }
+        }}
+        onNavigate={(path) => {
+          const pathMap: Record<string, AppView> = {
+            '/settings': AppView.SETTINGS,
+            '/settings/billing': AppView.SETTINGS,
+            '/website-builder': AppView.WEBSITE_BUILDER,
+            '/deploy': AppView.WEBSITE_BUILDER,
+            '/help/publishing': AppView.HELP_SUPPORT,
+          };
+          const view = pathMap[path];
+          if (view) {
+            setCurrentView(view);
+          }
+        }}
+      />
     </div>
   );
+
+  // Helper to get page name from view
+  function getPageName(view: AppView): string {
+    const pageNames: Record<AppView, string> = {
+      [AppView.LANDING]: 'Landing Page',
+      [AppView.WIZARD]: 'Wizard',
+      [AppView.DASHBOARD]: 'Dashboard',
+      [AppView.LEAD_FINDER]: 'Scout Customers',
+      [AppView.MY_CUSTOMERS]: 'My Customers',
+      [AppView.INBOX]: 'Inbox',
+      [AppView.MARKETING]: 'Marketing Studio',
+      [AppView.CAMPAIGN_HISTORY]: 'Campaign History',
+      [AppView.WEBSITE_BUILDER]: 'Website Builder',
+      [AppView.WEBSITE_EDITOR]: 'Website Editor',
+      [AppView.IMAGE_STUDIO]: 'Image Studio',
+      [AppView.VIDEO_STUDIO]: 'Video Studio',
+      [AppView.INVOICING]: 'Invoicing',
+      [AppView.SETTINGS]: 'Settings',
+      [AppView.HELP_SUPPORT]: 'Help & Support',
+      [AppView.PROFILE]: 'Profile',
+      [AppView.GENERAL_SETTINGS]: 'General Settings',
+      [AppView.PASSWORD]: 'Password',
+      [AppView.PAYMENT_SETUP]: 'Payment Setup',
+      [AppView.EMAIL_CONFIG]: 'Email Configuration',
+      [AppView.SITES_MANAGER]: 'Sites Manager',
+      [AppView.AI_WEBSITE_EDITOR]: 'AI Website Editor',
+    };
+    return pageNames[view] || 'Unknown';
+  }
 }
 
 const NavButton = ({ active, onClick, icon, label, collapsed }: { active: boolean, onClick: () => void, icon: React.ReactNode, label: string, collapsed: boolean }) => (
