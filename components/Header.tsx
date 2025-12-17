@@ -2,21 +2,77 @@ import React, { useState, useRef, useEffect } from 'react';
 import { AppView } from '../types';
 import { useAuth } from '../hooks/useAuth';
 import { useCredits } from '../hooks/useCredits';
+import { SupportChat } from './SupportChat';
+import { SupportContext } from '../services/supportChatService';
 
 interface Props {
     onNavigate: (view: AppView) => void;
     credits: number;
     onRestartTour?: () => void;
+    currentView?: AppView;
+    currentWebsiteId?: string;
+    currentWebsiteName?: string;
+    lastPublishError?: string;
 }
 
-export const Header: React.FC<Props> = ({ onNavigate, credits: legacyCredits, onRestartTour }) => {
+export const Header: React.FC<Props> = ({
+    onNavigate,
+    credits: legacyCredits,
+    onRestartTour,
+    currentView,
+    currentWebsiteId,
+    currentWebsiteName,
+    lastPublishError
+}) => {
     const { user, signOut } = useAuth();
     const { credits: firebaseCredits, loading: creditsLoading } = useCredits();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
+    const [isSupportOpen, setIsSupportOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     // Use Firebase credits if logged in, otherwise fall back to legacy
     const credits = user ? firebaseCredits : legacyCredits;
+
+    // Build support context
+    const supportContext: SupportContext = {
+        userId: user?.uid,
+        userEmail: user?.email || undefined,
+        userPlan: user ? 'pro' : 'free',
+        currentPage: currentView ? getPageName(currentView) : undefined,
+        currentWebsiteId,
+        currentWebsiteName,
+        systemStatus: lastPublishError ? { publishingAvailable: true, lastPublishError } : { publishingAvailable: true }
+    };
+
+    // Helper to get page name from view
+    function getPageName(view: AppView): string {
+        const pageNames: Record<AppView, string> = {
+            [AppView.LANDING]: 'Landing Page',
+            [AppView.WIZARD]: 'Wizard',
+            [AppView.DASHBOARD]: 'Dashboard',
+            [AppView.LEAD_FINDER]: 'Scout Customers',
+            [AppView.MY_CUSTOMERS]: 'My Customers',
+            [AppView.INBOX]: 'Inbox',
+            [AppView.MARKETING]: 'Marketing Studio',
+            [AppView.CAMPAIGN_HISTORY]: 'Campaign History',
+            [AppView.WEBSITE_BUILDER]: 'Website Builder',
+            [AppView.WEBSITE_EDITOR]: 'Website Editor',
+            [AppView.IMAGE_STUDIO]: 'Image Studio',
+            [AppView.VIDEO_STUDIO]: 'Video Studio',
+            [AppView.INVOICING]: 'Invoicing',
+            [AppView.SETTINGS]: 'Settings',
+            [AppView.HELP_SUPPORT]: 'Help & Support',
+            [AppView.PROFILE]: 'Profile',
+            [AppView.GENERAL_SETTINGS]: 'General Settings',
+            [AppView.PASSWORD]: 'Password',
+            [AppView.PAYMENT_SETUP]: 'Payment Setup',
+            [AppView.EMAIL_CONFIG]: 'Email Configuration',
+            [AppView.SITES_MANAGER]: 'Sites Manager',
+            [AppView.AI_WEBSITE_EDITOR]: 'AI Website Editor',
+            [AppView.SERVICE_CATALOG]: 'Service Catalog',
+        };
+        return pageNames[view] || 'Unknown';
+    }
 
     // Get user display info
     const displayName = user?.displayName || 'Guest User';
@@ -78,6 +134,17 @@ export const Header: React.FC<Props> = ({ onNavigate, credits: legacyCredits, on
                         </span>
                     </div>
                  </div>
+
+                 {/* Support Button */}
+                 <button
+                    onClick={() => setIsSupportOpen(true)}
+                    className="relative p-2 text-gray-400 hover:text-[#D4AF37] transition-colors rounded-full hover:bg-[#F9F6F0]"
+                    title="Get Support"
+                 >
+                    <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                    </svg>
+                 </button>
 
                  {/* Notification Bell */}
                  <button className="relative p-2 text-gray-400 hover:text-[#D4AF37] transition-colors rounded-full hover:bg-[#F9F6F0]">
@@ -148,9 +215,6 @@ export const Header: React.FC<Props> = ({ onNavigate, credits: legacyCredits, on
 
                             <div className="my-1 border-t border-[#F9F6F0]"></div>
                             <div className="p-1">
-                                <button onClick={() => handleNav(AppView.HELP_SUPPORT)} className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-[#F9F6F0] hover:text-[#4A4A4A] rounded-lg flex items-center gap-2">
-                                    <span>❓</span> Help & Support
-                                </button>
                                 {onRestartTour && (
                                     <button
                                         onClick={() => {
@@ -176,6 +240,27 @@ export const Header: React.FC<Props> = ({ onNavigate, credits: legacyCredits, on
                     )}
                 </div>
             </div>
+
+            {/* Support Chat */}
+            <SupportChat
+                isOpen={isSupportOpen}
+                onClose={() => setIsSupportOpen(false)}
+                context={supportContext}
+                onNavigate={(path) => {
+                    // Convert path to AppView
+                    const pathMap: Record<string, AppView> = {
+                        '/settings': AppView.SETTINGS,
+                        '/settings/billing': AppView.SETTINGS,
+                        '/website-builder': AppView.WEBSITE_BUILDER,
+                        '/deploy': AppView.WEBSITE_BUILDER,
+                        '/help/publishing': AppView.HELP_SUPPORT,
+                    };
+                    const view = pathMap[path];
+                    if (view) {
+                        onNavigate(view);
+                    }
+                }}
+            />
         </header>
     );
 };

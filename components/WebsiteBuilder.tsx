@@ -44,6 +44,7 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
   const [isExtractingSpecs, setIsExtractingSpecs] = useState(false);
+  const [isFixingIssues, setIsFixingIssues] = useState(false);
 
   useEffect(() => {
     if (selectedLead) {
@@ -170,7 +171,8 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
           setLoading(true);
           try {
               // Use design spec for strict generation if available
-              const code = await generateWebsiteStructure(prompt, designSpec || undefined);
+              // IMPORTANT: Pass the concept image so the hero background can be extracted
+              const code = await generateWebsiteStructure(prompt, designSpec || undefined, generatedImage || undefined);
               setGeneratedCode(code);
 
               // Verify the generated code against design spec
@@ -222,7 +224,8 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
       setLoading(true);
 
       try {
-          const code = await generateWebsiteStructure(prompt, designSpec || undefined);
+          // Pass the concept image for hero background extraction
+          const code = await generateWebsiteStructure(prompt, designSpec || undefined, generatedImage || undefined);
           setGeneratedCode(code);
 
           // Re-verify
@@ -250,15 +253,21 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
 
               if (assetType === 'logo') {
                   updatedSpec.assets.logo = {
+                      id: `logo-${Date.now()}`,
+                      type: 'logo',
+                      source: 'user',
                       url: dataUrl,
+                      placement: 'header',
                       required: true
                   };
               } else if (assetType === 'hero-image') {
                   updatedSpec.assets.heroImage = {
+                      id: `hero-${Date.now()}`,
+                      type: 'image',
+                      source: 'user',
                       url: dataUrl,
-                      required: false,
                       placement: 'hero section',
-                      description: 'Hero background image'
+                      required: false
                   };
               }
 
@@ -277,6 +286,113 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
           }
       };
       reader.readAsDataURL(file);
+  };
+
+  // Handle fix issues - Apply fixes directly to the code
+  const handleFixIssues = async () => {
+      if (!generatedCode || !designSpec || !verificationResult) return;
+
+      setIsFixingIssues(true);
+      try {
+          let fixedCode = generatedCode;
+
+          // Apply color fixes directly
+          const colorDiscrepancies = verificationResult.discrepancies.filter(d => d.element.includes('color'));
+          for (const disc of colorDiscrepancies) {
+              // Add missing colors to Tailwind config if not present
+              if (disc.expected && !fixedCode.includes(disc.expected)) {
+                  // Find Tailwind config section
+                  const tailwindConfigMatch = fixedCode.match(/tailwind\.config\s*=\s*{[\s\S]*?colors:\s*{([\s\S]*?)}/);
+                  if (tailwindConfigMatch) {
+                      const colorName = disc.element.toLowerCase().replace(' color', '');
+                      const newColorEntry = `\n      '${colorName}': '${disc.expected}',`;
+                      fixedCode = fixedCode.replace(
+                          /(tailwind\.config\s*=\s*{[\s\S]*?colors:\s*{)/,
+                          `$1${newColorEntry}`
+                      );
+                  }
+              }
+          }
+
+          // Apply font fixes directly
+          const fontDiscrepancies = verificationResult.discrepancies.filter(d => d.element.includes('font'));
+          for (const disc of fontDiscrepancies) {
+              if (disc.expected && !fixedCode.includes(disc.expected)) {
+                  // Add missing font import
+                  const fontFamily = disc.expected.replace(/ /g, '+');
+                  const fontImport = `<link href="https://fonts.googleapis.com/css2?family=${fontFamily}:wght@300;400;500;600;700&display=swap" rel="stylesheet">`;
+
+                  if (!fixedCode.includes(fontFamily)) {
+                      fixedCode = fixedCode.replace('</head>', `  ${fontImport}\n</head>`);
+                  }
+
+                  // Add font family to CSS
+                  const fontType = disc.element.toLowerCase().includes('heading') ? 'heading' : 'body';
+                  const cssRule = fontType === 'heading'
+                      ? `\n    h1, h2, h3, h4, h5, h6 { font-family: '${disc.expected}', serif; }`
+                      : `\n    body, p, span, div { font-family: '${disc.expected}', sans-serif; }`;
+
+                  if (fixedCode.includes('<style>')) {
+                      fixedCode = fixedCode.replace('</style>', `${cssRule}\n  </style>`);
+                  } else {
+                      fixedCode = fixedCode.replace('</head>', `  <style>${cssRule}\n  </style>\n</head>`);
+                  }
+              }
+          }
+
+          // Apply section fixes - add missing sections
+          const sectionDiscrepancies = verificationResult.discrepancies.filter(d => d.element.includes('section'));
+          if (sectionDiscrepancies.length > 0) {
+              // Add missing sections before closing body tag
+              let missingSection = '';
+              for (const disc of sectionDiscrepancies) {
+                  const sectionType = disc.element.toLowerCase();
+                  if (sectionType.includes('contact')) {
+                      missingSection += `
+  <!-- Contact Section -->
+  <section id="contact" class="py-16 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <h2 class="text-4xl font-bold text-center mb-12">Contact Us</h2>
+      <div class="max-w-xl mx-auto">
+        <form class="space-y-6">
+          <div><input type="text" placeholder="Name" class="w-full px-4 py-3 rounded-lg border"></div>
+          <div><input type="email" placeholder="Email" class="w-full px-4 py-3 rounded-lg border"></div>
+          <div><textarea placeholder="Message" rows="4" class="w-full px-4 py-3 rounded-lg border"></textarea></div>
+          <button type="submit" class="w-full bg-accent text-white py-3 rounded-lg font-semibold hover:opacity-90">Send Message</button>
+        </form>
+      </div>
+    </div>
+  </section>
+`;
+                  }
+              }
+              if (missingSection) {
+                  fixedCode = fixedCode.replace('</body>', `${missingSection}\n</body>`);
+              }
+          }
+
+          setGeneratedCode(fixedCode);
+
+          // Re-verify after fix
+          if (generatedImage) {
+              const newResult = await verifyWebsiteAgainstSpec(fixedCode, designSpec, generatedImage);
+              setVerificationResult(newResult);
+
+              // Close modal if issues are significantly improved
+              if (newResult.overallMatchScore >= 85 ||
+                  newResult.discrepancies.length < verificationResult.discrepancies.length / 2) {
+                  setShowVerificationModal(false);
+                  alert('Issues have been fixed! Your website now matches the design better.');
+              } else {
+                  alert(`Issues partially fixed. Score improved from ${verificationResult.overallMatchScore}% to ${newResult.overallMatchScore}%. You can try fixing again or manually adjust.`);
+              }
+          }
+      } catch (error) {
+          console.error('Failed to fix issues:', error);
+          alert('Failed to fix issues. Please try regenerating the website or manually editing the code.');
+      } finally {
+          setIsFixingIssues(false);
+      }
   };
 
   const handleRefineCode = async () => {
@@ -398,11 +514,14 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
             <DesignVerificationModal
                 verificationResult={verificationResult}
                 designSpec={designSpec}
-                conceptImage={generatedImage || undefined}
+                conceptImage={generatedImage || ''}
                 generatedHtml={generatedCode || ''}
                 onApprove={handleVerificationApprove}
                 onRegenerate={handleRegenerate}
+                onFixIssues={handleFixIssues}
                 onUploadAsset={handleAssetUpload}
+                onClose={() => setShowVerificationModal(false)}
+                isFixing={isFixingIssues}
             />
         )}
 

@@ -84,6 +84,13 @@ const verifyWithVisualComparison = async (
   const verificationPrompt = `
     You are a design QA specialist. Analyze this website concept mockup and compare it against these design specifications.
 
+    **** CRITICAL - IGNORE DEVICE FRAMES ****
+    If the concept image shows a website displayed on a laptop, computer, phone, or tablet:
+    - COMPLETELY IGNORE the device frame/shell
+    - Compare ONLY the actual WEBSITE CONTENT shown inside the screen
+    - Do NOT flag discrepancies related to the device itself (laptop body, keyboard, etc.)
+    - The device is just a presentation mockup - verify the WEBSITE CONTENT ONLY
+
     ## DESIGN SPECIFICATIONS TO VERIFY:
 
     ### Colors:

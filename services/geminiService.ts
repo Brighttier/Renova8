@@ -260,10 +260,20 @@ export const generateWebsiteConceptImage = async (
   const ai = await getClient(true, skipKeyCheck); // Requires paid key for Pro Image
   
   // Using Nano Banana Pro (Gemini 3 Pro Image)
+  // IMPORTANT: Generate a flat browser screenshot, NOT a laptop/device mockup
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-image-preview',
     contents: {
-        parts: [{ text: `A professional, modern website design mockup for: ${prompt}. High quality, UI/UX design, photorealistic laptop screen mockup.` }]
+        parts: [{ text: `A professional, modern website design screenshot for: ${prompt}.
+
+CRITICAL REQUIREMENTS:
+- Generate a FLAT website screenshot showing ONLY the webpage content
+- DO NOT include any laptop, computer, phone, tablet, or device frame around the website
+- DO NOT show the website displayed on a screen or monitor
+- Show the website as a direct browser viewport screenshot
+- Full-page website view with header, hero section, and content sections visible
+- Clean, high-quality UI/UX design
+- Professional typography and spacing` }]
     },
     config: {
       imageConfig: {
@@ -318,7 +328,94 @@ export const generateSocialMediaImage = async (
   return imageUrl;
 };
 
-export const generateWebsiteStructure = async (prompt: string, designSpec?: DesignSpecification, conceptImage?: string) => {
+/**
+ * Inject the concept image as the hero background in the generated HTML
+ * This ensures the generated website uses the EXACT same image as the concept
+ */
+const injectConceptImageAsHeroBackground = (html: string, conceptImage: string): string => {
+    if (!conceptImage) return html;
+
+    // Ensure the concept image has proper data URL format
+    const imageDataUrl = conceptImage.startsWith('data:')
+        ? conceptImage
+        : `data:image/png;base64,${conceptImage}`;
+
+    let modified = html;
+    let replacementsMade = 0;
+
+    // Strategy 1: Replace the specific placeholder URL we told the AI to use
+    const placeholderPattern = /https:\/\/images\.unsplash\.com\/photo-hero-placeholder[^'")\s]*/gi;
+    modified = modified.replace(placeholderPattern, () => {
+        replacementsMade++;
+        return imageDataUrl;
+    });
+
+    // Strategy 2: Replace background-image URLs in hero sections
+    // Match patterns like: background-image: url('...') or background: url('...')
+    const bgImagePattern = /(background(?:-image)?:\s*(?:linear-gradient\([^)]+\),\s*)?url\(['"]?)([^'")\s]+)(['"]?\))/gi;
+
+    modified = modified.replace(bgImagePattern, (match, prefix, url, suffix) => {
+        // Check if this is in a hero-related context
+        const matchIndex = modified.indexOf(match);
+        const contextBefore = modified.substring(Math.max(0, matchIndex - 500), matchIndex).toLowerCase();
+        const contextAfter = modified.substring(matchIndex, Math.min(modified.length, matchIndex + 500)).toLowerCase();
+
+        // Only replace if it's likely a hero background (and not already replaced)
+        const isHeroContext = contextBefore.includes('hero') || contextAfter.includes('hero') ||
+            contextBefore.includes('page-home') || contextAfter.includes('page-home');
+        const isPlaceholder = url.includes('unsplash') || url.includes('1920') ||
+            url.includes('hero') || url.includes('placeholder');
+
+        if (isHeroContext && isPlaceholder && !url.startsWith('data:')) {
+            replacementsMade++;
+            return `${prefix}${imageDataUrl}${suffix}`;
+        }
+        return match;
+    });
+
+    // Strategy 3: If no replacements were made, inject CSS to force hero background
+    if (replacementsMade === 0) {
+        // Add a style block that sets the hero background using the concept image
+        const heroBackgroundCSS = `
+    <style>
+      /* Concept Image as Hero Background - Injected */
+      #page-home > section:first-child,
+      .hero,
+      [class*="hero"],
+      main#page-home > div:first-child,
+      #page-home > div:first-child,
+      section:first-of-type {
+        background-image: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('${imageDataUrl}') !important;
+        background-size: cover !important;
+        background-position: center !important;
+        background-repeat: no-repeat !important;
+      }
+    </style>
+  </head>`;
+
+        modified = modified.replace('</head>', heroBackgroundCSS);
+        replacementsMade++;
+    }
+
+    // Strategy 4: Also replace any img src in hero section that looks like a placeholder
+    const heroImgPattern = /(<(?:section|div)[^>]*(?:hero|page-home)[^>]*>[\s\S]*?<img[^>]*src=["'])([^"']+)(["'][^>]*>)/gi;
+    modified = modified.replace(heroImgPattern, (match, prefix, src, suffix) => {
+        if ((src.includes('unsplash') || src.includes('placeholder') || src.includes('picsum')) && !src.startsWith('data:')) {
+            replacementsMade++;
+            return `${prefix}${imageDataUrl}${suffix}`;
+        }
+        return match;
+    });
+
+    console.log(`Concept image injected: ${replacementsMade} replacement(s) made`);
+    return modified;
+};
+
+/**
+ * Generate a multi-page website structure with strict accuracy requirements
+ * Creates separate HTML files for each page with consistent header/footer
+ */
+export const generateWebsiteStructure = async (prompt: string, designSpec?: DesignSpecification, conceptImage?: string): Promise<string> => {
     const ai = await getClient();
 
     // If concept image is provided, use TWO-STEP process for better replication
@@ -332,47 +429,79 @@ export const generateWebsiteStructure = async (prompt: string, designSpec?: Desi
         const mimeType = conceptImage.includes('image/jpeg') ? 'image/jpeg' : 'image/png';
 
         try {
-            // STEP 1: Analyze the image in extreme detail
-            console.log('Step 1: Analyzing concept image...');
-            const analysisPrompt = `Analyze this website mockup image in EXTREME detail. I need to recreate it exactly in HTML/CSS.
+            // STEP 1: Analyze the image in extreme detail for multi-page website
+            console.log('Step 1: Analyzing concept image for multi-page website...');
+            const analysisPrompt = `Analyze this website mockup image in EXTREME detail. I need to recreate it as a MULTI-PAGE website with SEPARATE PAGES.
 
-Describe EVERY visual element you see:
+**** VERY IMPORTANT - IGNORE DEVICE FRAMES ****
+If the image shows a website displayed on a laptop, computer monitor, phone, tablet, or any other device:
+- COMPLETELY IGNORE the device frame/shell
+- Focus ONLY on the actual WEBSITE CONTENT shown inside the screen
+- Do NOT describe or reference the device itself
+- Analyze ONLY what appears on the website, not the device displaying it
+- The laptop/device is just a presentation mockup - we need the WEBSITE CONTENT ONLY
 
-1. HEADER:
-   - Background color (exact shade)
+CRITICAL: This will be a multi-page website, NOT a single-page website. Each navigation item will be its own page.
+
+VERY IMPORTANT - HERO BACKGROUND IMAGE:
+Look at the hero section of the WEBSITE (not the device frame). Describe the hero background:
+- What is the main subject of the hero background? (office, nature, people, abstract, food, etc.)
+- What colors dominate the image?
+- What is the composition/layout?
+- Is there an overlay or tint?
+- What mood does it convey?
+- NOTE: The "background" is what's BEHIND the hero text/content, NOT the laptop/device showing the website
+
+Describe EVERY visual element you see IN THE WEBSITE (ignore any device frame):
+
+1. HEADER (will be shared across ALL pages):
+   - Background color (exact shade/hex)
    - Logo text/image and position
-   - Navigation menu items (list each one)
+   - Navigation menu items (list EACH one - these become separate pages)
    - Any buttons and their colors
-   - Is it sticky/fixed?
+   - Must be STICKY/FIXED navigation
 
-2. HERO SECTION:
-   - Background (color, gradient, or image description)
-   - Main headline text (exact words if visible)
-   - Subheadline/description text
-   - CTA buttons (text, colors, shape)
-   - Any images and their position (left/right/background)
-   - Layout (text left with image right? centered? etc.)
+2. HERO SECTION (for Home page):
+   - BACKGROUND IMAGE: Describe in EXTREME detail what the background image shows
+   - Background overlay color and opacity if any
+   - Main headline text (EXACT words if visible)
+   - Subheadline/description text (EXACT words)
+   - CTA buttons (EXACT text, colors, shape)
+   - Any images and their EXACT position
+   - Layout details
 
-3. OTHER SECTIONS (describe each one you see):
-   - Section type (features, services, testimonials, about, gallery, etc.)
-   - Layout (grid columns, cards, etc.)
-   - Content in each card/item
-   - Colors and styling
+3. ALL OTHER SECTIONS (describe EACH one - these may become separate pages):
+   - Section type (features, services, testimonials, about, gallery, contact, etc.)
+   - EXACT layout (grid columns, cards, etc.)
+   - EXACT content in each card/item
+   - EXACT colors and styling
+   - Which page this section belongs to
 
-4. FOOTER:
-   - Background color
+4. FOOTER (will be shared across ALL pages):
+   - Background color (exact hex)
    - Content layout
    - Links and text
+   - Contact information if visible
 
 5. OVERALL STYLE:
-   - Primary color (hex estimate)
-   - Secondary color (hex estimate)
-   - Accent/button color (hex estimate)
-   - Background colors
-   - Font style (serif, sans-serif, modern, elegant, etc.)
-   - Overall mood (professional, playful, luxury, minimal, etc.)
+   - Primary color (exact hex)
+   - Secondary color (exact hex)
+   - Accent/button color (exact hex)
+   - All background colors
+   - Font style (identify exact Google Font if possible)
+   - Overall mood
 
-Be extremely specific about colors, layout positions, and visual hierarchy.`;
+6. CONTACT INFORMATION (extract EXACTLY):
+   - Phone number(s)
+   - Email address(es)
+   - Physical address
+   - Social media links
+
+7. HERO BACKGROUND SEARCH QUERY:
+   Provide an Unsplash search query that would find a MATCHING background image.
+   Format: "UNSPLASH_QUERY: [your search terms]"
+
+Be EXTREMELY specific. Every color must be a hex code. Every text must be exact.`;
 
             const analysisResponse = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
@@ -393,82 +522,278 @@ Be extremely specific about colors, layout positions, and visual hierarchy.`;
 
             // STEP 2: Generate HTML based on the detailed analysis
             console.log('Step 2: Generating HTML from analysis...');
-            const htmlPrompt = `You are an expert frontend developer. Create a pixel-perfect HTML website based on this detailed design analysis:
 
-=== DESIGN ANALYSIS ===
+            // Build comprehensive design requirements from extracted spec
+            const buildDesignRequirements = () => {
+                if (!designSpec) return '';
+
+                const { colors, typography, layout, components, content } = designSpec;
+
+                return `
+=== MANDATORY DESIGN SPECIFICATIONS (MUST MATCH EXACTLY) ===
+
+COLORS (use these EXACT hex codes):
+- Primary: ${colors.primary}
+- Secondary: ${colors.secondary}
+- Accent: ${colors.accent}
+- Background: ${colors.background}
+- Text: ${colors.text}
+${colors.headerBg ? `- Header Background: ${colors.headerBg}` : ''}
+${colors.footerBg ? `- Footer Background: ${colors.footerBg}` : ''}
+${colors.heroBg ? `- Hero Background: ${colors.heroBg}` : ''}
+${colors.cardBg ? `- Card Background: ${colors.cardBg}` : ''}
+
+TYPOGRAPHY:
+- Heading Font: "${typography.headingFont}" (MUST use this exact Google Font)
+- Body Font: "${typography.bodyFont}" (MUST use this exact Google Font)
+- H1 Size: ${typography.headingSizes.h1}
+- H2 Size: ${typography.headingSizes.h2}
+- H3 Size: ${typography.headingSizes.h3}
+${typography.fontWeight?.heading ? `- Heading Weight: ${typography.fontWeight.heading}` : ''}
+
+LAYOUT:
+- Max Width: ${layout.maxWidth}
+- Section Padding: ${layout.sectionPadding}
+- Grid Columns: ${layout.gridColumns}
+- Gutter Width: ${layout.gutterWidth}
+
+HEADER COMPONENT:
+- Style: ${components.header.style}
+- Logo Placement: ${components.header.logoPlacement}
+${components.header.logoText ? `- Logo Text: "${components.header.logoText}" (USE THIS EXACT TEXT)` : ''}
+${components.header.navItems?.length ? `- Navigation Items: ${components.header.navItems.map(item => `"${item}"`).join(', ')} (USE THESE EXACT ITEMS)` : ''}
+${components.header.backgroundColor ? `- Background Color: ${components.header.backgroundColor}` : ''}
+${components.header.textColor ? `- Text Color: ${components.header.textColor}` : ''}
+
+HERO SECTION:
+- Height: ${components.hero.height}
+- Alignment: ${components.hero.alignment}
+${components.hero.headline ? `- Headline: "${components.hero.headline}" (USE THIS EXACT TEXT)` : ''}
+${components.hero.subheadline ? `- Subheadline: "${components.hero.subheadline}" (USE THIS EXACT TEXT)` : ''}
+${components.hero.ctaButtons?.length ? `- CTA Buttons: ${components.hero.ctaButtons.map(btn => `"${btn}"`).join(', ')} (USE THESE EXACT TEXTS)` : ''}
+${components.hero.backgroundType ? `- Background Type: ${components.hero.backgroundType}` : ''}
+${components.hero.backgroundValue ? `- Background Value: ${components.hero.backgroundValue}` : ''}
+${components.hero.imagePosition ? `- Image Position: ${components.hero.imagePosition}` : ''}
+${components.hero.hasOverlay !== undefined ? `- Has Overlay: ${components.hero.hasOverlay}` : ''}
+
+BUTTONS:
+- Border Radius: ${components.buttons.borderRadius}
+- Style: ${components.buttons.style}
+${components.buttons.primaryColor ? `- Primary Button Color: ${components.buttons.primaryColor}` : ''}
+${components.buttons.primaryTextColor ? `- Primary Button Text: ${components.buttons.primaryTextColor}` : ''}
+${components.buttons.padding ? `- Padding: ${components.buttons.padding}` : ''}
+
+CARDS:
+- Border Radius: ${components.cards.borderRadius}
+- Shadow: ${components.cards.shadow}
+${components.cards.backgroundColor ? `- Background: ${components.cards.backgroundColor}` : ''}
+${components.cards.border ? `- Border: ${components.cards.border}` : ''}
+
+SECTIONS (in exact order):
+${content.sections.map((s, i) => `${i + 1}. ${s.type.toUpperCase()}${s.title ? ` - Title: "${s.title}"` : ''}${s.subtitle ? ` - Subtitle: "${s.subtitle}"` : ''}${s.backgroundColor ? ` - BG: ${s.backgroundColor}` : ''}${s.itemCount ? ` - ${s.itemCount} items` : ''}${s.layout ? ` - Layout: ${s.layout}` : ''}`).join('\n')}
+
+EXACT TEXT CONTENT TO USE:
+${content.exactText.logoText ? `- Logo: "${content.exactText.logoText}"` : ''}
+${content.exactText.heroHeadline ? `- Hero Headline: "${content.exactText.heroHeadline}"` : ''}
+${content.exactText.heroSubheadline ? `- Hero Subheadline: "${content.exactText.heroSubheadline}"` : ''}
+${content.exactText.ctaButtonTexts?.length ? `- CTA Buttons: ${content.exactText.ctaButtonTexts.map(t => `"${t}"`).join(', ')}` : ''}
+${content.exactText.navMenuItems?.length ? `- Nav Items: ${content.exactText.navMenuItems.map(t => `"${t}"`).join(', ')}` : ''}
+${content.exactText.sectionTitles?.length ? `- Section Titles: ${content.exactText.sectionTitles.map(t => `"${t}"`).join(', ')}` : ''}
+${content.exactText.footerText ? `- Footer: "${content.exactText.footerText}"` : ''}
+`;
+            };
+
+            const htmlPrompt = `You are an expert frontend developer. Create a MULTI-PAGE website that is PIXEL-PERFECT and 100% IDENTICAL to the concept mockup.
+
+**** CRITICAL - IGNORE DEVICE FRAMES ****
+If the mockup analysis mentions a laptop, computer, phone, tablet, or any device frame:
+- DO NOT include the device frame in the website
+- DO NOT use the device image as a background
+- Build ONLY the website content that was shown INSIDE the device screen
+- The website should be a standalone webpage, not displayed on a device
+
+=== VISUAL ANALYSIS OF MOCKUP ===
 ${imageAnalysis}
 
 === BUSINESS CONTEXT ===
 ${prompt}
 
-${designSpec ? `
-=== EXTRACTED COLORS ===
-Primary: ${designSpec.colors.primary}
-Secondary: ${designSpec.colors.secondary}
-Accent: ${designSpec.colors.accent}
-Background: ${designSpec.colors.background}
-Text: ${designSpec.colors.text}
-Fonts: ${designSpec.typography.headingFont} (headings), ${designSpec.typography.bodyFont} (body)
-` : ''}
+${buildDesignRequirements()}
 
-=== REQUIREMENTS ===
-Create a COMPLETE single-file HTML website that matches the description above EXACTLY.
+=== CRITICAL REQUIREMENTS (MANDATORY - NO EXCEPTIONS) ===
 
-1. Start with <!DOCTYPE html>
-2. Include Tailwind CSS:
-   <script src="https://cdn.tailwindcss.com"></script>
-   <script>
-   tailwind.config = {
-     theme: {
-       extend: {
-         colors: {
-           primary: '${designSpec?.colors.primary || '#D4AF37'}',
-           secondary: '${designSpec?.colors.secondary || '#4A4A4A'}',
-           accent: '${designSpec?.colors.accent || '#2E7D32'}',
-         }
-       }
-     }
-   }
-   </script>
+1. MULTI-PAGE STRUCTURE (NOT SINGLE PAGE):
+   - Create SEPARATE pages for: Home, About, Services, Contact (and any others visible)
+   - Each navigation item MUST link to a SEPARATE PAGE with its own URL
+   - DO NOT use anchor links (#section) - use page links (about.html, services.html)
+   - Use JavaScript-based routing to simulate multi-page behavior in single HTML
 
-3. Import Google Fonts that match the style described
+2. STICKY/FIXED NAVIGATION:
+   - Header must be FIXED at the top (position: fixed)
+   - Navigation must be visible while scrolling
+   - Must work on all screen sizes
 
-4. Add smooth scrolling:
-   <style>html { scroll-behavior: smooth; }</style>
+3. 100% RESPONSIVE:
+   - Must look perfect on Desktop, Tablet, and Mobile
+   - Use Tailwind responsive classes (sm:, md:, lg:, xl:)
+   - Mobile hamburger menu required
 
-5. NAVIGATION: Add id to each section, use anchor links (href="#services")
+4. EXACT VISUAL MATCH:
+   - Use EXACT colors (copy hex codes exactly)
+   - Use EXACT fonts specified
+   - Use EXACT text content (headlines, buttons, nav items) - NO placeholders
+   - Match EXACT layout structure
+   - Match EXACT spacing and sizing
 
-6. SIZING:
-   - Hero: min-h-[600px] or min-h-screen
-   - Sections: py-16 md:py-20 lg:py-24
-   - Container: max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
+5. REAL CONTENT ONLY:
+   - Use ONLY real content from the mockup
+   - NO placeholder text like "Lorem ipsum"
+   - NO made-up contact details
+   - Extract EXACT phone, email, address from mockup
 
-7. IMAGES - USE THESE EXACT WORKING URLs (choose appropriate ones):
-   Hero backgrounds:
-   - https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&h=1080&fit=crop (modern office)
-   - https://images.unsplash.com/photo-1497215728101-856f4ea42174?w=1920&h=1080&fit=crop (workspace)
-   - https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=1920&h=1080&fit=crop (business meeting)
+=== MULTI-PAGE ROUTING IMPLEMENTATION ===
 
-   Restaurant/Food:
-   - https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1200&h=800&fit=crop (restaurant interior)
-   - https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1200&h=800&fit=crop (food platter)
-   - https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=800&h=600&fit=crop (pizza)
+Implement client-side routing with this pattern:
 
-   Services/Business:
-   - https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200&h=800&fit=crop (team working)
-   - https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=800&fit=crop (collaboration)
-   - https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=800&h=600&fit=crop (professional)
+<script>
+// Multi-page routing system
+const pages = {
+  'home': document.getElementById('page-home'),
+  'about': document.getElementById('page-about'),
+  'services': document.getElementById('page-services'),
+  'contact': document.getElementById('page-contact')
+};
 
-   People/Testimonials:
-   - https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop (man portrait)
-   - https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop (woman portrait)
-   - https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop (professional man)
+function showPage(pageName) {
+  // Hide all pages
+  Object.values(pages).forEach(page => {
+    if (page) page.style.display = 'none';
+  });
+  // Show requested page
+  if (pages[pageName]) {
+    pages[pageName].style.display = 'block';
+  }
+  // Update URL
+  history.pushState({page: pageName}, '', pageName === 'home' ? '/' : '/' + pageName);
+  // Scroll to top
+  window.scrollTo(0, 0);
+}
 
-   Icons/Features - use emoji or SVG icons instead of images
+// Handle browser back/forward
+window.onpopstate = (e) => {
+  if (e.state && e.state.page) showPage(e.state.page);
+};
 
-8. Match the EXACT layout, colors, and structure from the analysis
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+  const path = window.location.pathname.replace('/', '') || 'home';
+  showPage(path);
+});
+</script>
 
-Return ONLY the complete HTML code starting with <!DOCTYPE html>. No markdown.`;
+=== HTML STRUCTURE ===
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Business Name</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          primary: '${designSpec?.colors.primary || '#D4AF37'}',
+          secondary: '${designSpec?.colors.secondary || '#4A4A4A'}',
+          accent: '${designSpec?.colors.accent || '#2E7D32'}',
+        }
+      }
+    }
+  }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=${designSpec?.typography.headingFont?.replace(/ /g, '+') || 'Playfair+Display'}:wght@400;500;600;700&family=${designSpec?.typography.bodyFont?.replace(/ /g, '+') || 'Inter'}:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: '${designSpec?.typography.bodyFont || 'Inter'}', sans-serif; }
+    .font-heading { font-family: '${designSpec?.typography.headingFont || 'Playfair Display'}', serif; }
+  </style>
+</head>
+<body>
+  <!-- FIXED HEADER (shared across all pages) -->
+  <header class="fixed top-0 left-0 right-0 z-50 ...">
+    <nav>
+      <!-- Logo -->
+      <!-- Navigation links with onclick="showPage('pagename')" -->
+      <!-- Mobile menu button -->
+    </nav>
+  </header>
+
+  <!-- PAGE: HOME -->
+  <main id="page-home" class="pt-20">
+    <!-- Hero section -->
+    <!-- Other home content -->
+  </main>
+
+  <!-- PAGE: ABOUT -->
+  <main id="page-about" class="pt-20" style="display:none;">
+    <!-- About page content -->
+  </main>
+
+  <!-- PAGE: SERVICES -->
+  <main id="page-services" class="pt-20" style="display:none;">
+    <!-- Services page content -->
+  </main>
+
+  <!-- PAGE: CONTACT -->
+  <main id="page-contact" class="pt-20" style="display:none;">
+    <!-- Contact page content -->
+  </main>
+
+  <!-- FOOTER (shared across all pages) -->
+  <footer>...</footer>
+
+  <!-- Routing Script -->
+  <script>/* routing code */</script>
+</body>
+</html>
+
+=== NAVIGATION LINKS FORMAT ===
+<a href="javascript:void(0)" onclick="showPage('home')" class="...">Home</a>
+<a href="javascript:void(0)" onclick="showPage('about')" class="...">About</a>
+<a href="javascript:void(0)" onclick="showPage('services')" class="...">Services</a>
+<a href="javascript:void(0)" onclick="showPage('contact')" class="...">Contact</a>
+
+=== HERO BACKGROUND IMAGE - CRITICAL ===
+
+IMPORTANT: The concept image will be automatically injected as the hero background after generation.
+For now, use this EXACT placeholder URL for the hero background:
+- Hero Background: https://images.unsplash.com/photo-hero-placeholder?w=1920&h=1080&fit=crop
+
+Apply dark overlay if the analysis indicates one:
+- background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('https://images.unsplash.com/photo-hero-placeholder?w=1920&h=1080&fit=crop');
+
+The hero section MUST have:
+- class="hero" or similar identifiable class
+- background-image CSS property (will be replaced with actual concept image)
+- Full viewport height (min-h-screen or similar)
+
+=== OTHER IMAGES ===
+For other sections, use these Unsplash URLs:
+- Team/People: https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop
+- Business: https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200&h=800&fit=crop
+- Team group: https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=800&fit=crop
+- Person 2: https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop
+
+=== OUTPUT ===
+Return ONLY the complete HTML code starting with <!DOCTYPE html>. No markdown, no explanations.
+The website MUST:
+1. Have SEPARATE pages for each navigation item
+2. Have FIXED/STICKY navigation
+3. Be 100% RESPONSIVE
+4. Match the mockup EXACTLY including the HERO BACKGROUND IMAGE
+5. Use REAL content only (no placeholders)
+6. Use hero image URL based on UNSPLASH_QUERY from the analysis`;
 
             const htmlResponse = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
@@ -490,6 +815,10 @@ Return ONLY the complete HTML code starting with <!DOCTYPE html>. No markdown.`;
             }
 
             console.log('HTML generated successfully, length:', text.length);
+
+            // CRITICAL: Inject the actual concept image as the hero background
+            text = injectConceptImageAsHeroBackground(text, conceptImage);
+
             return text;
 
         } catch (error) {
@@ -516,34 +845,93 @@ Return ONLY the complete HTML code starting with <!DOCTYPE html>. No markdown.`;
                 text = text.substring(doctypeIndex);
             }
         }
+
+        // Inject concept image if available from designSpec
+        if (designSpec.assets?.heroImage?.url) {
+            text = injectConceptImageAsHeroBackground(text, designSpec.assets.heroImage.url);
+        }
+
         return text;
     }
 
-    // Fallback to basic generation without strict specs
+    // Fallback to basic multi-page generation without strict specs
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
-        contents: `Create a complete, professional single-page HTML website for: ${prompt}
+        contents: `Create a complete, professional MULTI-PAGE HTML website for: ${prompt}
+
+=== CRITICAL: MULTI-PAGE STRUCTURE (NOT SINGLE PAGE) ===
+
+This MUST be a multi-page website with SEPARATE PAGES for each navigation item.
+Use client-side JavaScript routing to simulate multi-page behavior.
 
 STRUCTURE REQUIREMENTS:
 1. Start with <!DOCTYPE html> - NO markdown code blocks
 2. Include Tailwind CSS: <script src="https://cdn.tailwindcss.com"></script>
 3. Configure custom colors: <script>tailwind.config = { theme: { extend: { colors: { primary: '#D4AF37', secondary: '#4A4A4A', accent: '#2E7D32' }}}}</script>
 4. Import Google Fonts: Playfair Display for headings, Inter for body
-5. Add smooth scrolling: <style>html { scroll-behavior: smooth; }</style>
 
 NAVIGATION - CRITICAL:
-- Fixed header with navigation links
-- Each section needs an id: id="home", id="services", id="about", id="contact"
-- Nav links use anchors: <a href="#services">Services</a>
-- Include mobile menu toggle with JavaScript
+- FIXED header (position: fixed) that stays visible while scrolling
+- Each nav item links to a SEPARATE PAGE (NOT anchor links)
+- Use onclick="showPage('pagename')" for navigation
+- Include mobile hamburger menu with JavaScript toggle
 
-SECTIONS (FULL SIZE):
-1. HEADER: Fixed nav, logo left, menu center/right, CTA button
-2. HERO (id="home"): min-h-screen, large headline (text-5xl), subtext, 2 CTA buttons, background image
-3. SERVICES (id="services"): py-20, 3-4 column grid of service cards
-4. ABOUT/TESTIMONIALS (id="about"): py-20, customer reviews or about content
-5. CONTACT (id="contact"): py-20, contact form with name, email, message fields
-6. FOOTER: Dark background, links, social icons, copyright
+MULTI-PAGE ROUTING:
+Include this routing system:
+
+<script>
+const pages = {
+  'home': document.getElementById('page-home'),
+  'about': document.getElementById('page-about'),
+  'services': document.getElementById('page-services'),
+  'contact': document.getElementById('page-contact')
+};
+
+function showPage(pageName) {
+  Object.values(pages).forEach(page => { if (page) page.style.display = 'none'; });
+  if (pages[pageName]) pages[pageName].style.display = 'block';
+  history.pushState({page: pageName}, '', pageName === 'home' ? '/' : '/' + pageName);
+  window.scrollTo(0, 0);
+  // Close mobile menu if open
+  const mobileMenu = document.getElementById('mobile-menu');
+  if (mobileMenu) mobileMenu.classList.add('hidden');
+}
+
+window.onpopstate = (e) => { if (e.state?.page) showPage(e.state.page); };
+document.addEventListener('DOMContentLoaded', () => {
+  const path = window.location.pathname.replace('/', '') || 'home';
+  showPage(path);
+});
+</script>
+
+PAGE STRUCTURE:
+1. FIXED HEADER (shared across all pages):
+   - Logo left, nav center/right
+   - Nav links: <a href="javascript:void(0)" onclick="showPage('home')">Home</a>
+   - Mobile menu toggle button
+
+2. PAGE: HOME (id="page-home"):
+   - Hero section: min-h-screen, large headline, 2 CTA buttons, background image
+   - Features/highlights section
+
+3. PAGE: ABOUT (id="page-about" style="display:none"):
+   - About content, team section, testimonials
+
+4. PAGE: SERVICES (id="page-services" style="display:none"):
+   - Services grid with 3-4 columns of service cards
+
+5. PAGE: CONTACT (id="page-contact" style="display:none"):
+   - Contact form (name, email, phone, message)
+   - Contact information (phone, email, address)
+   - Map placeholder
+
+6. FOOTER (shared across all pages):
+   - Dark background, links, social icons, copyright
+
+RESPONSIVE REQUIREMENTS:
+- 100% responsive on Desktop, Tablet, Mobile
+- Use Tailwind responsive classes (sm:, md:, lg:, xl:)
+- Mobile hamburger menu that toggles visibility
 
 SIZING:
 - Container: max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
@@ -552,15 +940,36 @@ SIZING:
 - Headlines: text-4xl md:text-5xl lg:text-6xl
 - Buttons: px-6 py-3 rounded-lg with hover effects
 
-IMAGES - USE THESE EXACT WORKING URLS:
+IMAGES - USE CONTEXT-APPROPRIATE URLS:
+
+CRITICAL: Use images that MATCH the business type from the prompt.
+Use Unsplash source API with relevant keywords based on the business:
+- Hero: https://source.unsplash.com/1920x1080/?[business-type-keywords]
+- Services: https://source.unsplash.com/800x600/?[service-keyword]
+- Team: https://source.unsplash.com/400x400/?professional,portrait
+- About: https://source.unsplash.com/1200x800/?[business-type],team
+
+Example keyword substitutions:
+- Restaurant → restaurant,dining,food,interior
+- Spa → spa,wellness,relaxation,massage
+- Law Firm → legal,office,professional,lawyer
+- Gym → fitness,gym,workout,exercise
+- Bakery → bakery,pastry,bread,cafe
+
+Fallback URLs (only if source API fails):
 - Hero: https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&h=1080&fit=crop
 - Business: https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200&h=800&fit=crop
 - Team: https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=800&fit=crop
 - Person 1: https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop
 - Person 2: https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop
-- Person 3: https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop
 
-Return ONLY complete HTML starting with <!DOCTYPE html>`,
+Return ONLY complete HTML starting with <!DOCTYPE html>.
+The website MUST have:
+1. SEPARATE pages for Home, About, Services, Contact
+2. FIXED/STICKY navigation header
+3. 100% RESPONSIVE design
+4. Mobile hamburger menu
+5. Hero background image that MATCHES the business type`,
         config: {
             maxOutputTokens: 32000,
         }
@@ -584,16 +993,73 @@ Return ONLY complete HTML starting with <!DOCTYPE html>`,
 const buildStrictWebsitePrompt = (businessPrompt: string, spec: DesignSpecification): string => {
     const sectionsOrder = spec.content.sections
         .sort((a, b) => a.order - b.order)
-        .map((s, i) => `${i + 1}. ${s.type.toUpperCase()}`)
+        .map((s, i) => {
+            let sectionStr = `${i + 1}. ${s.type.toUpperCase()}`;
+            if (s.title) sectionStr += ` - Title: "${s.title}"`;
+            if (s.subtitle) sectionStr += ` - Subtitle: "${s.subtitle}"`;
+            if (s.backgroundColor) sectionStr += ` - BG: ${s.backgroundColor}`;
+            if (s.itemCount) sectionStr += ` - ${s.itemCount} items`;
+            if (s.layout) sectionStr += ` - Layout: ${s.layout}`;
+            return sectionStr;
+        })
         .join('\n    ');
 
-    const exactTextEntries = Object.entries(spec.content.exactText || {})
-        .map(([key, value]) => `- ${key}: "${value}"`)
-        .join('\n    ');
+    // Build exact text content section
+    const exactText = spec.content.exactText;
+    let exactTextContent = '';
+    if (exactText.logoText) exactTextContent += `- Logo Text: "${exactText.logoText}"\n    `;
+    if (exactText.heroHeadline) exactTextContent += `- Hero Headline: "${exactText.heroHeadline}"\n    `;
+    if (exactText.heroSubheadline) exactTextContent += `- Hero Subheadline: "${exactText.heroSubheadline}"\n    `;
+    if (exactText.ctaButtonTexts?.length) exactTextContent += `- CTA Buttons: ${exactText.ctaButtonTexts.map(t => `"${t}"`).join(', ')}\n    `;
+    if (exactText.navMenuItems?.length) exactTextContent += `- Nav Items: ${exactText.navMenuItems.map(t => `"${t}"`).join(', ')}\n    `;
+    if (exactText.sectionTitles?.length) exactTextContent += `- Section Titles: ${exactText.sectionTitles.map(t => `"${t}"`).join(', ')}\n    `;
+    if (exactText.footerText) exactTextContent += `- Footer Text: "${exactText.footerText}"\n    `;
 
-    return `Create a complete, single-file HTML website for: ${businessPrompt}
+    return `Create a complete, MULTI-PAGE HTML website for: ${businessPrompt}
 
-=== CRITICAL: STRICT DESIGN SPECIFICATIONS - DO NOT DEVIATE ===
+=== CRITICAL: MULTI-PAGE STRUCTURE REQUIRED ===
+
+This MUST be a multi-page website with SEPARATE PAGES for each navigation item.
+Use client-side JavaScript routing to simulate multi-page behavior in a single HTML file.
+
+MULTI-PAGE ROUTING SYSTEM (MUST INCLUDE):
+<script>
+const pages = {
+  'home': document.getElementById('page-home'),
+  'about': document.getElementById('page-about'),
+  'services': document.getElementById('page-services'),
+  'contact': document.getElementById('page-contact')
+};
+
+function showPage(pageName) {
+  Object.values(pages).forEach(page => { if (page) page.style.display = 'none'; });
+  if (pages[pageName]) pages[pageName].style.display = 'block';
+  history.pushState({page: pageName}, '', pageName === 'home' ? '/' : '/' + pageName);
+  window.scrollTo(0, 0);
+  const mobileMenu = document.getElementById('mobile-menu');
+  if (mobileMenu) mobileMenu.classList.add('hidden');
+}
+
+window.onpopstate = (e) => { if (e.state?.page) showPage(e.state.page); };
+document.addEventListener('DOMContentLoaded', () => {
+  const path = window.location.pathname.replace('/', '') || 'home';
+  showPage(path);
+});
+</script>
+
+NAVIGATION FORMAT:
+<a href="javascript:void(0)" onclick="showPage('home')">Home</a>
+<a href="javascript:void(0)" onclick="showPage('about')">About</a>
+<a href="javascript:void(0)" onclick="showPage('services')">Services</a>
+<a href="javascript:void(0)" onclick="showPage('contact')">Contact</a>
+
+PAGE STRUCTURE:
+- <main id="page-home">...</main>
+- <main id="page-about" style="display:none">...</main>
+- <main id="page-services" style="display:none">...</main>
+- <main id="page-contact" style="display:none">...</main>
+
+=== CRITICAL: STRICT DESIGN SPECIFICATIONS - MUST MATCH EXACTLY ===
 
 ## 1. COLORS (USE EXACT HEX CODES - NO SUBSTITUTIONS)
 - Primary Color: ${spec.colors.primary}
@@ -601,9 +1067,13 @@ const buildStrictWebsitePrompt = (businessPrompt: string, spec: DesignSpecificat
 - Accent/CTA Color: ${spec.colors.accent}
 - Background Color: ${spec.colors.background}
 - Text Color: ${spec.colors.text}
-${spec.colors.exactHexCodes.length > 0 ? `- Additional colors found in design: ${spec.colors.exactHexCodes.join(', ')}` : ''}
+${spec.colors.headerBg ? `- Header Background: ${spec.colors.headerBg}` : ''}
+${spec.colors.footerBg ? `- Footer Background: ${spec.colors.footerBg}` : ''}
+${spec.colors.heroBg ? `- Hero Background: ${spec.colors.heroBg}` : ''}
+${spec.colors.cardBg ? `- Card Background: ${spec.colors.cardBg}` : ''}
+${spec.colors.exactHexCodes.length > 0 ? `- Additional colors: ${spec.colors.exactHexCodes.join(', ')}` : ''}
 
-IMPORTANT: Use these EXACT hex values. Do not use Tailwind color classes like "blue-500" - use custom colors with these exact hex codes.
+IMPORTANT: Use these EXACT hex values. Do not use Tailwind color classes like "blue-500".
 
 ## 2. TYPOGRAPHY (USE EXACT FONTS)
 - Heading Font: "${spec.typography.headingFont}" (import from Google Fonts)
@@ -612,6 +1082,8 @@ IMPORTANT: Use these EXACT hex values. Do not use Tailwind color classes like "b
 - H1 Size: ${spec.typography.headingSizes.h1}
 - H2 Size: ${spec.typography.headingSizes.h2}
 - H3 Size: ${spec.typography.headingSizes.h3}
+${spec.typography.fontWeight?.heading ? `- Heading Weight: ${spec.typography.fontWeight.heading}` : ''}
+${spec.typography.fontWeight?.body ? `- Body Weight: ${spec.typography.fontWeight.body}` : ''}
 
 ## 3. LAYOUT (MATCH EXACTLY)
 - Container Max Width: ${spec.layout.maxWidth}
@@ -620,71 +1092,116 @@ IMPORTANT: Use these EXACT hex values. Do not use Tailwind color classes like "b
 - Grid Gap/Gutter: ${spec.layout.gutterWidth}
 
 ## 4. COMPONENT STYLES
-Header:
+
+HEADER:
 - Position: ${spec.components.header.style}
 - Logo Placement: ${spec.components.header.logoPlacement}
+${spec.components.header.logoText ? `- Logo Text: "${spec.components.header.logoText}" (USE THIS EXACT TEXT)` : ''}
+${spec.components.header.navItems?.length ? `- Nav Items: ${spec.components.header.navItems.map(item => `"${item}"`).join(', ')} (USE THESE EXACT ITEMS)` : ''}
+${spec.components.header.backgroundColor ? `- Background: ${spec.components.header.backgroundColor}` : ''}
+${spec.components.header.textColor ? `- Text Color: ${spec.components.header.textColor}` : ''}
 
-Hero Section:
+HERO SECTION:
 - Height: ${spec.components.hero.height}
 - Content Alignment: ${spec.components.hero.alignment}
+${spec.components.hero.headline ? `- Headline: "${spec.components.hero.headline}" (USE THIS EXACT TEXT)` : ''}
+${spec.components.hero.subheadline ? `- Subheadline: "${spec.components.hero.subheadline}" (USE THIS EXACT TEXT)` : ''}
+${spec.components.hero.ctaButtons?.length ? `- CTA Buttons: ${spec.components.hero.ctaButtons.map(btn => `"${btn}"`).join(', ')} (USE THESE EXACT TEXTS)` : ''}
+${spec.components.hero.backgroundType ? `- Background Type: ${spec.components.hero.backgroundType}` : ''}
+${spec.components.hero.backgroundValue ? `- Background Value: ${spec.components.hero.backgroundValue}` : ''}
+${spec.components.hero.imagePosition ? `- Image Position: ${spec.components.hero.imagePosition}` : ''}
+${spec.components.hero.hasOverlay !== undefined ? `- Has Overlay: ${spec.components.hero.hasOverlay}` : ''}
 
-Buttons:
+BUTTONS:
 - Border Radius: ${spec.components.buttons.borderRadius}
 - Style: ${spec.components.buttons.style}
-- Use accent color (${spec.colors.accent}) for primary buttons
+${spec.components.buttons.primaryColor ? `- Primary Color: ${spec.components.buttons.primaryColor}` : `- Primary Color: ${spec.colors.accent}`}
+${spec.components.buttons.primaryTextColor ? `- Primary Text: ${spec.components.buttons.primaryTextColor}` : ''}
+${spec.components.buttons.padding ? `- Padding: ${spec.components.buttons.padding}` : ''}
 
-Cards:
+CARDS:
 - Border Radius: ${spec.components.cards.borderRadius}
 - Shadow: ${spec.components.cards.shadow}
+${spec.components.cards.backgroundColor ? `- Background: ${spec.components.cards.backgroundColor}` : ''}
+${spec.components.cards.border ? `- Border: ${spec.components.cards.border}` : ''}
 
 ## 5. SECTIONS (IN THIS EXACT ORDER)
     ${sectionsOrder}
 
-## 6. EXACT CONTENT (DO NOT PARAPHRASE OR REWRITE)
-${exactTextEntries || '    - Use appropriate placeholder text that matches the business context'}
+## 6. EXACT TEXT CONTENT (COPY EXACTLY - DO NOT MODIFY)
+    ${exactTextContent || 'Use appropriate placeholder text matching the business context'}
 
 ## 7. ASSETS
 ${spec.assets.logo?.url ? `- Logo: <img src="${spec.assets.logo.url}" alt="Logo">` : '- Logo: Use text-based logo with business name'}
-${spec.assets.heroImage?.url ? `- Hero Image: <img src="${spec.assets.heroImage.url}">` : '- Hero Image: Use a professional placeholder from unsplash.com matching the business type'}
+${spec.assets.heroImage?.url ? `- Hero Image: <img src="${spec.assets.heroImage.url}">` : '- Hero Image: Use unsplash.com professional placeholder'}
 
 ## REQUIREMENTS
 1. Use Tailwind CSS via CDN: <script src="https://cdn.tailwindcss.com"></script>
-2. Configure Tailwind with custom colors:
-   <script>tailwind.config = { theme: { extend: { colors: { primary: '${spec.colors.primary}', secondary: '${spec.colors.secondary}', accent: '${spec.colors.accent}' }}}}</script>
-3. Import the exact Google Fonts specified above
-4. Add smooth scrolling: <style>html { scroll-behavior: smooth; }</style>
-5. Be fully responsive and mobile-friendly
-6. Return ONLY the raw HTML string, starting with <!DOCTYPE html>
-7. Do not wrap in markdown code blocks
+2. Configure Tailwind with ALL custom colors:
+   <script>tailwind.config = { theme: { extend: { colors: {
+     primary: '${spec.colors.primary}',
+     secondary: '${spec.colors.secondary}',
+     accent: '${spec.colors.accent}',
+     ${spec.colors.headerBg ? `'header-bg': '${spec.colors.headerBg}',` : ''}
+     ${spec.colors.footerBg ? `'footer-bg': '${spec.colors.footerBg}',` : ''}
+     ${spec.colors.cardBg ? `'card-bg': '${spec.colors.cardBg}',` : ''}
+   }}}}</script>
+3. Import EXACT Google Fonts:
+   <link href="https://fonts.googleapis.com/css2?family=${spec.typography.headingFont.replace(/ /g, '+')}:wght@400;500;600;700&family=${spec.typography.bodyFont.replace(/ /g, '+')}:wght@300;400;500;600&display=swap" rel="stylesheet">
+4. Add custom font classes in style tag
+5. Add smooth scrolling: <style>html { scroll-behavior: smooth; }</style>
+6. Be fully responsive and mobile-friendly
+7. Return ONLY raw HTML starting with <!DOCTYPE html>
+8. Do not wrap in markdown code blocks
 
-## NAVIGATION - CRITICAL
-- Add id attributes to sections: id="home", id="about", id="services", id="contact"
-- Navigation links must use anchor hrefs: <a href="#services">Services</a>
-- Include mobile menu toggle with JavaScript
+## NAVIGATION - CRITICAL (MULTI-PAGE)
+- Header must be FIXED (position: fixed, top: 0)
+- Use page-based navigation with onclick="showPage('pagename')"
+- DO NOT use anchor links (#section) - use separate pages
+- Include mobile hamburger menu with toggle
+- Navigation must be visible while scrolling on all pages
 
 ## SIZING - FULL SIZE WEBSITE
 - Container: max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
 - Hero: min-h-screen or min-h-[600px]
-- Sections: py-16 md:py-20 lg:py-24 for proper spacing
+- Sections: py-16 md:py-20 lg:py-24
 - Headlines: text-4xl md:text-5xl lg:text-6xl
 
-## IMAGES - USE THESE EXACT WORKING URLS:
-- Hero: https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&h=1080&fit=crop
+## IMAGES - USE CONTEXT-APPROPRIATE URLS:
+
+IMPORTANT: Choose images that MATCH the business type described in the prompt.
+Use the Unsplash source API with relevant keywords:
+- Hero Background: https://source.unsplash.com/1920x1080/?[business-keywords]
+  Example for restaurant: https://source.unsplash.com/1920x1080/?restaurant,dining,food
+  Example for office: https://source.unsplash.com/1920x1080/?modern,office,business
+  Example for spa: https://source.unsplash.com/1920x1080/?spa,wellness,relaxation
+
+- Services/Features: https://source.unsplash.com/800x600/?[service-keyword]
+- Team Members: https://source.unsplash.com/400x400/?professional,portrait
+- About Section: https://source.unsplash.com/1200x800/?[business-type],team
+
+Fallback URLs (only if source API doesn't work):
+- Generic Hero: https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&h=1080&fit=crop
 - Business: https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200&h=800&fit=crop
 - Team: https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=800&fit=crop
-- Food: https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1200&h=800&fit=crop
-- Restaurant: https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1200&h=800&fit=crop
 - Person 1: https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop
 - Person 2: https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop
 - Person 3: https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop
 
 ## STRICT RULES - VIOLATIONS ARE NOT ACCEPTABLE
+- DO NOT use single-page scrolling - MUST be multi-page
+- DO NOT use anchor links (#section) - use page navigation
 - DO NOT substitute any colors with similar shades
 - DO NOT change font families
 - DO NOT rearrange section order
 - DO NOT rewrite or paraphrase exact text content
 - DO NOT modify spacing ratios
-- DO NOT use default Tailwind colors - use the exact hex codes provided`;
+- DO NOT use default Tailwind colors - use the exact hex codes provided
+- DO NOT use placeholder text or made-up contact details
+- COPY exact text content character-for-character where specified
+- MUST have FIXED/STICKY navigation header
+- MUST be 100% RESPONSIVE (Desktop, Tablet, Mobile)
+- MUST include mobile hamburger menu`;
 }
 
 export const refineWebsiteCode = async (currentCode: string, instructions: string) => {

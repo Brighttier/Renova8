@@ -158,6 +158,7 @@ export enum AppView {
   WEBSITE_EDITOR = 'WEBSITE_EDITOR',
   AI_WEBSITE_EDITOR = 'AI_WEBSITE_EDITOR', // AI-powered website editor (Lovable/Bolt style)
   SITES_MANAGER = 'SITES_MANAGER', // Sites Manager Dashboard
+  SERVICE_CATALOG = 'SERVICE_CATALOG', // Service & Feature Catalog
   SETTINGS = 'SETTINGS',
 
   // User Pages
@@ -232,6 +233,10 @@ export interface DesignSpecification {
     accent: string;
     background: string;
     text: string;
+    headerBg?: string;
+    footerBg?: string;
+    heroBg?: string;
+    cardBg?: string;
     exactHexCodes: string[];
   };
   typography: {
@@ -242,6 +247,10 @@ export interface DesignSpecification {
       h1: string;
       h2: string;
       h3: string;
+    };
+    fontWeight?: {
+      heading?: string;
+      body?: string;
     };
   };
   layout: {
@@ -254,23 +263,49 @@ export interface DesignSpecification {
     header: {
       style: 'fixed' | 'sticky' | 'static';
       logoPlacement: 'left' | 'center';
+      backgroundColor?: string;
+      textColor?: string;
+      logoText?: string;
+      navItems?: string[];
     };
     hero: {
       height: string;
       alignment: 'left' | 'center' | 'right';
+      headline?: string;
+      subheadline?: string;
+      ctaButtons?: string[];
+      backgroundType?: string;
+      backgroundValue?: string;
+      imagePosition?: string;
+      hasOverlay?: boolean;
     };
     buttons: {
       borderRadius: string;
       style: 'solid' | 'outline' | 'ghost';
+      primaryColor?: string;
+      primaryTextColor?: string;
+      secondaryColor?: string;
+      padding?: string;
     };
     cards: {
       borderRadius: string;
       shadow: string;
+      backgroundColor?: string;
+      border?: string;
     };
   };
   content: {
     sections: SectionSpec[];
-    exactText: { [key: string]: string };
+    exactText: {
+      logoText?: string;
+      heroHeadline?: string;
+      heroSubheadline?: string;
+      ctaButtonTexts?: string[];
+      navMenuItems?: string[];
+      sectionTitles?: string[];
+      footerText?: string;
+      [key: string]: string | string[] | undefined;
+    };
   };
   assets: {
     logo?: AssetSpec;
@@ -286,6 +321,12 @@ export interface DesignSpecification {
 export interface SectionSpec {
   type: string;
   order: number;
+  title?: string;
+  subtitle?: string;
+  backgroundColor?: string;
+  itemCount?: number;
+  layout?: string;
+  items?: string[];
   requiredContent: string[];
 }
 
@@ -654,4 +695,95 @@ export interface DomainStatusResult {
   domain?: string;
   sslStatus?: 'provisioning' | 'active';
   message: string;
+}
+
+// ============================================
+// Platform API Settings Types
+// ============================================
+
+export type ApiKeyRotationStrategy = 'round-robin' | 'failover' | 'usage-based';
+
+export interface ApiKeyConfig {
+  id: string;
+  key: string;           // Full key (stored encrypted server-side, masked in UI)
+  name: string;          // "Primary", "Backup 1", etc.
+  isActive: boolean;
+  usageCount: number;    // Requests today
+  totalUsage: number;    // Lifetime requests
+  lastUsed: number;      // Timestamp
+  dailyLimit?: number;   // Optional per-key daily limit
+  addedAt: number;
+  addedBy: string;
+}
+
+export interface RateLimitConfig {
+  enabled: boolean;
+  globalRequestsPerMinute: number;    // Platform-wide limit
+  perUserRequestsPerMinute: number;   // Per user per minute
+  perUserRequestsPerDay: number;      // Per user per day
+}
+
+export interface TokenLimitConfig {
+  initialSignupTokens: number;        // Tokens given to new users
+  maxTokensPerUser: number;           // Max tokens a user can hold (0 = unlimited)
+  minBalanceForCall: number;          // Minimum balance required for API call
+  profitMargin: number;               // 0-1 (e.g., 0.45 = 45%)
+}
+
+export interface PlatformAPISettings {
+  // API Keys
+  geminiApiKeys: ApiKeyConfig[];
+  currentKeyIndex: number;
+  rotationStrategy: ApiKeyRotationStrategy;
+
+  // Rate Limiting
+  rateLimits: RateLimitConfig;
+
+  // Token Limitations
+  tokenLimits: TokenLimitConfig;
+
+  // Metadata
+  updatedAt: number;
+  updatedBy: string;
+}
+
+// Default settings for new installations
+export const DEFAULT_PLATFORM_API_SETTINGS: Omit<PlatformAPISettings, 'updatedAt' | 'updatedBy'> = {
+  geminiApiKeys: [],
+  currentKeyIndex: 0,
+  rotationStrategy: 'round-robin',
+  rateLimits: {
+    enabled: false,
+    globalRequestsPerMinute: 60,
+    perUserRequestsPerMinute: 10,
+    perUserRequestsPerDay: 1000,
+  },
+  tokenLimits: {
+    initialSignupTokens: 2000,
+    maxTokensPerUser: 0, // 0 = unlimited
+    minBalanceForCall: 10,
+    profitMargin: 0.45,
+  },
+};
+
+// ============================================
+// Service Catalog Types
+// ============================================
+
+export type ServiceCategory = 'data' | 'tools' | 'automation' | 'analytics' | 'marketing' | 'finance';
+export type ServiceType = 'diy' | 'backend' | 'hybrid';
+
+export interface ServiceItem {
+  id: string;
+  name: string;
+  description: string;
+  category: ServiceCategory;
+  icon: string;
+  iconBg: string;
+  lastUpdate: string;
+  source?: string;
+  features: string[];
+  serviceType: ServiceType;  // Classification: diy, backend, or hybrid
+  diyPrompt?: string;        // Generic prompt template (optional for backend-only)
+  hybridNote?: string;       // Explanation for hybrid services
 }
