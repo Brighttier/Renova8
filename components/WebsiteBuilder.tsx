@@ -684,6 +684,50 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
                     )}
                 </div>
             </div>
+
+            {/* Pixel-Perfect Mode Toggle */}
+            {generatedImage && designSpec && (
+                <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl">
+                    <label className="flex items-center gap-3 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            checked={designSpec?.pixelPerfectMode || false}
+                            onChange={(e) => {
+                                if (designSpec) {
+                                    const updatedSpec = { ...designSpec, pixelPerfectMode: e.target.checked };
+                                    setDesignSpec(updatedSpec);
+                                }
+                            }}
+                            className="w-5 h-5 text-purple-600 rounded focus:ring-2 focus:ring-purple-500"
+                        />
+                        <div>
+                            <span className="font-semibold text-gray-800">Pixel-Perfect Mode</span>
+                            <p className="text-sm text-gray-600">Auto-retry generation up to 3 times to achieve 95%+ match with concept design</p>
+                        </div>
+                    </label>
+                </div>
+            )}
+
+            {/* Generation Progress Indicator */}
+            {loading && currentAttempt > 0 && designSpec?.pixelPerfectMode && (
+                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                    <p className="font-semibold text-blue-900 mb-2">Pixel-Perfect Mode Active</p>
+                    <p className="text-sm text-blue-700 mb-3">
+                        Generating and verifying... (Attempt {currentAttempt} of 3)
+                    </p>
+                    {bestScore > 0 && (
+                        <p className="text-xs text-blue-600">
+                            Target: 95% match score. Current best: {bestScore}%
+                        </p>
+                    )}
+                    <div className="w-full bg-blue-200 rounded-full h-2 mt-2">
+                        <div
+                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${(currentAttempt / 3) * 100}%` }}
+                        ></div>
+                    </div>
+                </div>
+            )}
             </div>
         </div>
       )}
