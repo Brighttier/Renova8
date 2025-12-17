@@ -162,7 +162,15 @@ export const extractDesignSpecFromImage = async (
   const extractionPrompt = `
     Analyze this website concept mockup for "${businessName}" and extract PIXEL-PERFECT design specifications.
 
-    YOUR TASK: The generated website MUST be 100% IDENTICAL to this mockup. Extract EVERY detail.
+    **** CRITICAL - IGNORE DEVICE FRAMES ****
+    If the image shows a website displayed on a laptop, computer monitor, phone, tablet, or any other device:
+    - COMPLETELY IGNORE the device frame/shell/bezel
+    - Focus ONLY on the actual WEBSITE CONTENT shown inside the screen
+    - Do NOT extract colors or elements from the device itself (laptop body, keyboard, etc.)
+    - Analyze ONLY what appears ON the website, not the device displaying it
+    - The device is just a presentation mockup - we need the WEBSITE CONTENT ONLY
+
+    YOUR TASK: The generated website MUST be 100% IDENTICAL to the website shown in this mockup. Extract EVERY detail FROM THE WEBSITE.
 
     CRITICAL: Extract EXACT values - do not approximate or generalize. Be extremely precise.
 
@@ -370,11 +378,19 @@ export const extractDesignSpecFromImage = async (
     },
     assets: {
       logo: undefined,
-      heroImage: undefined,
+      // Store the concept image as the hero image - this is the ACTUAL image from the concept
+      heroImage: {
+        id: 'hero-concept',
+        type: 'image',
+        source: 'ai-generated',
+        url: conceptImageBase64, // Store the full base64 data URL
+        placement: 'hero section background',
+        required: true
+      },
       images: []
     },
     verification: {
-      missingAssets: ['logo', 'hero-image'],
+      missingAssets: ['logo'], // Hero image is now provided from concept
       discrepancies: []
     }
   };

@@ -44,6 +44,7 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [verificationResult, setVerificationResult] = useState<VerificationResult | null>(null);
   const [isExtractingSpecs, setIsExtractingSpecs] = useState(false);
+  const [isFixingIssues, setIsFixingIssues] = useState(false);
 
   useEffect(() => {
     if (selectedLead) {
@@ -170,7 +171,8 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
           setLoading(true);
           try {
               // Use design spec for strict generation if available
-              const code = await generateWebsiteStructure(prompt, designSpec || undefined);
+              // IMPORTANT: Pass the concept image so the hero background can be extracted
+              const code = await generateWebsiteStructure(prompt, designSpec || undefined, generatedImage || undefined);
               setGeneratedCode(code);
 
               // Verify the generated code against design spec
@@ -222,7 +224,8 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
       setLoading(true);
 
       try {
-          const code = await generateWebsiteStructure(prompt, designSpec || undefined);
+          // Pass the concept image for hero background extraction
+          const code = await generateWebsiteStructure(prompt, designSpec || undefined, generatedImage || undefined);
           setGeneratedCode(code);
 
           // Re-verify
@@ -250,15 +253,21 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
 
               if (assetType === 'logo') {
                   updatedSpec.assets.logo = {
+                      id: `logo-${Date.now()}`,
+                      type: 'logo',
+                      source: 'user',
                       url: dataUrl,
+                      placement: 'header',
                       required: true
                   };
               } else if (assetType === 'hero-image') {
                   updatedSpec.assets.heroImage = {
+                      id: `hero-${Date.now()}`,
+                      type: 'image',
+                      source: 'user',
                       url: dataUrl,
-                      required: false,
                       placement: 'hero section',
-                      description: 'Hero background image'
+                      required: false
                   };
               }
 
@@ -277,6 +286,47 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
           }
       };
       reader.readAsDataURL(file);
+  };
+
+  // Handle fix issues - regenerate with specific fixes for discrepancies
+  const handleFixIssues = async () => {
+      if (!generatedCode || !designSpec || !verificationResult) return;
+
+      setIsFixingIssues(true);
+      try {
+          // Build a fix instruction based on discrepancies
+          const discrepancyInstructions = verificationResult.discrepancies
+              .map(d => `Fix ${d.element}: change from "${d.actual}" to "${d.expected}"`)
+              .join('. ');
+
+          const fixPrompt = `Fix these specific issues in the website:
+${discrepancyInstructions}
+
+Also apply these recommendations:
+${verificationResult.recommendations.join('. ')}
+
+IMPORTANT: Keep all other elements exactly the same. Only fix the specific issues mentioned.`;
+
+          // Use refineWebsiteCode to fix specific issues
+          const fixedCode = await refineWebsiteCode(generatedCode, fixPrompt);
+          setGeneratedCode(fixedCode);
+
+          // Re-verify after fix
+          if (generatedImage) {
+              const newResult = await verifyWebsiteAgainstSpec(fixedCode, designSpec, generatedImage);
+              setVerificationResult(newResult);
+
+              // Close modal if issues are fixed
+              if (newResult.overallMatchScore >= 85) {
+                  setShowVerificationModal(false);
+              }
+          }
+      } catch (error) {
+          console.error('Failed to fix issues:', error);
+          alert('Failed to fix issues. Please try again or regenerate the website.');
+      } finally {
+          setIsFixingIssues(false);
+      }
   };
 
   const handleRefineCode = async () => {
@@ -398,11 +448,14 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
             <DesignVerificationModal
                 verificationResult={verificationResult}
                 designSpec={designSpec}
-                conceptImage={generatedImage || undefined}
+                conceptImage={generatedImage || ''}
                 generatedHtml={generatedCode || ''}
                 onApprove={handleVerificationApprove}
                 onRegenerate={handleRegenerate}
+                onFixIssues={handleFixIssues}
                 onUploadAsset={handleAssetUpload}
+                onClose={() => setShowVerificationModal(false)}
+                isFixing={isFixingIssues}
             />
         )}
 

@@ -260,10 +260,20 @@ export const generateWebsiteConceptImage = async (
   const ai = await getClient(true, skipKeyCheck); // Requires paid key for Pro Image
   
   // Using Nano Banana Pro (Gemini 3 Pro Image)
+  // IMPORTANT: Generate a flat browser screenshot, NOT a laptop/device mockup
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-image-preview',
     contents: {
-        parts: [{ text: `A professional, modern website design mockup for: ${prompt}. High quality, UI/UX design, photorealistic laptop screen mockup.` }]
+        parts: [{ text: `A professional, modern website design screenshot for: ${prompt}.
+
+CRITICAL REQUIREMENTS:
+- Generate a FLAT website screenshot showing ONLY the webpage content
+- DO NOT include any laptop, computer, phone, tablet, or device frame around the website
+- DO NOT show the website displayed on a screen or monitor
+- Show the website as a direct browser viewport screenshot
+- Full-page website view with header, hero section, and content sections visible
+- Clean, high-quality UI/UX design
+- Professional typography and spacing` }]
     },
     config: {
       imageConfig: {
@@ -318,7 +328,94 @@ export const generateSocialMediaImage = async (
   return imageUrl;
 };
 
-export const generateWebsiteStructure = async (prompt: string, designSpec?: DesignSpecification, conceptImage?: string) => {
+/**
+ * Inject the concept image as the hero background in the generated HTML
+ * This ensures the generated website uses the EXACT same image as the concept
+ */
+const injectConceptImageAsHeroBackground = (html: string, conceptImage: string): string => {
+    if (!conceptImage) return html;
+
+    // Ensure the concept image has proper data URL format
+    const imageDataUrl = conceptImage.startsWith('data:')
+        ? conceptImage
+        : `data:image/png;base64,${conceptImage}`;
+
+    let modified = html;
+    let replacementsMade = 0;
+
+    // Strategy 1: Replace the specific placeholder URL we told the AI to use
+    const placeholderPattern = /https:\/\/images\.unsplash\.com\/photo-hero-placeholder[^'")\s]*/gi;
+    modified = modified.replace(placeholderPattern, () => {
+        replacementsMade++;
+        return imageDataUrl;
+    });
+
+    // Strategy 2: Replace background-image URLs in hero sections
+    // Match patterns like: background-image: url('...') or background: url('...')
+    const bgImagePattern = /(background(?:-image)?:\s*(?:linear-gradient\([^)]+\),\s*)?url\(['"]?)([^'")\s]+)(['"]?\))/gi;
+
+    modified = modified.replace(bgImagePattern, (match, prefix, url, suffix) => {
+        // Check if this is in a hero-related context
+        const matchIndex = modified.indexOf(match);
+        const contextBefore = modified.substring(Math.max(0, matchIndex - 500), matchIndex).toLowerCase();
+        const contextAfter = modified.substring(matchIndex, Math.min(modified.length, matchIndex + 500)).toLowerCase();
+
+        // Only replace if it's likely a hero background (and not already replaced)
+        const isHeroContext = contextBefore.includes('hero') || contextAfter.includes('hero') ||
+            contextBefore.includes('page-home') || contextAfter.includes('page-home');
+        const isPlaceholder = url.includes('unsplash') || url.includes('1920') ||
+            url.includes('hero') || url.includes('placeholder');
+
+        if (isHeroContext && isPlaceholder && !url.startsWith('data:')) {
+            replacementsMade++;
+            return `${prefix}${imageDataUrl}${suffix}`;
+        }
+        return match;
+    });
+
+    // Strategy 3: If no replacements were made, inject CSS to force hero background
+    if (replacementsMade === 0) {
+        // Add a style block that sets the hero background using the concept image
+        const heroBackgroundCSS = `
+    <style>
+      /* Concept Image as Hero Background - Injected */
+      #page-home > section:first-child,
+      .hero,
+      [class*="hero"],
+      main#page-home > div:first-child,
+      #page-home > div:first-child,
+      section:first-of-type {
+        background-image: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('${imageDataUrl}') !important;
+        background-size: cover !important;
+        background-position: center !important;
+        background-repeat: no-repeat !important;
+      }
+    </style>
+  </head>`;
+
+        modified = modified.replace('</head>', heroBackgroundCSS);
+        replacementsMade++;
+    }
+
+    // Strategy 4: Also replace any img src in hero section that looks like a placeholder
+    const heroImgPattern = /(<(?:section|div)[^>]*(?:hero|page-home)[^>]*>[\s\S]*?<img[^>]*src=["'])([^"']+)(["'][^>]*>)/gi;
+    modified = modified.replace(heroImgPattern, (match, prefix, src, suffix) => {
+        if ((src.includes('unsplash') || src.includes('placeholder') || src.includes('picsum')) && !src.startsWith('data:')) {
+            replacementsMade++;
+            return `${prefix}${imageDataUrl}${suffix}`;
+        }
+        return match;
+    });
+
+    console.log(`Concept image injected: ${replacementsMade} replacement(s) made`);
+    return modified;
+};
+
+/**
+ * Generate a multi-page website structure with strict accuracy requirements
+ * Creates separate HTML files for each page with consistent header/footer
+ */
+export const generateWebsiteStructure = async (prompt: string, designSpec?: DesignSpecification, conceptImage?: string): Promise<string> => {
     const ai = await getClient();
 
     // If concept image is provided, use TWO-STEP process for better replication
@@ -332,47 +429,79 @@ export const generateWebsiteStructure = async (prompt: string, designSpec?: Desi
         const mimeType = conceptImage.includes('image/jpeg') ? 'image/jpeg' : 'image/png';
 
         try {
-            // STEP 1: Analyze the image in extreme detail
-            console.log('Step 1: Analyzing concept image...');
-            const analysisPrompt = `Analyze this website mockup image in EXTREME detail. I need to recreate it exactly in HTML/CSS.
+            // STEP 1: Analyze the image in extreme detail for multi-page website
+            console.log('Step 1: Analyzing concept image for multi-page website...');
+            const analysisPrompt = `Analyze this website mockup image in EXTREME detail. I need to recreate it as a MULTI-PAGE website with SEPARATE PAGES.
 
-Describe EVERY visual element you see:
+**** VERY IMPORTANT - IGNORE DEVICE FRAMES ****
+If the image shows a website displayed on a laptop, computer monitor, phone, tablet, or any other device:
+- COMPLETELY IGNORE the device frame/shell
+- Focus ONLY on the actual WEBSITE CONTENT shown inside the screen
+- Do NOT describe or reference the device itself
+- Analyze ONLY what appears on the website, not the device displaying it
+- The laptop/device is just a presentation mockup - we need the WEBSITE CONTENT ONLY
 
-1. HEADER:
-   - Background color (exact shade)
+CRITICAL: This will be a multi-page website, NOT a single-page website. Each navigation item will be its own page.
+
+VERY IMPORTANT - HERO BACKGROUND IMAGE:
+Look at the hero section of the WEBSITE (not the device frame). Describe the hero background:
+- What is the main subject of the hero background? (office, nature, people, abstract, food, etc.)
+- What colors dominate the image?
+- What is the composition/layout?
+- Is there an overlay or tint?
+- What mood does it convey?
+- NOTE: The "background" is what's BEHIND the hero text/content, NOT the laptop/device showing the website
+
+Describe EVERY visual element you see IN THE WEBSITE (ignore any device frame):
+
+1. HEADER (will be shared across ALL pages):
+   - Background color (exact shade/hex)
    - Logo text/image and position
-   - Navigation menu items (list each one)
+   - Navigation menu items (list EACH one - these become separate pages)
    - Any buttons and their colors
-   - Is it sticky/fixed?
+   - Must be STICKY/FIXED navigation
 
-2. HERO SECTION:
-   - Background (color, gradient, or image description)
-   - Main headline text (exact words if visible)
-   - Subheadline/description text
-   - CTA buttons (text, colors, shape)
-   - Any images and their position (left/right/background)
-   - Layout (text left with image right? centered? etc.)
+2. HERO SECTION (for Home page):
+   - BACKGROUND IMAGE: Describe in EXTREME detail what the background image shows
+   - Background overlay color and opacity if any
+   - Main headline text (EXACT words if visible)
+   - Subheadline/description text (EXACT words)
+   - CTA buttons (EXACT text, colors, shape)
+   - Any images and their EXACT position
+   - Layout details
 
-3. OTHER SECTIONS (describe each one you see):
-   - Section type (features, services, testimonials, about, gallery, etc.)
-   - Layout (grid columns, cards, etc.)
-   - Content in each card/item
-   - Colors and styling
+3. ALL OTHER SECTIONS (describe EACH one - these may become separate pages):
+   - Section type (features, services, testimonials, about, gallery, contact, etc.)
+   - EXACT layout (grid columns, cards, etc.)
+   - EXACT content in each card/item
+   - EXACT colors and styling
+   - Which page this section belongs to
 
-4. FOOTER:
-   - Background color
+4. FOOTER (will be shared across ALL pages):
+   - Background color (exact hex)
    - Content layout
    - Links and text
+   - Contact information if visible
 
 5. OVERALL STYLE:
-   - Primary color (hex estimate)
-   - Secondary color (hex estimate)
-   - Accent/button color (hex estimate)
-   - Background colors
-   - Font style (serif, sans-serif, modern, elegant, etc.)
-   - Overall mood (professional, playful, luxury, minimal, etc.)
+   - Primary color (exact hex)
+   - Secondary color (exact hex)
+   - Accent/button color (exact hex)
+   - All background colors
+   - Font style (identify exact Google Font if possible)
+   - Overall mood
 
-Be extremely specific about colors, layout positions, and visual hierarchy.`;
+6. CONTACT INFORMATION (extract EXACTLY):
+   - Phone number(s)
+   - Email address(es)
+   - Physical address
+   - Social media links
+
+7. HERO BACKGROUND SEARCH QUERY:
+   Provide an Unsplash search query that would find a MATCHING background image.
+   Format: "UNSPLASH_QUERY: [your search terms]"
+
+Be EXTREMELY specific. Every color must be a hex code. Every text must be exact.`;
 
             const analysisResponse = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
@@ -474,7 +603,14 @@ ${content.exactText.footerText ? `- Footer: "${content.exactText.footerText}"` :
 `;
             };
 
-            const htmlPrompt = `You are an expert frontend developer. Your task is to create a PIXEL-PERFECT HTML website that is 100% IDENTICAL to the concept mockup.
+            const htmlPrompt = `You are an expert frontend developer. Create a MULTI-PAGE website that is PIXEL-PERFECT and 100% IDENTICAL to the concept mockup.
+
+**** CRITICAL - IGNORE DEVICE FRAMES ****
+If the mockup analysis mentions a laptop, computer, phone, tablet, or any device frame:
+- DO NOT include the device frame in the website
+- DO NOT use the device image as a background
+- Build ONLY the website content that was shown INSIDE the device screen
+- The website should be a standalone webpage, not displayed on a device
 
 === VISUAL ANALYSIS OF MOCKUP ===
 ${imageAnalysis}
@@ -484,65 +620,180 @@ ${prompt}
 
 ${buildDesignRequirements()}
 
-=== CRITICAL REQUIREMENTS ===
+=== CRITICAL REQUIREMENTS (MANDATORY - NO EXCEPTIONS) ===
 
-YOU MUST CREATE A WEBSITE THAT IS VISUALLY IDENTICAL TO THE MOCKUP. Every detail matters:
-- Use the EXACT colors specified (copy hex codes exactly)
-- Use the EXACT fonts specified
-- Use the EXACT text content (headlines, buttons, nav items)
-- Match the EXACT layout structure
-- Match the EXACT number of sections and their order
-- Match the EXACT spacing and sizing
+1. MULTI-PAGE STRUCTURE (NOT SINGLE PAGE):
+   - Create SEPARATE pages for: Home, About, Services, Contact (and any others visible)
+   - Each navigation item MUST link to a SEPARATE PAGE with its own URL
+   - DO NOT use anchor links (#section) - use page links (about.html, services.html)
+   - Use JavaScript-based routing to simulate multi-page behavior in single HTML
+
+2. STICKY/FIXED NAVIGATION:
+   - Header must be FIXED at the top (position: fixed)
+   - Navigation must be visible while scrolling
+   - Must work on all screen sizes
+
+3. 100% RESPONSIVE:
+   - Must look perfect on Desktop, Tablet, and Mobile
+   - Use Tailwind responsive classes (sm:, md:, lg:, xl:)
+   - Mobile hamburger menu required
+
+4. EXACT VISUAL MATCH:
+   - Use EXACT colors (copy hex codes exactly)
+   - Use EXACT fonts specified
+   - Use EXACT text content (headlines, buttons, nav items) - NO placeholders
+   - Match EXACT layout structure
+   - Match EXACT spacing and sizing
+
+5. REAL CONTENT ONLY:
+   - Use ONLY real content from the mockup
+   - NO placeholder text like "Lorem ipsum"
+   - NO made-up contact details
+   - Extract EXACT phone, email, address from mockup
+
+=== MULTI-PAGE ROUTING IMPLEMENTATION ===
+
+Implement client-side routing with this pattern:
+
+<script>
+// Multi-page routing system
+const pages = {
+  'home': document.getElementById('page-home'),
+  'about': document.getElementById('page-about'),
+  'services': document.getElementById('page-services'),
+  'contact': document.getElementById('page-contact')
+};
+
+function showPage(pageName) {
+  // Hide all pages
+  Object.values(pages).forEach(page => {
+    if (page) page.style.display = 'none';
+  });
+  // Show requested page
+  if (pages[pageName]) {
+    pages[pageName].style.display = 'block';
+  }
+  // Update URL
+  history.pushState({page: pageName}, '', pageName === 'home' ? '/' : '/' + pageName);
+  // Scroll to top
+  window.scrollTo(0, 0);
+}
+
+// Handle browser back/forward
+window.onpopstate = (e) => {
+  if (e.state && e.state.page) showPage(e.state.page);
+};
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+  const path = window.location.pathname.replace('/', '') || 'home';
+  showPage(path);
+});
+</script>
 
 === HTML STRUCTURE ===
 
-1. Start with <!DOCTYPE html>
-
-2. Include Tailwind CSS with EXACT color configuration:
-<script src="https://cdn.tailwindcss.com"></script>
-<script>
-tailwind.config = {
-  theme: {
-    extend: {
-      colors: {
-        primary: '${designSpec?.colors.primary || '#D4AF37'}',
-        secondary: '${designSpec?.colors.secondary || '#4A4A4A'}',
-        accent: '${designSpec?.colors.accent || '#2E7D32'}',
-        ${designSpec?.colors.headerBg ? `'header-bg': '${designSpec.colors.headerBg}',` : ''}
-        ${designSpec?.colors.footerBg ? `'footer-bg': '${designSpec.colors.footerBg}',` : ''}
-        ${designSpec?.colors.heroBg ? `'hero-bg': '${designSpec.colors.heroBg}',` : ''}
-        ${designSpec?.colors.cardBg ? `'card-bg': '${designSpec.colors.cardBg}',` : ''}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Business Name</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          primary: '${designSpec?.colors.primary || '#D4AF37'}',
+          secondary: '${designSpec?.colors.secondary || '#4A4A4A'}',
+          accent: '${designSpec?.colors.accent || '#2E7D32'}',
+        }
       }
     }
   }
-}
-</script>
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=${designSpec?.typography.headingFont?.replace(/ /g, '+') || 'Playfair+Display'}:wght@400;500;600;700&family=${designSpec?.typography.bodyFont?.replace(/ /g, '+') || 'Inter'}:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: '${designSpec?.typography.bodyFont || 'Inter'}', sans-serif; }
+    .font-heading { font-family: '${designSpec?.typography.headingFont || 'Playfair Display'}', serif; }
+  </style>
+</head>
+<body>
+  <!-- FIXED HEADER (shared across all pages) -->
+  <header class="fixed top-0 left-0 right-0 z-50 ...">
+    <nav>
+      <!-- Logo -->
+      <!-- Navigation links with onclick="showPage('pagename')" -->
+      <!-- Mobile menu button -->
+    </nav>
+  </header>
 
-3. Import the EXACT Google Fonts:
-<link href="https://fonts.googleapis.com/css2?family=${designSpec?.typography.headingFont?.replace(/ /g, '+') || 'Playfair+Display'}:wght@400;500;600;700&family=${designSpec?.typography.bodyFont?.replace(/ /g, '+') || 'Inter'}:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <!-- PAGE: HOME -->
+  <main id="page-home" class="pt-20">
+    <!-- Hero section -->
+    <!-- Other home content -->
+  </main>
 
-4. Add smooth scrolling and font styles:
-<style>
-  html { scroll-behavior: smooth; }
-  .font-heading { font-family: '${designSpec?.typography.headingFont || 'Playfair Display'}', serif; }
-  .font-body { font-family: '${designSpec?.typography.bodyFont || 'Inter'}', sans-serif; }
-  body { font-family: '${designSpec?.typography.bodyFont || 'Inter'}', sans-serif; }
-</style>
+  <!-- PAGE: ABOUT -->
+  <main id="page-about" class="pt-20" style="display:none;">
+    <!-- About page content -->
+  </main>
 
-5. NAVIGATION: Add id to each section, use anchor links
+  <!-- PAGE: SERVICES -->
+  <main id="page-services" class="pt-20" style="display:none;">
+    <!-- Services page content -->
+  </main>
 
-6. IMAGES - USE THESE EXACT WORKING URLS:
-   Hero: https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&h=1080&fit=crop
-   Business: https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200&h=800&fit=crop
-   Team: https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=800&fit=crop
-   Person 1: https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop
-   Person 2: https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop
-   Restaurant: https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1200&h=800&fit=crop
-   Food: https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1200&h=800&fit=crop
+  <!-- PAGE: CONTACT -->
+  <main id="page-contact" class="pt-20" style="display:none;">
+    <!-- Contact page content -->
+  </main>
+
+  <!-- FOOTER (shared across all pages) -->
+  <footer>...</footer>
+
+  <!-- Routing Script -->
+  <script>/* routing code */</script>
+</body>
+</html>
+
+=== NAVIGATION LINKS FORMAT ===
+<a href="javascript:void(0)" onclick="showPage('home')" class="...">Home</a>
+<a href="javascript:void(0)" onclick="showPage('about')" class="...">About</a>
+<a href="javascript:void(0)" onclick="showPage('services')" class="...">Services</a>
+<a href="javascript:void(0)" onclick="showPage('contact')" class="...">Contact</a>
+
+=== HERO BACKGROUND IMAGE - CRITICAL ===
+
+IMPORTANT: The concept image will be automatically injected as the hero background after generation.
+For now, use this EXACT placeholder URL for the hero background:
+- Hero Background: https://images.unsplash.com/photo-hero-placeholder?w=1920&h=1080&fit=crop
+
+Apply dark overlay if the analysis indicates one:
+- background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('https://images.unsplash.com/photo-hero-placeholder?w=1920&h=1080&fit=crop');
+
+The hero section MUST have:
+- class="hero" or similar identifiable class
+- background-image CSS property (will be replaced with actual concept image)
+- Full viewport height (min-h-screen or similar)
+
+=== OTHER IMAGES ===
+For other sections, use these Unsplash URLs:
+- Team/People: https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop
+- Business: https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200&h=800&fit=crop
+- Team group: https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=800&fit=crop
+- Person 2: https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop
 
 === OUTPUT ===
 Return ONLY the complete HTML code starting with <!DOCTYPE html>. No markdown, no explanations.
-The website MUST be visually identical to the mockup.`;
+The website MUST:
+1. Have SEPARATE pages for each navigation item
+2. Have FIXED/STICKY navigation
+3. Be 100% RESPONSIVE
+4. Match the mockup EXACTLY including the HERO BACKGROUND IMAGE
+5. Use REAL content only (no placeholders)
+6. Use hero image URL based on UNSPLASH_QUERY from the analysis`;
 
             const htmlResponse = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
@@ -564,6 +815,10 @@ The website MUST be visually identical to the mockup.`;
             }
 
             console.log('HTML generated successfully, length:', text.length);
+
+            // CRITICAL: Inject the actual concept image as the hero background
+            text = injectConceptImageAsHeroBackground(text, conceptImage);
+
             return text;
 
         } catch (error) {
@@ -590,34 +845,93 @@ The website MUST be visually identical to the mockup.`;
                 text = text.substring(doctypeIndex);
             }
         }
+
+        // Inject concept image if available from designSpec
+        if (designSpec.assets?.heroImage?.url) {
+            text = injectConceptImageAsHeroBackground(text, designSpec.assets.heroImage.url);
+        }
+
         return text;
     }
 
-    // Fallback to basic generation without strict specs
+    // Fallback to basic multi-page generation without strict specs
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
-        contents: `Create a complete, professional single-page HTML website for: ${prompt}
+        contents: `Create a complete, professional MULTI-PAGE HTML website for: ${prompt}
+
+=== CRITICAL: MULTI-PAGE STRUCTURE (NOT SINGLE PAGE) ===
+
+This MUST be a multi-page website with SEPARATE PAGES for each navigation item.
+Use client-side JavaScript routing to simulate multi-page behavior.
 
 STRUCTURE REQUIREMENTS:
 1. Start with <!DOCTYPE html> - NO markdown code blocks
 2. Include Tailwind CSS: <script src="https://cdn.tailwindcss.com"></script>
 3. Configure custom colors: <script>tailwind.config = { theme: { extend: { colors: { primary: '#D4AF37', secondary: '#4A4A4A', accent: '#2E7D32' }}}}</script>
 4. Import Google Fonts: Playfair Display for headings, Inter for body
-5. Add smooth scrolling: <style>html { scroll-behavior: smooth; }</style>
 
 NAVIGATION - CRITICAL:
-- Fixed header with navigation links
-- Each section needs an id: id="home", id="services", id="about", id="contact"
-- Nav links use anchors: <a href="#services">Services</a>
-- Include mobile menu toggle with JavaScript
+- FIXED header (position: fixed) that stays visible while scrolling
+- Each nav item links to a SEPARATE PAGE (NOT anchor links)
+- Use onclick="showPage('pagename')" for navigation
+- Include mobile hamburger menu with JavaScript toggle
 
-SECTIONS (FULL SIZE):
-1. HEADER: Fixed nav, logo left, menu center/right, CTA button
-2. HERO (id="home"): min-h-screen, large headline (text-5xl), subtext, 2 CTA buttons, background image
-3. SERVICES (id="services"): py-20, 3-4 column grid of service cards
-4. ABOUT/TESTIMONIALS (id="about"): py-20, customer reviews or about content
-5. CONTACT (id="contact"): py-20, contact form with name, email, message fields
-6. FOOTER: Dark background, links, social icons, copyright
+MULTI-PAGE ROUTING:
+Include this routing system:
+
+<script>
+const pages = {
+  'home': document.getElementById('page-home'),
+  'about': document.getElementById('page-about'),
+  'services': document.getElementById('page-services'),
+  'contact': document.getElementById('page-contact')
+};
+
+function showPage(pageName) {
+  Object.values(pages).forEach(page => { if (page) page.style.display = 'none'; });
+  if (pages[pageName]) pages[pageName].style.display = 'block';
+  history.pushState({page: pageName}, '', pageName === 'home' ? '/' : '/' + pageName);
+  window.scrollTo(0, 0);
+  // Close mobile menu if open
+  const mobileMenu = document.getElementById('mobile-menu');
+  if (mobileMenu) mobileMenu.classList.add('hidden');
+}
+
+window.onpopstate = (e) => { if (e.state?.page) showPage(e.state.page); };
+document.addEventListener('DOMContentLoaded', () => {
+  const path = window.location.pathname.replace('/', '') || 'home';
+  showPage(path);
+});
+</script>
+
+PAGE STRUCTURE:
+1. FIXED HEADER (shared across all pages):
+   - Logo left, nav center/right
+   - Nav links: <a href="javascript:void(0)" onclick="showPage('home')">Home</a>
+   - Mobile menu toggle button
+
+2. PAGE: HOME (id="page-home"):
+   - Hero section: min-h-screen, large headline, 2 CTA buttons, background image
+   - Features/highlights section
+
+3. PAGE: ABOUT (id="page-about" style="display:none"):
+   - About content, team section, testimonials
+
+4. PAGE: SERVICES (id="page-services" style="display:none"):
+   - Services grid with 3-4 columns of service cards
+
+5. PAGE: CONTACT (id="page-contact" style="display:none"):
+   - Contact form (name, email, phone, message)
+   - Contact information (phone, email, address)
+   - Map placeholder
+
+6. FOOTER (shared across all pages):
+   - Dark background, links, social icons, copyright
+
+RESPONSIVE REQUIREMENTS:
+- 100% responsive on Desktop, Tablet, Mobile
+- Use Tailwind responsive classes (sm:, md:, lg:, xl:)
+- Mobile hamburger menu that toggles visibility
 
 SIZING:
 - Container: max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
@@ -626,15 +940,36 @@ SIZING:
 - Headlines: text-4xl md:text-5xl lg:text-6xl
 - Buttons: px-6 py-3 rounded-lg with hover effects
 
-IMAGES - USE THESE EXACT WORKING URLS:
+IMAGES - USE CONTEXT-APPROPRIATE URLS:
+
+CRITICAL: Use images that MATCH the business type from the prompt.
+Use Unsplash source API with relevant keywords based on the business:
+- Hero: https://source.unsplash.com/1920x1080/?[business-type-keywords]
+- Services: https://source.unsplash.com/800x600/?[service-keyword]
+- Team: https://source.unsplash.com/400x400/?professional,portrait
+- About: https://source.unsplash.com/1200x800/?[business-type],team
+
+Example keyword substitutions:
+- Restaurant → restaurant,dining,food,interior
+- Spa → spa,wellness,relaxation,massage
+- Law Firm → legal,office,professional,lawyer
+- Gym → fitness,gym,workout,exercise
+- Bakery → bakery,pastry,bread,cafe
+
+Fallback URLs (only if source API fails):
 - Hero: https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&h=1080&fit=crop
 - Business: https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200&h=800&fit=crop
 - Team: https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=800&fit=crop
 - Person 1: https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop
 - Person 2: https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop
-- Person 3: https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop
 
-Return ONLY complete HTML starting with <!DOCTYPE html>`,
+Return ONLY complete HTML starting with <!DOCTYPE html>.
+The website MUST have:
+1. SEPARATE pages for Home, About, Services, Contact
+2. FIXED/STICKY navigation header
+3. 100% RESPONSIVE design
+4. Mobile hamburger menu
+5. Hero background image that MATCHES the business type`,
         config: {
             maxOutputTokens: 32000,
         }
@@ -680,7 +1015,49 @@ const buildStrictWebsitePrompt = (businessPrompt: string, spec: DesignSpecificat
     if (exactText.sectionTitles?.length) exactTextContent += `- Section Titles: ${exactText.sectionTitles.map(t => `"${t}"`).join(', ')}\n    `;
     if (exactText.footerText) exactTextContent += `- Footer Text: "${exactText.footerText}"\n    `;
 
-    return `Create a complete, single-file HTML website for: ${businessPrompt}
+    return `Create a complete, MULTI-PAGE HTML website for: ${businessPrompt}
+
+=== CRITICAL: MULTI-PAGE STRUCTURE REQUIRED ===
+
+This MUST be a multi-page website with SEPARATE PAGES for each navigation item.
+Use client-side JavaScript routing to simulate multi-page behavior in a single HTML file.
+
+MULTI-PAGE ROUTING SYSTEM (MUST INCLUDE):
+<script>
+const pages = {
+  'home': document.getElementById('page-home'),
+  'about': document.getElementById('page-about'),
+  'services': document.getElementById('page-services'),
+  'contact': document.getElementById('page-contact')
+};
+
+function showPage(pageName) {
+  Object.values(pages).forEach(page => { if (page) page.style.display = 'none'; });
+  if (pages[pageName]) pages[pageName].style.display = 'block';
+  history.pushState({page: pageName}, '', pageName === 'home' ? '/' : '/' + pageName);
+  window.scrollTo(0, 0);
+  const mobileMenu = document.getElementById('mobile-menu');
+  if (mobileMenu) mobileMenu.classList.add('hidden');
+}
+
+window.onpopstate = (e) => { if (e.state?.page) showPage(e.state.page); };
+document.addEventListener('DOMContentLoaded', () => {
+  const path = window.location.pathname.replace('/', '') || 'home';
+  showPage(path);
+});
+</script>
+
+NAVIGATION FORMAT:
+<a href="javascript:void(0)" onclick="showPage('home')">Home</a>
+<a href="javascript:void(0)" onclick="showPage('about')">About</a>
+<a href="javascript:void(0)" onclick="showPage('services')">Services</a>
+<a href="javascript:void(0)" onclick="showPage('contact')">Contact</a>
+
+PAGE STRUCTURE:
+- <main id="page-home">...</main>
+- <main id="page-about" style="display:none">...</main>
+- <main id="page-services" style="display:none">...</main>
+- <main id="page-contact" style="display:none">...</main>
 
 === CRITICAL: STRICT DESIGN SPECIFICATIONS - MUST MATCH EXACTLY ===
 
@@ -777,10 +1154,12 @@ ${spec.assets.heroImage?.url ? `- Hero Image: <img src="${spec.assets.heroImage.
 7. Return ONLY raw HTML starting with <!DOCTYPE html>
 8. Do not wrap in markdown code blocks
 
-## NAVIGATION - CRITICAL
-- Add id attributes to sections: id="home", id="about", id="services", id="contact"
-- Navigation links must use anchor hrefs: <a href="#services">Services</a>
-- Include mobile menu toggle with JavaScript
+## NAVIGATION - CRITICAL (MULTI-PAGE)
+- Header must be FIXED (position: fixed, top: 0)
+- Use page-based navigation with onclick="showPage('pagename')"
+- DO NOT use anchor links (#section) - use separate pages
+- Include mobile hamburger menu with toggle
+- Navigation must be visible while scrolling on all pages
 
 ## SIZING - FULL SIZE WEBSITE
 - Container: max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
@@ -788,24 +1167,41 @@ ${spec.assets.heroImage?.url ? `- Hero Image: <img src="${spec.assets.heroImage.
 - Sections: py-16 md:py-20 lg:py-24
 - Headlines: text-4xl md:text-5xl lg:text-6xl
 
-## IMAGES - USE THESE EXACT WORKING URLS:
-- Hero: https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&h=1080&fit=crop
+## IMAGES - USE CONTEXT-APPROPRIATE URLS:
+
+IMPORTANT: Choose images that MATCH the business type described in the prompt.
+Use the Unsplash source API with relevant keywords:
+- Hero Background: https://source.unsplash.com/1920x1080/?[business-keywords]
+  Example for restaurant: https://source.unsplash.com/1920x1080/?restaurant,dining,food
+  Example for office: https://source.unsplash.com/1920x1080/?modern,office,business
+  Example for spa: https://source.unsplash.com/1920x1080/?spa,wellness,relaxation
+
+- Services/Features: https://source.unsplash.com/800x600/?[service-keyword]
+- Team Members: https://source.unsplash.com/400x400/?professional,portrait
+- About Section: https://source.unsplash.com/1200x800/?[business-type],team
+
+Fallback URLs (only if source API doesn't work):
+- Generic Hero: https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&h=1080&fit=crop
 - Business: https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200&h=800&fit=crop
 - Team: https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=800&fit=crop
-- Food: https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1200&h=800&fit=crop
-- Restaurant: https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1200&h=800&fit=crop
 - Person 1: https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop
 - Person 2: https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop
 - Person 3: https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop
 
 ## STRICT RULES - VIOLATIONS ARE NOT ACCEPTABLE
+- DO NOT use single-page scrolling - MUST be multi-page
+- DO NOT use anchor links (#section) - use page navigation
 - DO NOT substitute any colors with similar shades
 - DO NOT change font families
 - DO NOT rearrange section order
 - DO NOT rewrite or paraphrase exact text content
 - DO NOT modify spacing ratios
 - DO NOT use default Tailwind colors - use the exact hex codes provided
-- COPY exact text content character-for-character where specified`;
+- DO NOT use placeholder text or made-up contact details
+- COPY exact text content character-for-character where specified
+- MUST have FIXED/STICKY navigation header
+- MUST be 100% RESPONSIVE (Desktop, Tablet, Mobile)
+- MUST include mobile hamburger menu`;
 }
 
 export const refineWebsiteCode = async (currentCode: string, instructions: string) => {
