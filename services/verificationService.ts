@@ -292,11 +292,43 @@ const verifyWithCodeAnalysis = async (
     });
   }
 
-  // Calculate overall score
+  // Check for exact text content matching
+  const exactTextChecks = [
+    { field: 'Hero Headline', expected: designSpec.content.exactText?.heroHeadline },
+    { field: 'Hero Subheadline', expected: designSpec.content.exactText?.heroSubheadline },
+    { field: 'Logo Text', expected: designSpec.content.exactText?.logoText }
+  ];
+
+  let textMatches = 0;
+  let totalTextChecks = 0;
+
+  for (const check of exactTextChecks) {
+    if (check.expected && typeof check.expected === 'string' && check.expected.trim()) {
+      totalTextChecks++;
+      if (generatedHtml.includes(check.expected)) {
+        textMatches++;
+      } else {
+        discrepancies.push({
+          element: check.field,
+          expected: check.expected,
+          actual: 'Text not found in HTML',
+          severity: 'major'
+        });
+        recommendations.push(`Add exact text: "${check.expected}" to ${check.field}`);
+      }
+    }
+  }
+
+  const textMatchScore = totalTextChecks > 0
+    ? Math.round((textMatches / totalTextChecks) * 100)
+    : 100;
+
+  // Calculate overall score with text matching included
   const overallMatchScore = Math.round(
-    (colorMatchScore * 0.35) +
-    (typographyMatchScore * 0.25) +
-    (layoutMatchScore * 0.40)
+    (colorMatchScore * 0.25) +
+    (typographyMatchScore * 0.20) +
+    (layoutMatchScore * 0.30) +
+    (textMatchScore * 0.25)  // 25% weight for exact text
   );
 
   return {

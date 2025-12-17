@@ -46,6 +46,10 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
   const [isExtractingSpecs, setIsExtractingSpecs] = useState(false);
   const [isFixingIssues, setIsFixingIssues] = useState(false);
 
+  // Pixel-Perfect Generation State
+  const [currentAttempt, setCurrentAttempt] = useState(0);
+  const [bestScore, setBestScore] = useState(0);
+
   useEffect(() => {
     if (selectedLead) {
         setPrompt(`Create a website for ${selectedLead.businessName}, a business located in ${selectedLead.location}. Details: ${selectedLead.details}. Make it modern, inviting, and professional.`);
@@ -169,28 +173,74 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
       setActiveTab('builder');
       if (!generatedCode) {
           setLoading(true);
+          let attempts = 0;
+          const maxAttempts = designSpec?.pixelPerfectMode ? 3 : 1;
+          let bestCode = '';
+          let bestScoreValue = 0;
+          let bestResult: VerificationResult | null = null;
+
           try {
-              // Use design spec for strict generation if available
-              // IMPORTANT: Pass the concept image so the hero background can be extracted
-              const code = await generateWebsiteStructure(prompt, designSpec || undefined, generatedImage || undefined);
-              setGeneratedCode(code);
+              while (attempts < maxAttempts) {
+                  attempts++;
+                  setCurrentAttempt(attempts);
+                  console.log(`Generation attempt ${attempts}/${maxAttempts}`);
 
-              // Verify the generated code against design spec
-              if (designSpec && generatedImage) {
-                  try {
-                      const result = await verifyWebsiteAgainstSpec(code, designSpec, generatedImage);
-                      setVerificationResult(result);
+                  // Generate website code
+                  const code = await generateWebsiteStructure(prompt, designSpec || undefined, generatedImage || undefined);
 
-                      // Show verification modal if score is below threshold
-                      if (result.overallMatchScore < 85) {
-                          setShowVerificationModal(true);
+                  // Verify against concept
+                  if (designSpec && generatedImage) {
+                      try {
+                          const result = await verifyWebsiteAgainstSpec(code, designSpec, generatedImage);
+
+                          // Keep best result
+                          if (result.overallMatchScore > bestScoreValue) {
+                              bestCode = code;
+                              bestScoreValue = result.overallMatchScore;
+                              bestResult = result;
+                              setBestScore(bestScoreValue);
+                          }
+
+                          // Success criteria
+                          const threshold = designSpec.pixelPerfectMode ? 95 : 85;
+                          if (result.overallMatchScore >= threshold) {
+                              console.log(`✓ Success on attempt ${attempts}: ${result.overallMatchScore}%`);
+                              setGeneratedCode(code);
+                              setVerificationResult(result);
+                              setCurrentAttempt(0);
+                              setBestScore(0);
+                              return; // Success!
+                          }
+
+                          console.log(`Attempt ${attempts} score: ${result.overallMatchScore}% (need ${threshold}%)`);
+                      } catch (verifyError) {
+                          console.error('Verification failed:', verifyError);
                       }
-                  } catch (verifyError) {
-                      console.error('Verification failed:', verifyError);
+                  } else {
+                      // No verification, accept first generation
+                      setGeneratedCode(code);
+                      setCurrentAttempt(0);
+                      return;
                   }
               }
+
+              // All attempts exhausted, use best result
+              console.log(`All ${maxAttempts} attempts complete. Best score: ${bestScoreValue}%`);
+              setGeneratedCode(bestCode);
+              setVerificationResult(bestResult);
+              setCurrentAttempt(0);
+              setBestScore(0);
+
+              const threshold = designSpec?.pixelPerfectMode ? 95 : 85;
+              if (bestScoreValue < threshold) {
+                  setShowVerificationModal(true);
+              }
+          } catch (error) {
+              console.error('Website generation failed:', error);
+              alert('Failed to generate website. Please try again.');
           } finally {
               setLoading(false);
+              setCurrentAttempt(0);
           }
       }
   }
