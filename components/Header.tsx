@@ -69,6 +69,7 @@ export const Header: React.FC<Props> = ({
             [AppView.EMAIL_CONFIG]: 'Email Configuration',
             [AppView.SITES_MANAGER]: 'Sites Manager',
             [AppView.AI_WEBSITE_EDITOR]: 'AI Website Editor',
+            [AppView.SERVICE_CATALOG]: 'Service Catalog',
         };
         return pageNames[view] || 'Unknown';
     }

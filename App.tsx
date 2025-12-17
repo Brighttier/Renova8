@@ -24,6 +24,7 @@ import { AuthPage } from './components/AuthPage';
 import WizardLoaderPreview from './components/WizardLoaderPreview';
 import { SupportChat } from './components/SupportChat';
 import { SupportContext } from './services/supportChatService';
+import ServiceCatalog from './components/ServiceCatalog';
 
 // Admin Panel Imports
 import { AdminAuthProvider, useAdminAuth } from './hooks/useAdminAuth';
@@ -43,6 +44,7 @@ const ArchiveIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5
 const RocketIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>;
 const InboxIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>;
 const EditIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>;
+const CatalogIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>;
 const ChevronLeftIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>;
 const ChevronRightIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>;
 
@@ -68,6 +70,8 @@ function AppContent() {
 
   // Support chat state
   const [isSupportOpen, setIsSupportOpen] = useState(false);
+  const [supportContext, setSupportContext] = useState<any>(null);
+  const [supportInitialMessage, setSupportInitialMessage] = useState<string | undefined>(undefined);
 
   // Walkthrough state - check localStorage for completion status
   const [showWalkthrough, setShowWalkthrough] = useState(false);
@@ -327,6 +331,13 @@ function AppContent() {
             </div>
             <div className="my-3 border-t border-[#F9F6F0] mx-2"></div>
             <NavButton
+              active={currentView === AppView.SERVICE_CATALOG}
+              onClick={() => setCurrentView(AppView.SERVICE_CATALOG)}
+              icon={<CatalogIcon />}
+              label="Service Catalog"
+              collapsed={isSidebarCollapsed}
+            />
+            <NavButton
               active={currentView === AppView.MARKETING}
               onClick={() => setCurrentView(AppView.MARKETING)}
               icon={<MagicIcon />}
@@ -435,9 +446,25 @@ function AppContent() {
                     onUpdateCustomer={updateCustomer}
                 />
             )}
+            {currentView === AppView.SERVICE_CATALOG && (
+              <ServiceCatalog
+                onOpenSupportChat={(context, initialMessage) => {
+                  // Set support context
+                  setSupportContext(context);
+
+                  // Set initial message if provided
+                  if (initialMessage) {
+                    setSupportInitialMessage(initialMessage);
+                  }
+
+                  // Open support chat
+                  setIsSupportOpen(true);
+                }}
+              />
+            )}
             {currentView === AppView.MARKETING && (
-                <MarketingStudio 
-                    selectedLead={selectedLead} 
+                <MarketingStudio
+                    selectedLead={selectedLead}
                     onUseCredit={() => deductCredit(2)}
                     leads={myCustomers}
                     onSelectLead={setSelectedLead}
@@ -493,14 +520,18 @@ function AppContent() {
       {/* Support Chat */}
       <SupportChat
         isOpen={isSupportOpen}
-        onClose={() => setIsSupportOpen(false)}
-        context={{
+        onClose={() => {
+          setIsSupportOpen(false);
+          setSupportInitialMessage(undefined); // Clear initial message
+        }}
+        context={supportContext || {
           userId: user?.uid,
           userEmail: user?.email || undefined,
           userPlan: user ? 'pro' : 'free',
           currentPage: getPageName(currentView),
           systemStatus: { publishingAvailable: true }
         }}
+        initialMessage={supportInitialMessage}
         onNavigate={(path) => {
           const pathMap: Record<string, AppView> = {
             '/settings': AppView.SETTINGS,
@@ -543,6 +574,7 @@ function AppContent() {
       [AppView.EMAIL_CONFIG]: 'Email Configuration',
       [AppView.SITES_MANAGER]: 'Sites Manager',
       [AppView.AI_WEBSITE_EDITOR]: 'AI Website Editor',
+      [AppView.SERVICE_CATALOG]: 'Service Catalog',
     };
     return pageNames[view] || 'Unknown';
   }

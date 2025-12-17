@@ -29,6 +29,7 @@ interface SupportChatProps {
   onClose: () => void;
   context: SupportContext;
   onNavigate?: (path: string) => void;
+  initialMessage?: string;
 }
 
 type ChatMode = 'text' | 'voice';
@@ -37,7 +38,8 @@ export const SupportChat: React.FC<SupportChatProps> = ({
   isOpen,
   onClose,
   context,
-  onNavigate
+  onNavigate,
+  initialMessage
 }) => {
   // State
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -83,6 +85,13 @@ export const SupportChat: React.FC<SupportChatProps> = ({
       }
     });
   }, []);
+
+  // Auto-send initial message when chat opens
+  useEffect(() => {
+    if (isOpen && initialMessage && messages.length === 0) {
+      handleSend(initialMessage);
+    }
+  }, [isOpen, initialMessage]);
 
   // Focus input when opened
   useEffect(() => {

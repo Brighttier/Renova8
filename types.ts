@@ -158,6 +158,7 @@ export enum AppView {
   WEBSITE_EDITOR = 'WEBSITE_EDITOR',
   AI_WEBSITE_EDITOR = 'AI_WEBSITE_EDITOR', // AI-powered website editor (Lovable/Bolt style)
   SITES_MANAGER = 'SITES_MANAGER', // Sites Manager Dashboard
+  SERVICE_CATALOG = 'SERVICE_CATALOG', // Service & Feature Catalog
   SETTINGS = 'SETTINGS',
 
   // User Pages
@@ -764,3 +765,25 @@ export const DEFAULT_PLATFORM_API_SETTINGS: Omit<PlatformAPISettings, 'updatedAt
     profitMargin: 0.45,
   },
 };
+
+// ============================================
+// Service Catalog Types
+// ============================================
+
+export type ServiceCategory = 'data' | 'tools' | 'automation' | 'analytics' | 'marketing' | 'finance';
+export type ServiceType = 'diy' | 'backend' | 'hybrid';
+
+export interface ServiceItem {
+  id: string;
+  name: string;
+  description: string;
+  category: ServiceCategory;
+  icon: string;
+  iconBg: string;
+  lastUpdate: string;
+  source?: string;
+  features: string[];
+  serviceType: ServiceType;  // Classification: diy, backend, or hybrid
+  diyPrompt?: string;        // Generic prompt template (optional for backend-only)
+  hybridNote?: string;       // Explanation for hybrid services
+}

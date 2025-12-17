@@ -23,7 +23,7 @@ export interface SupportContext {
 }
 
 export interface RecentAction {
-  type: 'publish' | 'domain_setup' | 'dns_verify' | 'website_edit' | 'payment' | 'login';
+  type: 'publish' | 'domain_setup' | 'dns_verify' | 'website_edit' | 'payment' | 'login' | 'requested_assistance';
   timestamp: number;
   success: boolean;
   details?: string;
