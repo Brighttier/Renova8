@@ -316,6 +316,8 @@ export interface DesignSpecification {
     missingAssets: string[];
     discrepancies: DiscrepancyReport[];
   };
+  pixelPerfectMode?: boolean;  // Enforce strict matching with auto-retry
+  pageStructure?: 'single-page' | 'multi-page';  // Detected from concept mockup
 }
 
 export interface SectionSpec {

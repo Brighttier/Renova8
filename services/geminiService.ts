@@ -340,75 +340,55 @@ const injectConceptImageAsHeroBackground = (html: string, conceptImage: string):
         ? conceptImage
         : `data:image/png;base64,${conceptImage}`;
 
-    let modified = html;
-    let replacementsMade = 0;
+    // Strategy 1: Direct section tag modification - Find hero section and inject inline style
+    const heroSectionRegex = /<section[^>]*(?:id=["'](?:home|hero)[^"']*["']|class=["'][^"']*hero[^"']*["'])[^>]*>/i;
+    const heroMatch = html.match(heroSectionRegex);
 
-    // Strategy 1: Replace the specific placeholder URL we told the AI to use
-    const placeholderPattern = /https:\/\/images\.unsplash\.com\/photo-hero-placeholder[^'")\s]*/gi;
-    modified = modified.replace(placeholderPattern, () => {
-        replacementsMade++;
-        return imageDataUrl;
-    });
+    if (heroMatch) {
+        const heroTag = heroMatch[0];
+        let updatedTag: string;
 
-    // Strategy 2: Replace background-image URLs in hero sections
-    // Match patterns like: background-image: url('...') or background: url('...')
-    const bgImagePattern = /(background(?:-image)?:\s*(?:linear-gradient\([^)]+\),\s*)?url\(['"]?)([^'")\s]+)(['"]?\))/gi;
-
-    modified = modified.replace(bgImagePattern, (match, prefix, url, suffix) => {
-        // Check if this is in a hero-related context
-        const matchIndex = modified.indexOf(match);
-        const contextBefore = modified.substring(Math.max(0, matchIndex - 500), matchIndex).toLowerCase();
-        const contextAfter = modified.substring(matchIndex, Math.min(modified.length, matchIndex + 500)).toLowerCase();
-
-        // Only replace if it's likely a hero background (and not already replaced)
-        const isHeroContext = contextBefore.includes('hero') || contextAfter.includes('hero') ||
-            contextBefore.includes('page-home') || contextAfter.includes('page-home');
-        const isPlaceholder = url.includes('unsplash') || url.includes('1920') ||
-            url.includes('hero') || url.includes('placeholder');
-
-        if (isHeroContext && isPlaceholder && !url.startsWith('data:')) {
-            replacementsMade++;
-            return `${prefix}${imageDataUrl}${suffix}`;
+        if (heroTag.includes('style=')) {
+            // Append to existing style attribute
+            updatedTag = heroTag.replace(/style=["']([^"']*)["']/,
+                `style="$1; background-image: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('${imageDataUrl}') !important; background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important;"`);
+        } else {
+            // Add new style attribute
+            updatedTag = heroTag.replace(/>$/,
+                ` style="background-image: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('${imageDataUrl}') !important; background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important;">`);
         }
-        return match;
-    });
 
-    // Strategy 3: If no replacements were made, inject CSS to force hero background
-    if (replacementsMade === 0) {
-        // Add a style block that sets the hero background using the concept image
-        const heroBackgroundCSS = `
-    <style>
-      /* Concept Image as Hero Background - Injected */
-      #page-home > section:first-child,
-      .hero,
-      [class*="hero"],
-      main#page-home > div:first-child,
-      #page-home > div:first-child,
-      section:first-of-type {
-        background-image: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('${imageDataUrl}') !important;
-        background-size: cover !important;
-        background-position: center !important;
-        background-repeat: no-repeat !important;
-      }
-    </style>
-  </head>`;
-
-        modified = modified.replace('</head>', heroBackgroundCSS);
-        replacementsMade++;
+        html = html.replace(heroTag, updatedTag);
+        console.log('✓ Hero background injected via direct section tag modification');
+        return html;
     }
 
-    // Strategy 4: Also replace any img src in hero section that looks like a placeholder
-    const heroImgPattern = /(<(?:section|div)[^>]*(?:hero|page-home)[^>]*>[\s\S]*?<img[^>]*src=["'])([^"']+)(["'][^>]*>)/gi;
-    modified = modified.replace(heroImgPattern, (match, prefix, src, suffix) => {
-        if ((src.includes('unsplash') || src.includes('placeholder') || src.includes('picsum')) && !src.startsWith('data:')) {
-            replacementsMade++;
-            return `${prefix}${imageDataUrl}${suffix}`;
-        }
-        return match;
-    });
+    // Strategy 2: CSS injection fallback - Inject comprehensive CSS selector list
+    const injectionCSS = `
+  <style id="concept-hero-injection">
+    /* Concept Image Hero Background - Guaranteed Injection */
+    #home, #hero,
+    section#home, section#hero,
+    section.hero, .hero-section,
+    [id*="hero"], [class*="hero"],
+    main > section:first-child,
+    main > div:first-child,
+    body > section:first-child,
+    #page-home > section:first-child,
+    #page-home > div:first-child {
+      background-image: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('${imageDataUrl}') !important;
+      background-size: cover !important;
+      background-position: center !important;
+      background-repeat: no-repeat !important;
+      background-attachment: scroll !important;
+    }
+  </style>
+`;
 
-    console.log(`Concept image injected: ${replacementsMade} replacement(s) made`);
-    return modified;
+    html = html.replace('</head>', `${injectionCSS}\n</head>`);
+    console.log('✓ Hero background injected via CSS fallback');
+
+    return html;
 };
 
 /**
@@ -622,11 +602,20 @@ ${buildDesignRequirements()}
 
 === CRITICAL REQUIREMENTS (MANDATORY - NO EXCEPTIONS) ===
 
+${designSpec?.pageStructure === 'single-page' ? `
+1. SINGLE-PAGE STRUCTURE:
+   - Create ONE continuous scrollable page with all sections stacked vertically
+   - Navigation links MUST use anchor links (#home, #about, #services, #contact)
+   - DO NOT create separate pages - keep everything on ONE page
+   - Implement smooth scrolling between sections
+   - Example: <a href="#about" class="...">About</a> → scrolls to <section id="about">
+` : `
 1. MULTI-PAGE STRUCTURE (NOT SINGLE PAGE):
    - Create SEPARATE pages for: Home, About, Services, Contact (and any others visible)
    - Each navigation item MUST link to a SEPARATE PAGE with its own URL
    - DO NOT use anchor links (#section) - use page links (about.html, services.html)
    - Use JavaScript-based routing to simulate multi-page behavior in single HTML
+`}
 
 2. STICKY/FIXED NAVIGATION:
    - Header must be FIXED at the top (position: fixed)
@@ -651,6 +640,24 @@ ${buildDesignRequirements()}
    - NO made-up contact details
    - Extract EXACT phone, email, address from mockup
 
+${designSpec?.pageStructure === 'single-page' ? `
+=== SINGLE-PAGE SMOOTH SCROLLING ===
+
+Implement smooth scrolling with this pattern:
+
+<script>
+// Smooth scroll to sections
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+  anchor.addEventListener('click', function (e) {
+    e.preventDefault();
+    const target = document.querySelector(this.getAttribute('href'));
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+});
+</script>
+` : `
 === MULTI-PAGE ROUTING IMPLEMENTATION ===
 
 Implement client-side routing with this pattern:
@@ -690,6 +697,7 @@ document.addEventListener('DOMContentLoaded', () => {
   showPage(path);
 });
 </script>
+`}
 
 === HTML STRUCTURE ===
 
@@ -720,15 +728,35 @@ document.addEventListener('DOMContentLoaded', () => {
   </style>
 </head>
 <body>
-  <!-- FIXED HEADER (shared across all pages) -->
+  <!-- FIXED HEADER -->
   <header class="fixed top-0 left-0 right-0 z-50 ...">
     <nav>
       <!-- Logo -->
-      <!-- Navigation links with onclick="showPage('pagename')" -->
+      ${designSpec?.pageStructure === 'single-page' ?
+        '<!-- Navigation links with href="#section" for smooth scrolling -->' :
+        '<!-- Navigation links with onclick="showPage(\'pagename\')" for routing -->'
+      }
       <!-- Mobile menu button -->
     </nav>
   </header>
 
+  ${designSpec?.pageStructure === 'single-page' ? `
+  <!-- SINGLE PAGE STRUCTURE: All sections on one page -->
+  <main class="pt-20">
+    <!-- Hero section with id="home" -->
+    <section id="home" class="hero ...">...</section>
+
+    <!-- About section with id="about" -->
+    <section id="about" class="...">...</section>
+
+    <!-- Services section with id="services" -->
+    <section id="services" class="...">...</section>
+
+    <!-- Contact section with id="contact" -->
+    <section id="contact" class="...">...</section>
+  </main>
+  ` : `
+  <!-- MULTI-PAGE STRUCTURE: Separate page containers -->
   <!-- PAGE: HOME -->
   <main id="page-home" class="pt-20">
     <!-- Hero section -->
@@ -749,20 +777,28 @@ document.addEventListener('DOMContentLoaded', () => {
   <main id="page-contact" class="pt-20" style="display:none;">
     <!-- Contact page content -->
   </main>
+  `}
 
-  <!-- FOOTER (shared across all pages) -->
+  <!-- FOOTER -->
   <footer>...</footer>
 
-  <!-- Routing Script -->
-  <script>/* routing code */</script>
+  <!-- Script -->
+  <script>/* ${designSpec?.pageStructure === 'single-page' ? 'smooth scrolling' : 'routing'} code */</script>
 </body>
 </html>
 
 === NAVIGATION LINKS FORMAT ===
+${designSpec?.pageStructure === 'single-page' ? `
+<a href="#home" class="...">Home</a>
+<a href="#about" class="...">About</a>
+<a href="#services" class="...">Services</a>
+<a href="#contact" class="...">Contact</a>
+` : `
 <a href="javascript:void(0)" onclick="showPage('home')" class="...">Home</a>
 <a href="javascript:void(0)" onclick="showPage('about')" class="...">About</a>
 <a href="javascript:void(0)" onclick="showPage('services')" class="...">Services</a>
 <a href="javascript:void(0)" onclick="showPage('contact')" class="...">Contact</a>
+`}
 
 === HERO BACKGROUND IMAGE - CRITICAL ===
 

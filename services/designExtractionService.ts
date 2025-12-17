@@ -144,9 +144,14 @@ const designSpecSchema = {
         sectionTitles: { type: Type.ARRAY, items: { type: Type.STRING }, description: "All section titles in order" },
         footerText: { type: Type.STRING, description: "Footer copyright/text" }
       }
+    },
+    pageStructure: {
+      type: Type.STRING,
+      enum: ["single-page", "multi-page"],
+      description: "Page structure: single-page (all content on one scrollable page) or multi-page (separate pages/views)"
     }
   },
-  required: ["colors", "typography", "layout", "components", "sections"]
+  required: ["colors", "typography", "layout", "components", "sections", "pageStructure"]
 };
 
 /**
@@ -259,6 +264,18 @@ export const extractDesignSpecFromImage = async (
        - navMenuItems: All nav items as array
        - sectionTitles: All section titles in order
        - footerText: Footer copyright text
+
+    7. PAGE STRUCTURE: Analyze the layout structure.
+       Determine if this mockup shows:
+       - SINGLE-PAGE: All content visible on ONE scrollable page (sections stacked vertically)
+       - MULTI-PAGE: Distinct separate pages/views (e.g., "Home" tab shows homepage, "About" tab shows different page)
+
+       Set "pageStructure" to either "single-page" or "multi-page".
+
+       If you see:
+       - One continuous scrolling layout with multiple sections → "single-page"
+       - Navigation that switches between completely different views/pages → "multi-page"
+       - Unclear or ambiguous → default to "single-page"
 
     Return the extracted data as a JSON object. BE EXTREMELY DETAILED - the generated website must match this mockup exactly.
   `;
@@ -392,7 +409,8 @@ export const extractDesignSpecFromImage = async (
     verification: {
       missingAssets: ['logo'], // Hero image is now provided from concept
       discrepancies: []
-    }
+    },
+    pageStructure: (extracted.pageStructure as 'single-page' | 'multi-page') || 'single-page'  // Default to single-page
   };
 
   return designSpec;
