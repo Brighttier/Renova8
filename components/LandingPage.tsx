@@ -114,13 +114,13 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
 
   const testimonials = [
     {
-      quote: "Renova8 transformed how I find and pitch clients. What used to take days now takes minutes. The AI-generated websites are incredibly professional.",
+      quote: "RenovateMySite transformed how I find and pitch clients. What used to take days now takes minutes. The AI-generated websites are incredibly professional.",
       author: 'Sarah Mitchell',
       title: 'Freelance Marketing Consultant',
       rating: 5
     },
     {
-      quote: "As a small agency owner, this tool has been a game-changer. We've doubled our client acquisition rate since using Renova8's concierge wizard.",
+      quote: "As a small agency owner, this tool has been a game-changer. We've doubled our client acquisition rate since using RenovateMySite's concierge wizard.",
       author: 'Marcus Chen',
       title: 'Founder, Digital Edge Agency',
       rating: 5
@@ -135,24 +135,24 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
 
   const faqs = [
     {
-      question: 'What is Renova8?',
-      answer: 'Renova8 is an AI-powered business concierge platform that helps entrepreneurs and agencies find customers, analyze brands, build websites, and pitch services - all from one intuitive dashboard.'
+      question: 'What is RenovateMySite?',
+      answer: 'RenovateMySite is an AI-powered business concierge platform that helps entrepreneurs and agencies find customers, analyze brands, build websites, and pitch services - all from one intuitive dashboard.'
     },
     {
       question: 'How does the credit system work?',
       answer: 'Credits are used for AI-powered features. Lead searches cost 5 credits, brand analysis costs 2 credits, website concepts cost 5 credits, website builds cost 10 credits, and pitch emails cost 2 credits. Credits refresh monthly based on your plan.'
     },
     {
-      question: 'Do I need technical skills to use Renova8?',
-      answer: 'Not at all! Renova8 is designed for non-technical entrepreneurs. Our AI handles all the complex work - you just provide the business details and let our concierge wizard guide you through each step.'
+      question: 'Do I need technical skills to use RenovateMySite?',
+      answer: 'Not at all! RenovateMySite is designed for non-technical entrepreneurs. Our AI handles all the complex work - you just provide the business details and let our concierge wizard guide you through each step.'
     },
     {
       question: 'Can I cancel anytime?',
       answer: 'Yes, you can cancel your subscription at any time. There are no long-term contracts or cancellation fees. Your access continues until the end of your billing period.'
     },
     {
-      question: 'What AI powers Renova8?',
-      answer: 'Renova8 is powered by Google\'s Gemini AI, one of the most advanced AI models available. This enables high-quality content generation, accurate brand analysis, and professional website creation.'
+      question: 'What AI powers RenovateMySite?',
+      answer: 'RenovateMySite is powered by Google\'s Gemini AI, one of the most advanced AI models available. This enables high-quality content generation, accurate brand analysis, and professional website creation.'
     },
     {
       question: 'How do I contact support?',
@@ -169,9 +169,9 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
             {/* Logo */}
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-[#4A4A4A] text-[#F9F6F0] rounded-full flex items-center justify-center font-serif font-bold text-lg shadow-md">
-                R8.
+                RMS
               </div>
-              <span className="font-serif font-bold text-2xl text-[#4A4A4A] tracking-tight">Renova8.</span>
+              <span className="font-serif font-bold text-2xl text-[#4A4A4A] tracking-tight">RenovateMySite.</span>
             </div>
 
             {/* Desktop Navigation */}
@@ -361,7 +361,7 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
 
           <div className="text-center">
             <p className="text-xl text-[#D4AF37] font-semibold">
-              Renova8 solves all of this in one intelligent platform
+              RenovateMySite solves all of this in one intelligent platform
             </p>
           </div>
         </div>
@@ -615,7 +615,7 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
                 Ready to Transform Your Business?
               </h2>
               <p className="text-lg text-white/70 mb-8 max-w-xl mx-auto">
-                Join entrepreneurs already winning more clients with Renova8's AI-powered concierge platform.
+                Join entrepreneurs already winning more clients with RenovateMySite's AI-powered concierge platform.
               </p>
               <button
                 onClick={() => onNavigate(AppView.WIZARD)}
@@ -641,9 +641,9 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
             <div className="lg:col-span-2">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-10 h-10 bg-[#D4AF37] text-[#4A4A4A] rounded-full flex items-center justify-center font-serif font-bold text-lg">
-                  R8.
+                  RMS
                 </div>
-                <span className="font-serif font-bold text-2xl">Renova8.</span>
+                <span className="font-serif font-bold text-2xl">RenovateMySite.</span>
               </div>
               <p className="text-white/60 mb-6 max-w-sm">
                 Your AI-powered business concierge. Find customers, build websites, and close deals faster than ever.
@@ -694,7 +694,7 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
 
           <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
             <p className="text-white/40 text-sm">
-              © {new Date().getFullYear()} Renova8. All rights reserved.
+              © {new Date().getFullYear()} RenovateMySite. All rights reserved.
             </p>
             <div className="flex gap-6 text-white/40 text-sm">
               <a href="#" className="hover:text-[#D4AF37] transition-colors">Privacy Policy</a>

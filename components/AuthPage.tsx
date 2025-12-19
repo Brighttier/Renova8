@@ -75,10 +75,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-3 mb-4">
             <div className="w-12 h-12 bg-[#4A4A4A] text-[#F9F6F0] rounded-full flex items-center justify-center font-serif font-bold text-xl shadow-md">
-              R8.
+              RMS
             </div>
             <span className="font-serif font-bold text-3xl text-[#4A4A4A] tracking-tight">
-              Renova8.
+              RenovateMySite.
             </span>
           </div>
           <p className="text-[#4A4A4A]/70 text-sm">

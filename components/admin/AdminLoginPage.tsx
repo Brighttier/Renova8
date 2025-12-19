@@ -199,7 +199,7 @@ export function AdminLoginPage({ onLoginSuccess }: AdminLoginPageProps) {
             </span>
           </div>
           <h1 className="text-2xl font-serif font-bold text-white mb-2">
-            Renova8 Admin
+            RenovateMySite Admin
           </h1>
           <p className="text-white/60 text-sm">
             {mode === 'setup' ? 'Set up your platform administrator account' : 'Sign in to access the admin dashboard'}
@@ -380,7 +380,7 @@ export function AdminLoginPage({ onLoginSuccess }: AdminLoginPageProps) {
             href="/"
             className="text-white/50 hover:text-white/70 text-sm transition-colors"
           >
-            ← Back to Renova8 Platform
+            ← Back to RenovateMySite Platform
           </a>
         </div>
       </div>

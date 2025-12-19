@@ -5,7 +5,10 @@
       "Bash(git push:*)",
       "Bash(git add:*)",
       "Bash(git commit -m \"$(cat <<''EOF''\nfeat: Implement real custom domain mapping with DNS verification\n\n- Add Firebase Hosting domain API functions (addCustomDomain, getDomainStatus, removeCustomDomainFromHosting)\n- Add real DNS verification using Node.js dns module (TXT, A, CNAME record lookups)\n- Update verifyDomain to perform actual DNS checks before registering with Firebase Hosting\n- Update checkDomainStatus to poll real SSL certificate status from Firebase Hosting API\n- Update removeCustomDomain to also remove domain from Firebase Hosting\n- Update Node.js runtime to 20 (was 18, deprecated)\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n)\")",
-      "Bash(npm run dev)"
+      "Bash(npm run dev)",
+      "Bash(npm run build:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill -9)"
     ],
     "deny": [],
     "ask": []

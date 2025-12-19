@@ -292,7 +292,7 @@ ${KNOWLEDGE_BASE.howTo.guides.map(g => `${g.topic}: ${g.steps.join(' → ')}`).j
 // Main Chat Function
 // ============================================
 
-const SYSTEM_PROMPT = `You are a friendly and helpful AI support assistant for Renova8, an AI-powered platform that helps entrepreneurs build websites, find leads, and create marketing content.
+const SYSTEM_PROMPT = `You are a friendly and helpful AI support assistant for RenovateMySite, an AI-powered platform that helps entrepreneurs build websites, find leads, and create marketing content.
 
 Your role is to:
 1. Greet users warmly and ask how you can help
@@ -408,7 +408,7 @@ function generateFallbackResponse(
 
   switch (intent) {
     case 'greeting':
-      response = "👋 Hi there! Welcome to Renova8 support. I'm here to help you with:\n\n• Website building and publishing\n• Custom domain setup\n• Finding leads and customers\n• Billing and account questions\n\nHow can I assist you today?";
+      response = "👋 Hi there! Welcome to RenovateMySite support. I'm here to help you with:\n\n• Website building and publishing\n• Custom domain setup\n• Finding leads and customers\n• Billing and account questions\n\nHow can I assist you today?";
       break;
 
     case 'publishing_issue':
@@ -437,7 +437,7 @@ function generateFallbackResponse(
       break;
 
     case 'how_to':
-      response = "I'd be happy to help you learn how to use Renova8! Here are our main features:\n\n• **Website Builder** - AI-generated websites\n• **Scout Customers** - Find local business leads\n• **Marketing Studio** - Create campaigns and content\n• **Image Studio** - Generate social media graphics\n\nWhat would you like to learn how to do?";
+      response = "I'd be happy to help you learn how to use RenovateMySite! Here are our main features:\n\n• **Website Builder** - AI-generated websites\n• **Scout Customers** - Find local business leads\n• **Marketing Studio** - Create campaigns and content\n• **Image Studio** - Generate social media graphics\n\nWhat would you like to learn how to do?";
       break;
 
     case 'bug_report':

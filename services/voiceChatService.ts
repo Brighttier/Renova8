@@ -195,7 +195,7 @@ export class VoiceChatSession {
   private buildSystemInstruction(): string {
     const contextInfo = this.session.context;
 
-    return `You are a friendly and helpful AI support assistant for Renova8, an AI-powered platform for entrepreneurs.
+    return `You are a friendly and helpful AI support assistant for RenovateMySite, an AI-powered platform for entrepreneurs.
 
 Your role in this voice conversation:
 1. Listen carefully to the user's questions and issues

@@ -772,7 +772,23 @@ export const DEFAULT_PLATFORM_API_SETTINGS: Omit<PlatformAPISettings, 'updatedAt
 // Service Catalog Types
 // ============================================
 
-export type ServiceCategory = 'data' | 'tools' | 'automation' | 'analytics' | 'marketing' | 'finance';
+export type ServiceCategory =
+  // DIY Categories
+  | 'pages-structure'
+  | 'design-branding'
+  | 'content-copy'
+  | 'lead-capture'
+  | 'embeds'
+  | 'seo-trust'
+  // Get Assistance Categories
+  | 'payments-monetization'
+  | 'memberships-accounts'
+  | 'scheduling-booking'
+  | 'ai-automation'
+  | 'integrations-apis'
+  | 'data-backend'
+  | 'security-reliability'
+  | 'advanced-features';
 export type ServiceType = 'diy' | 'backend' | 'hybrid';
 
 export interface ServiceItem {
@@ -788,4 +804,5 @@ export interface ServiceItem {
   serviceType: ServiceType;  // Classification: diy, backend, or hybrid
   diyPrompt?: string;        // Generic prompt template (optional for backend-only)
   hybridNote?: string;       // Explanation for hybrid services
+  price?: string;            // Price placeholder for backend/assistance services (e.g., "$XX")
 }

@@ -389,7 +389,7 @@ Best regards,
 ${senderName ? senderName + '\n' : ''}${senderCompany}${senderAddress ? '\n' + senderAddress : ''}${senderPhone ? '\nPhone: ' + senderPhone : ''}${senderEmail ? '\nEmail: ' + senderEmail : ''}${invoice.sender?.website ? '\nWebsite: ' + invoice.sender.website : ''}
 
 ---
-This invoice was generated using Renova8.
+This invoice was generated using RenovateMySite.
 Please remember to save the invoice PDF before sending.`;
 
       return { subject, body };

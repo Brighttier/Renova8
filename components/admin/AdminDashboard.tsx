@@ -194,7 +194,7 @@ export function AdminDashboard({ onLogout }: AdminDashboardProps) {
             </div>
             {sidebarOpen && (
               <div>
-                <span className="font-serif font-bold text-white text-lg">Renova8</span>
+                <span className="font-serif font-bold text-white text-lg">RenovateMySite</span>
                 <span className="block text-[10px] text-[#D4AF37] font-medium uppercase tracking-wider">
                   Admin Portal
                 </span>

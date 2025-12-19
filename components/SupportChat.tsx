@@ -547,7 +547,7 @@ export const SupportChat: React.FC<SupportChatProps> = ({
                 {voiceStatus === 'error' && 'Connection Error'}
               </p>
               <p className="text-sm text-gray-500 text-center max-w-xs">
-                {voiceStatus === 'active' && !isMuted && "I'm listening. Ask me anything about Renova8 or describe your issue."}
+                {voiceStatus === 'active' && !isMuted && "I'm listening. Ask me anything about RenovateMySite or describe your issue."}
                 {voiceStatus === 'active' && isMuted && "Click the mute button to resume speaking."}
                 {voiceStatus === 'connecting' && "Setting up voice connection..."}
               </p>

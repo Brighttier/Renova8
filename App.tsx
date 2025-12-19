@@ -260,9 +260,9 @@ function AppContent() {
              {/* Logo Area */}
              <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-[#4A4A4A] text-[#F9F6F0] rounded-full flex items-center justify-center font-serif font-bold text-lg shadow-md">
-                    R8.
+                    RMS
                 </div>
-                {!isSidebarCollapsed && <span className="font-serif font-bold text-2xl text-[#4A4A4A] hidden lg:block tracking-tight">Renova8.</span>}
+                {!isSidebarCollapsed && <span className="font-serif font-bold text-lg text-[#4A4A4A] hidden lg:block tracking-tight">RenovateMySite</span>}
              </div>
           </div>
 
@@ -302,6 +302,13 @@ function AppContent() {
                 collapsed={isSidebarCollapsed}
               />
             </div>
+            <NavButton
+              active={currentView === AppView.SERVICE_CATALOG}
+              onClick={() => setCurrentView(AppView.SERVICE_CATALOG)}
+              icon={<CatalogIcon />}
+              label="Service Catalog"
+              collapsed={isSidebarCollapsed}
+            />
             {/* Hidden for now - Website Atelier
             <NavButton
               active={currentView === AppView.WEBSITE_BUILDER}
@@ -330,13 +337,6 @@ function AppContent() {
               />
             </div>
             <div className="my-3 border-t border-[#F9F6F0] mx-2"></div>
-            <NavButton
-              active={currentView === AppView.SERVICE_CATALOG}
-              onClick={() => setCurrentView(AppView.SERVICE_CATALOG)}
-              icon={<CatalogIcon />}
-              label="Service Catalog"
-              collapsed={isSidebarCollapsed}
-            />
             <NavButton
               active={currentView === AppView.MARKETING}
               onClick={() => setCurrentView(AppView.MARKETING)}
