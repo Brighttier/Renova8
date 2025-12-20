@@ -46,6 +46,6 @@ env:
   # - variable: STRIPE_WEBHOOK_SECRET
   #   secret: stripe-webhook-secret
 
-  # Google AI API Key (for Cloud Functions) - Uses gemini-api-key instead
-  # - variable: GOOGLE_API_KEY
-  #   secret: google-api-key
+  # Google AI API Key (for Cloud Functions)
+  - variable: GOOGLE_API_KEY
+    secret: google-api-key
