@@ -39,13 +39,13 @@ env:
   - variable: VITE_FIREBASE_APP_ID
     secret: firebase-app-id
 
-  # Stripe Configuration (for Cloud Functions)
-  - variable: STRIPE_SECRET_KEY
-    secret: stripe-secret-key
+  # Stripe Configuration (for Cloud Functions) - Set these when Stripe is configured
+  # - variable: STRIPE_SECRET_KEY
+  #   secret: stripe-secret-key
 
-  - variable: STRIPE_WEBHOOK_SECRET
-    secret: stripe-webhook-secret
+  # - variable: STRIPE_WEBHOOK_SECRET
+  #   secret: stripe-webhook-secret
 
-  # Google AI API Key (for Cloud Functions)
-  - variable: GOOGLE_API_KEY
-    secret: google-api-key
+  # Google AI API Key (for Cloud Functions) - Uses gemini-api-key instead
+  # - variable: GOOGLE_API_KEY
+  #   secret: google-api-key
