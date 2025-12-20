@@ -360,7 +360,7 @@ export const SitesManager: React.FC<SitesManagerProps> = ({
                 </svg>
               </button>
               <div>
-                <h1 className="text-2xl font-bold text-gray-800 font-serif">Website Manager</h1>
+                <h1 className="text-2xl font-bold text-gray-800 font-serif">Website Studio</h1>
                 <p className="text-sm text-gray-500">Manage and edit all your customer websites</p>
               </div>
             </div>

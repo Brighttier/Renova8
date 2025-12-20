@@ -194,38 +194,6 @@ function AppContent() {
     );
   }
 
-  // Sites Manager is a full-screen view
-  if (currentView === AppView.SITES_MANAGER) {
-    return (
-      <SitesManager
-        customers={myCustomers}
-        onEditSite={(customer) => {
-          setSelectedLead(customer);
-          setCurrentView(AppView.WEBSITE_EDITOR);
-        }}
-        onPreviewSite={(customer) => {
-          if (customer.websiteUrl) {
-            window.open(customer.websiteUrl, '_blank');
-          }
-        }}
-        onDeleteSite={(customer) => {
-          if (confirm(`Are you sure you want to delete the website for ${customer.businessName}?`)) {
-            updateCustomer({
-              ...customer,
-              websiteUrl: undefined,
-              websiteConceptImage: undefined
-            });
-          }
-        }}
-        onBack={() => setCurrentView(AppView.MY_CUSTOMERS)}
-        onGoToWizard={() => setCurrentView(AppView.WIZARD)}
-        onAIEditor={(customer) => {
-          setSelectedLead(customer);
-          setCurrentView(AppView.AI_WEBSITE_EDITOR);
-        }}
-      />
-    );
-  }
 
   // AI Website Editor is a full-screen view (Lovable/Bolt style)
   if (currentView === AppView.AI_WEBSITE_EDITOR) {
@@ -502,7 +470,36 @@ function AppContent() {
             {currentView === AppView.INVOICING && (
                 <Invoicing leads={myCustomers} />
             )}
-            
+            {currentView === AppView.SITES_MANAGER && (
+                <SitesManager
+                    customers={myCustomers}
+                    onEditSite={(customer) => {
+                        setSelectedLead(customer);
+                        setCurrentView(AppView.WEBSITE_EDITOR);
+                    }}
+                    onPreviewSite={(customer) => {
+                        if (customer.websiteUrl) {
+                            window.open(customer.websiteUrl, '_blank');
+                        }
+                    }}
+                    onDeleteSite={(customer) => {
+                        if (confirm(`Are you sure you want to delete the website for ${customer.businessName}?`)) {
+                            updateCustomer({
+                                ...customer,
+                                websiteUrl: undefined,
+                                websiteConceptImage: undefined
+                            });
+                        }
+                    }}
+                    onBack={() => setCurrentView(AppView.MY_CUSTOMERS)}
+                    onGoToWizard={() => setCurrentView(AppView.WIZARD)}
+                    onAIEditor={(customer) => {
+                        setSelectedLead(customer);
+                        setCurrentView(AppView.AI_WEBSITE_EDITOR);
+                    }}
+                />
+            )}
+
             {/* User Account Views */}
             {currentView === AppView.SETTINGS && (
                 <Settings credits={credits} onAddCredits={addCredits} />
