@@ -23,6 +23,10 @@
  * - removeCustomDomain: Callable - Remove custom domain from website
  */
 
+// IMPORTANT: Import Sentry FIRST before any other imports
+// This ensures all errors are captured from the start
+import "./sentry";
+
 import * as admin from "firebase-admin";
 
 // Initialize Firebase Admin SDK

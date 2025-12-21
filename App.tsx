@@ -25,6 +25,8 @@ import WizardLoaderPreview from './components/WizardLoaderPreview';
 import { SupportChat } from './components/SupportChat';
 import { SupportContext } from './services/supportChatService';
 import ServiceCatalog from './components/ServiceCatalog';
+import ErrorBoundary from './components/ErrorBoundary';
+import { setSentryUser } from './services/sentry';
 
 // Admin Panel Imports
 import { AdminAuthProvider, useAdminAuth } from './hooks/useAdminAuth';
@@ -78,6 +80,19 @@ function AppContent() {
   const [hasSeenWalkthrough, setHasSeenWalkthrough] = useState(() => {
     return localStorage.getItem('renova8_walkthrough_complete') === 'true';
   });
+
+  // Set Sentry user context when user changes
+  useEffect(() => {
+    if (user) {
+      setSentryUser({
+        id: user.uid,
+        email: user.email || undefined,
+        displayName: user.displayName || undefined,
+      });
+    } else {
+      setSentryUser(null);
+    }
+  }, [user]);
 
   // Trigger walkthrough when user enters the app from landing page for the first time
   useEffect(() => {
@@ -646,7 +661,7 @@ function useIsAdminRoute(): boolean {
   return isAdmin;
 }
 
-// Main App component wrapped with AuthProvider
+// Main App component wrapped with AuthProvider and ErrorBoundary
 export default function App() {
   // Preview mode for WizardLoader component
   if (PREVIEW_WIZARD_LOADER) {
@@ -658,16 +673,20 @@ export default function App() {
   // Render Admin Panel if on /admin route
   if (isAdminRoute) {
     return (
-      <AdminAuthProvider>
-        <AdminPanel />
-      </AdminAuthProvider>
+      <ErrorBoundary>
+        <AdminAuthProvider>
+          <AdminPanel />
+        </AdminAuthProvider>
+      </ErrorBoundary>
     );
   }
 
   // Render main app
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
