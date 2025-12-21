@@ -4,13 +4,49 @@ import { PageTour, ARCHIVES_TOUR_STEPS, usePageTour } from './PageTour';
 
 interface Props {
   leads: Lead[];
+  onUpdateLead?: (lead: Lead) => void;
 }
 
-export const CampaignHistory: React.FC<Props> = ({ leads }) => {
+export const CampaignHistory: React.FC<Props> = ({ leads, onUpdateLead }) => {
   const [selectedLeadId, setSelectedLeadId] = useState<string>(leads.length > 0 ? leads[0].id : '');
+  const [previewWebsite, setPreviewWebsite] = useState<HistoryItem | null>(null);
 
   const selectedLead = leads.find(l => l.id === selectedLeadId);
   const history = selectedLead?.history?.sort((a, b) => b.timestamp - a.timestamp) || [];
+
+  // Filter for website HTML history items
+  const websiteHistory = history.filter(item => item.type === 'WEBSITE_HTML');
+
+  // Handler to restore a previous website
+  const handleRestoreWebsite = (historyItem: HistoryItem) => {
+    if (selectedLead && historyItem.content && onUpdateLead) {
+      // Create blob URL for the restored website
+      const blob = new Blob([historyItem.content], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+
+      // Update lead with restored website
+      const updatedLead = {
+        ...selectedLead,
+        websiteUrl: url,
+        websiteCode: historyItem.content,
+        websiteMetadata: {
+          ...selectedLead.websiteMetadata,
+          restoredFrom: historyItem.id,
+          restoredAt: Date.now(),
+          version: historyItem.metadata?.version || 1
+        }
+      };
+
+      onUpdateLead(updatedLead);
+      alert(`Website version ${historyItem.metadata?.version || 'unknown'} restored successfully!`);
+    }
+    setPreviewWebsite(null);
+  };
+
+  // Handler to preview a website
+  const handlePreviewWebsite = (item: HistoryItem) => {
+    setPreviewWebsite(item);
+  };
 
   // Page tour
   const { showTour, completeTour } = usePageTour('archives');
@@ -83,6 +119,7 @@ export const CampaignHistory: React.FC<Props> = ({ leads }) => {
                                         {item.type === 'EMAIL' && '💌'}
                                         {item.type === 'WEBSITE_CONCEPT' && '🎨'}
                                         {item.type === 'WEBSITE_DEPLOY' && '🚀'}
+                                        {item.type === 'WEBSITE_HTML' && '🌐'}
                                     </div>
                                     
                                     {/* Card */}
@@ -134,6 +171,44 @@ export const CampaignHistory: React.FC<Props> = ({ leads }) => {
                                             </div>
                                         )}
 
+                                        {item.type === 'WEBSITE_HTML' && (
+                                            <div className="text-sm bg-purple-50 p-3 rounded-lg">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <span className="text-purple-700 font-bold">
+                                                        Website Version {item.metadata?.version || '?'}
+                                                    </span>
+                                                    <span className="text-xs text-purple-500">
+                                                        {item.content?.length ? `${Math.round(item.content.length / 1024)}KB` : ''}
+                                                    </span>
+                                                </div>
+                                                {/* Mini preview iframe */}
+                                                <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden border border-purple-200 mb-3">
+                                                    <iframe
+                                                        srcDoc={item.content}
+                                                        className="w-full h-full pointer-events-none transform scale-50 origin-top-left"
+                                                        style={{ width: '200%', height: '200%' }}
+                                                        title={`Version ${item.metadata?.version || '?'}`}
+                                                    />
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={() => handlePreviewWebsite(item)}
+                                                        className="flex-1 text-xs bg-white border border-purple-200 px-3 py-1.5 rounded text-purple-600 hover:bg-purple-50 transition-colors font-medium"
+                                                    >
+                                                        Preview
+                                                    </button>
+                                                    {onUpdateLead && (
+                                                        <button
+                                                            onClick={() => handleRestoreWebsite(item)}
+                                                            className="flex-1 text-xs bg-purple-600 text-white px-3 py-1.5 rounded hover:bg-purple-700 transition-colors font-medium"
+                                                        >
+                                                            Restore
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+
                                         {/* Actions */}
                                         <div className="mt-3 flex justify-end gap-2">
                                             {typeof item.content === 'string' && (item.content.startsWith('http') || item.content.startsWith('data:')) && (
@@ -160,6 +235,48 @@ export const CampaignHistory: React.FC<Props> = ({ leads }) => {
             )}
         </div>
       </div>
+
+      {/* Website Preview Modal */}
+      {previewWebsite && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="flex justify-between items-center p-4 border-b border-gray-200 bg-gray-50">
+              <div>
+                <h3 className="font-semibold text-gray-800">
+                  Website Preview - Version {previewWebsite.metadata?.version || '?'}
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Created: {new Date(previewWebsite.timestamp).toLocaleString()}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                {onUpdateLead && (
+                  <button
+                    onClick={() => handleRestoreWebsite(previewWebsite)}
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+                  >
+                    Restore This Version
+                  </button>
+                )}
+                <button
+                  onClick={() => setPreviewWebsite(null)}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors text-sm font-medium"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-hidden" style={{ height: '70vh' }}>
+              <iframe
+                srcDoc={previewWebsite.content}
+                className="w-full h-full"
+                title="Website Preview"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

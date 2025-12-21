@@ -50,6 +50,10 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
   const [currentAttempt, setCurrentAttempt] = useState(0);
   const [bestScore, setBestScore] = useState(0);
 
+  // AI Images State
+  const [useAIImages, setUseAIImages] = useState(true);
+  const [generationStage, setGenerationStage] = useState<string>('');
+
   useEffect(() => {
     if (selectedLead) {
         setPrompt(`Create a website for ${selectedLead.businessName}, a business located in ${selectedLead.location}. Details: ${selectedLead.details}. Make it modern, inviting, and professional.`);
@@ -173,11 +177,17 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
       setActiveTab('builder');
       if (!generatedCode) {
           setLoading(true);
+          setGenerationStage('');
           let attempts = 0;
           const maxAttempts = designSpec?.pixelPerfectMode ? 3 : 1;
           let bestCode = '';
           let bestScoreValue = 0;
           let bestResult: VerificationResult | null = null;
+
+          // Progress callback for generation stages
+          const onProgress = (stage: string, detail?: string) => {
+              setGenerationStage(detail || stage);
+          };
 
           try {
               while (attempts < maxAttempts) {
@@ -185,8 +195,16 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
                   setCurrentAttempt(attempts);
                   console.log(`Generation attempt ${attempts}/${maxAttempts}`);
 
-                  // Generate website code
-                  const code = await generateWebsiteStructure(prompt, designSpec || undefined, generatedImage || undefined);
+                  // Generate website code with AI images if enabled
+                  setGenerationStage(useAIImages ? 'Generating AI section images...' : 'Generating website structure...');
+                  const code = await generateWebsiteStructure(
+                      prompt,
+                      designSpec || undefined,
+                      generatedImage || undefined,
+                      true, // extractAllBackgrounds
+                      useAIImages, // useAIImages flag
+                      onProgress // progress callback
+                  );
 
                   // Verify against concept
                   if (designSpec && generatedImage) {
@@ -620,28 +638,27 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
       </div>
 
       {activeTab === 'concept' && (
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-purple-100 animate-fadeIn">
-            <div className="flex flex-col gap-4">
-            <label className="text-gray-700 font-medium">Describe the website vision:</label>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-purple-100 animate-fadeIn space-y-4">
+            <label className="text-gray-700 font-medium block">Describe the website vision:</label>
             <textarea
                 className="w-full p-4 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-200 outline-none resize-none h-32"
                 placeholder="A pastel colored bakery website with a large hero image of cupcakes..."
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
             ></textarea>
-            
+
             <div className="flex flex-wrap gap-4 items-center justify-between">
                 <div className="flex gap-2">
-                    <select 
-                        value={aspectRatio} 
+                    <select
+                        value={aspectRatio}
                         onChange={(e) => setAspectRatio(e.target.value as AspectRatio)}
                         className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-600 outline-none"
                     >
                         <option value={AspectRatio.LANDSCAPE}>Landscape (16:9)</option>
                         <option value={AspectRatio.PORTRAIT}>Mobile (9:16)</option>
                     </select>
-                    <select 
-                        value={size} 
+                    <select
+                        value={size}
                         onChange={(e) => setSize(e.target.value as ImageSize)}
                         className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-600 outline-none"
                     >
@@ -651,14 +668,14 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
                 </div>
 
                 <div className="flex gap-3">
-                    <button 
+                    <button
                         onClick={handleGenerateConcept}
                         disabled={loading || !prompt}
                         className="px-6 py-3 bg-white border-2 border-purple-500 text-purple-600 rounded-xl font-bold hover:bg-purple-50 transition-all"
                     >
-                        {loading && !generatedImage ? 'Dreaming...' : 'Generate Concept'} 
+                        {loading && !generatedImage ? 'Dreaming...' : 'Generate Concept'}
                     </button>
-                    <button 
+                    <button
                         onClick={handleStartBuilding}
                         disabled={loading || !prompt}
                         className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl font-bold shadow-md hover:shadow-xl transition-all flex items-center gap-2 disabled:opacity-50"
@@ -669,7 +686,7 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
             </div>
 
             {/* Visual Preview */}
-            <div className="mt-6">
+            <div>
                 <h3 className="font-bold text-gray-700 mb-2">Visual Mockup</h3>
                 <div className="bg-gray-100 rounded-2xl overflow-hidden border border-gray-200 min-h-[400px] flex items-center justify-center relative group">
                     {loading && !generatedImage ? (
@@ -685,50 +702,79 @@ export const WebsiteBuilder: React.FC<Props> = ({ onUseCredit, selectedLead, onU
                 </div>
             </div>
 
-            {/* Pixel-Perfect Mode Toggle */}
+            {/* Generation Options */}
             {generatedImage && designSpec && (
-                <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl">
-                    <label className="flex items-center gap-3 cursor-pointer">
-                        <input
-                            type="checkbox"
-                            checked={designSpec?.pixelPerfectMode || false}
-                            onChange={(e) => {
-                                if (designSpec) {
-                                    const updatedSpec = { ...designSpec, pixelPerfectMode: e.target.checked };
-                                    setDesignSpec(updatedSpec);
-                                }
-                            }}
-                            className="w-5 h-5 text-purple-600 rounded focus:ring-2 focus:ring-purple-500"
-                        />
-                        <div>
-                            <span className="font-semibold text-gray-800">Pixel-Perfect Mode</span>
-                            <p className="text-sm text-gray-600">Auto-retry generation up to 3 times to achieve 95%+ match with concept design</p>
-                        </div>
-                    </label>
+                <div className="space-y-3">
+                    {/* Pixel-Perfect Mode Toggle */}
+                    <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl">
+                        <label className="flex items-center gap-3 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={designSpec?.pixelPerfectMode || false}
+                                onChange={(e) => {
+                                    if (designSpec) {
+                                        const updatedSpec = { ...designSpec, pixelPerfectMode: e.target.checked };
+                                        setDesignSpec(updatedSpec);
+                                    }
+                                }}
+                                className="w-5 h-5 text-purple-600 rounded focus:ring-2 focus:ring-purple-500"
+                            />
+                            <div>
+                                <span className="font-semibold text-gray-800">Pixel-Perfect Mode</span>
+                                <p className="text-sm text-gray-600">Auto-retry generation up to 3 times to achieve 95%+ match with concept design</p>
+                            </div>
+                        </label>
+                    </div>
+
+                    {/* AI Images Toggle */}
+                    <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl">
+                        <label className="flex items-center gap-3 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={useAIImages}
+                                onChange={(e) => setUseAIImages(e.target.checked)}
+                                className="w-5 h-5 text-green-600 rounded focus:ring-2 focus:ring-green-500"
+                            />
+                            <div>
+                                <span className="font-semibold text-gray-800">AI-Generated Images</span>
+                                <p className="text-sm text-gray-600">Use AI to generate consistent images for all sections (matches concept style)</p>
+                            </div>
+                        </label>
+                    </div>
                 </div>
             )}
 
             {/* Generation Progress Indicator */}
-            {loading && currentAttempt > 0 && designSpec?.pixelPerfectMode && (
-                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
-                    <p className="font-semibold text-blue-900 mb-2">Pixel-Perfect Mode Active</p>
-                    <p className="text-sm text-blue-700 mb-3">
-                        Generating and verifying... (Attempt {currentAttempt} of 3)
+            {loading && (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                    <p className="font-semibold text-blue-900 mb-2">
+                        {useAIImages ? '🎨 Generating with AI Images' : '🔧 Building Website'}
                     </p>
-                    {bestScore > 0 && (
-                        <p className="text-xs text-blue-600">
-                            Target: 95% match score. Current best: {bestScore}%
+                    {generationStage && (
+                        <p className="text-sm text-blue-700 mb-3">
+                            {generationStage}
                         </p>
+                    )}
+                    {currentAttempt > 0 && designSpec?.pixelPerfectMode && (
+                        <>
+                            <p className="text-xs text-blue-600 mb-2">
+                                Pixel-Perfect Mode: Attempt {currentAttempt} of 3
+                            </p>
+                            {bestScore > 0 && (
+                                <p className="text-xs text-blue-600">
+                                    Target: 95% match score. Current best: {bestScore}%
+                                </p>
+                            )}
+                        </>
                     )}
                     <div className="w-full bg-blue-200 rounded-full h-2 mt-2">
                         <div
-                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${(currentAttempt / 3) * 100}%` }}
+                            className="bg-blue-600 h-2 rounded-full transition-all duration-500 animate-pulse"
+                            style={{ width: currentAttempt > 0 ? `${(currentAttempt / 3) * 100}%` : '100%' }}
                         ></div>
                     </div>
                 </div>
             )}
-            </div>
         </div>
       )}
 

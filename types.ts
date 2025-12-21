@@ -326,6 +326,16 @@ export interface DesignSpecification {
   };
   pixelPerfectMode?: boolean;  // Enforce strict matching with auto-retry
   pageStructure?: 'single-page' | 'multi-page';  // Detected from concept mockup
+  sectionBackgrounds?: SectionBackground[];  // Background images for all sections
+}
+
+export interface SectionBackground {
+  section: string;  // 'hero', 'about', 'services', 'testimonials', etc.
+  type: 'image' | 'gradient' | 'solid';
+  description: string;
+  unsplashQuery: string;
+  overlay?: string;
+  extractedUrl?: string;
 }
 
 export interface SectionSpec {
