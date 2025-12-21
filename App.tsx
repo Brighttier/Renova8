@@ -26,7 +26,21 @@ import { SupportChat } from './components/SupportChat';
 import { SupportContext } from './services/supportChatService';
 import ServiceCatalog from './components/ServiceCatalog';
 import ErrorBoundary from './components/ErrorBoundary';
-import { setSentryUser } from './services/sentry';
+import * as Sentry from '@sentry/react';
+
+// Test button component for Sentry error tracking verification
+function SentryTestButton() {
+  return (
+    <button
+      onClick={() => {
+        throw new Error('This is your first error!');
+      }}
+      className="fixed bottom-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg hover:bg-red-600 z-50"
+    >
+      Test Sentry Error
+    </button>
+  );
+}
 
 // Admin Panel Imports
 import { AdminAuthProvider, useAdminAuth } from './hooks/useAdminAuth';
@@ -84,13 +98,13 @@ function AppContent() {
   // Set Sentry user context when user changes
   useEffect(() => {
     if (user) {
-      setSentryUser({
+      Sentry.setUser({
         id: user.uid,
         email: user.email || undefined,
-        displayName: user.displayName || undefined,
+        username: user.displayName || undefined,
       });
     } else {
-      setSentryUser(null);
+      Sentry.setUser(null);
     }
   }, [user]);
 
@@ -686,6 +700,8 @@ export default function App() {
     <ErrorBoundary>
       <AuthProvider>
         <AppContent />
+        {/* Temporary test button - remove after verifying Sentry works */}
+        <SentryTestButton />
       </AuthProvider>
     </ErrorBoundary>
   );

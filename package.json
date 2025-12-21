@@ -19,6 +19,7 @@
     "stripe": "^20.0.0"
   },
   "devDependencies": {
+    "@sentry/cli": "^3.0.1",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
     "typescript": "~5.8.2",

@@ -1,34 +1,33 @@
 import React from 'react';
-import ReactDOM from 'react-dom/client';
-import { initSentry, Sentry } from './services/sentry';
+import ReactDOM, { createRoot } from 'react-dom/client';
+import * as Sentry from "@sentry/react";
 import App from './App';
 
 // Initialize Sentry BEFORE React renders
-initSentry();
+Sentry.init({
+  dsn: "https://b5a5573944c723fbdc95bee71bbd0e98@o4510573422313472.ingest.us.sentry.io/4510573749796864",
 
-// Global error handlers for uncaught errors
-window.onerror = (message, source, lineno, colno, error) => {
-  if (error) {
-    Sentry.captureException(error, {
-      extra: { message, source, lineno, colno },
-    });
-  }
-  return false;
-};
+  // Release tracking for better Jira/Teams integration
+  release: import.meta.env.VITE_APP_VERSION || "renovatemysite-frontend@1.0.0",
+  environment: import.meta.env.VITE_SENTRY_ENVIRONMENT || "development",
 
-// Global handler for unhandled promise rejections
-window.onunhandledrejection = (event: PromiseRejectionEvent) => {
-  Sentry.captureException(event.reason, {
-    tags: { type: 'unhandledrejection' },
-  });
-};
+  // Send default PII data for better debugging
+  sendDefaultPii: true,
 
-const rootElement = document.getElementById('root');
-if (!rootElement) {
-  throw new Error("Could not find root element to mount to");
-}
+  // Performance monitoring
+  tracesSampleRate: import.meta.env.PROD ? 0.1 : 1.0,
 
-const root = ReactDOM.createRoot(rootElement);
+  // Initial tags for routing
+  initialScope: {
+    tags: {
+      service: "frontend",
+      team: "platform",
+    },
+  },
+});
+
+const container = document.getElementById("root");
+const root = createRoot(container!);
 root.render(
   <React.StrictMode>
     <App />

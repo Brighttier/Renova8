@@ -18,6 +18,9 @@ const SENTRY_DSN = process.env.SENTRY_DSN ||
 
 Sentry.init({
   dsn: SENTRY_DSN,
+
+  // Release tracking for better Jira/Teams integration
+  release: process.env.SENTRY_RELEASE || "renovatemysite-functions@1.0.0",
   environment: process.env.SENTRY_ENVIRONMENT || "production",
 
   // Send default PII data (IP address, etc.) for better debugging
@@ -34,6 +37,14 @@ Sentry.init({
 
   // Capture 100% of errors
   sampleRate: 1.0,
+
+  // Initial tags for routing to Jira/Teams
+  initialScope: {
+    tags: {
+      service: "functions",
+      team: "platform",
+    },
+  },
 
   // Integrations
   integrations: [
