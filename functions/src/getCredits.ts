@@ -25,11 +25,15 @@ export const getCredits = functions.https.onCall(
     const userId = context.auth.uid;
 
     try {
-      // Get user data including trial status
+      // Get user data including trial status and plan info
       const userData = await getUser(userId);
       const tokenBalance = userData?.tokenBalance || 0;
       const isTrialUser = userData?.isTrialUser || false;
       const trialEndsAt = userData?.trialEndsAt;
+      const currentPlan = userData?.currentPlan || "free";
+      const subscriptionStatus = userData?.subscriptionStatus;
+      const hostingSlots = userData?.hostingSlots || 0;
+      const hostingSlotsUsed = userData?.hostingSlotsUsed || 0;
 
       // Calculate days remaining in trial
       let trialDaysRemaining: number | undefined;
@@ -63,6 +67,12 @@ export const getCredits = functions.https.onCall(
         trialEndsAt: trialEndsAtISO,
         trialDaysRemaining,
         transactions: serializedTransactions as any,
+        // Plan & Subscription
+        currentPlan,
+        subscriptionStatus,
+        // Hosting
+        hostingSlots,
+        hostingSlotsUsed,
       };
     } catch (error: any) {
       functions.logger.error(

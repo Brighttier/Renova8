@@ -1,0 +1,120 @@
+rules_version = '2';
+
+/**
+ * Firebase Storage Security Rules for RenovateMySite
+ *
+ * Secure file storage with:
+ * - User-isolated paths
+ * - File type and size validation
+ * - Public website assets
+ * - Protected invoices and attachments
+ */
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // ============================================
+    // Helper Functions
+    // ============================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isValidImage() {
+      return request.resource.contentType.matches('image/.*') &&
+             request.resource.size < 10 * 1024 * 1024; // 10MB max
+    }
+
+    function isValidDocument() {
+      return request.resource.contentType.matches('application/pdf') &&
+             request.resource.size < 25 * 1024 * 1024; // 25MB max
+    }
+
+    function isValidFile() {
+      return request.resource.size < 10 * 1024 * 1024; // 10MB max
+    }
+
+    // ============================================
+    // User Profile Assets
+    // ============================================
+    match /users/{userId}/profile/{fileName} {
+      // Users can read/write their own profile assets
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId) && isValidImage();
+      allow delete: if isOwner(userId);
+    }
+
+    // ============================================
+    // User Documents (General)
+    // ============================================
+    match /users/{userId}/documents/{documentId} {
+      // Users can read/write their own documents
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId) && isValidDocument();
+      allow delete: if isOwner(userId);
+    }
+
+    // ============================================
+    // Generated Images (Concept Art, Social Media)
+    // ============================================
+    match /generated/{userId}/images/{imageId} {
+      // Users can read/write their own generated images
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId) && isValidImage();
+      allow delete: if isOwner(userId);
+    }
+
+    // ============================================
+    // Website Assets (Public for Published Sites)
+    // ============================================
+    match /websites/{userId}/{websiteId}/{allPaths=**} {
+      // Public read for published website assets
+      allow read: if true;
+
+      // Only owner can write
+      allow write: if isOwner(userId) && isValidImage();
+      allow delete: if isOwner(userId);
+    }
+
+    // ============================================
+    // Invoice PDFs
+    // ============================================
+    match /invoices/{userId}/{invoiceId} {
+      // Users can read/write their own invoices
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId) && isValidDocument();
+      allow delete: if isOwner(userId);
+    }
+
+    // ============================================
+    // Email Attachments
+    // ============================================
+    match /attachments/{userId}/{attachmentId} {
+      // Users can read/write their own attachments
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId) && isValidFile();
+      allow delete: if isOwner(userId);
+    }
+
+    // ============================================
+    // Brand Assets (Logos, Brand Images)
+    // ============================================
+    match /brands/{userId}/{leadId}/{assetType}/{fileName} {
+      // Users can read/write their own brand assets
+      allow read: if isOwner(userId);
+      allow write: if isOwner(userId) && isValidImage();
+      allow delete: if isOwner(userId);
+    }
+
+    // ============================================
+    // Catch-all: Deny everything else
+    // ============================================
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

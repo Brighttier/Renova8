@@ -4,6 +4,10 @@ import { Timestamp } from "firebase-admin/firestore";
 // User & Authentication Types
 // ============================================
 
+export type UserPlan = "free" | "beginner" | "agency50";
+export type HostingType = "static" | "dynamic";
+export type SubscriptionStatus = "active" | "canceled" | "past_due" | "trialing";
+
 export interface User {
   id: string;
   email: string;
@@ -12,6 +16,25 @@ export interface User {
   tokenBalance: number;
   isTrialUser: boolean;
   trialEndsAt?: Timestamp;
+
+  // Subscription & Plan
+  subscriptionId?: string;
+  subscriptionStatus?: SubscriptionStatus;
+  currentPlan: UserPlan;
+
+  // Hosting
+  hostingSlots: number;
+  hostingSlotsUsed: number;
+  hostingType: HostingType;
+
+  // Maintenance add-on
+  maintenanceEnabled: boolean;
+  maintenanceSites: string[]; // Website IDs under maintenance
+
+  // Billing cycle
+  billingCycleStart?: Timestamp;
+  nextBillingDate?: Timestamp;
+
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -60,14 +83,21 @@ export interface GeminiUsageLog {
 // Token Pack Types
 // ============================================
 
+export type PackType = "one-time" | "subscription";
+export type BillingPeriod = "monthly" | "yearly";
+
 export interface TokenPack {
   id: string;
   name: string;
-  tokens: number;
+  credits: number;
   priceUSD: number;
   stripePriceId: string;
   stripeProductId: string;
-  modelKey: string;
+  type: PackType;
+  billingPeriod?: BillingPeriod;
+  hostingSlots: number;
+  hostingType: HostingType;
+  dynamicHosting?: boolean;
   active: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -78,6 +108,24 @@ export interface TokenPackConfig {
   name: string;
   tokens: number;
   modelKey: string;
+}
+
+// ============================================
+// Subscription Types
+// ============================================
+
+export interface Subscription {
+  id: string;
+  userId: string;
+  stripeCustomerId: string;
+  stripeSubscriptionId: string;
+  planId: "agency50" | "maintenance";
+  status: SubscriptionStatus;
+  currentPeriodStart: Timestamp;
+  currentPeriodEnd: Timestamp;
+  cancelAtPeriodEnd: boolean;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
 
 // ============================================
@@ -116,6 +164,12 @@ export interface GetCreditsResponse {
   trialEndsAt?: string; // ISO string
   trialDaysRemaining?: number;
   transactions: CreditTransaction[];
+  // Plan & Subscription
+  currentPlan: UserPlan;
+  subscriptionStatus?: SubscriptionStatus;
+  // Hosting
+  hostingSlots: number;
+  hostingSlotsUsed: number;
 }
 
 export interface CreateCheckoutRequest {

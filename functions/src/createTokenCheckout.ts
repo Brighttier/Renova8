@@ -1,17 +1,17 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
-import { TOKEN_PACKS, DEFAULT_SUCCESS_URL, DEFAULT_CANCEL_URL } from "./config";
-import { getOrCreateCustomer, createCheckoutSession } from "./lib/stripe";
+import { TOKEN_PACKS, DEFAULT_SUCCESS_URL, DEFAULT_CANCEL_URL, HOSTING_LIMITS } from "./config";
+import { getOrCreateCustomer, createCheckoutSession, CheckoutMode } from "./lib/stripe";
 import { getUser, updateStripeCustomerId } from "./lib/credits";
 import { CreateCheckoutRequest, CreateCheckoutResponse } from "./types";
 
 const db = admin.firestore();
 
 /**
- * Callable function: Create a Stripe Checkout Session for purchasing tokens
+ * Callable function: Create a Stripe Checkout Session for purchasing credits or subscriptions
  *
  * Request body:
- * - packId: string - The token pack to purchase ("starter", "pro", "enterprise")
+ * - packId: string - The pack to purchase ("beginner", "topup_1000", "agency50")
  * - successUrl?: string - URL to redirect after successful payment
  * - cancelUrl?: string - URL to redirect if user cancels
  *
@@ -26,7 +26,7 @@ export const createTokenCheckout = functions.https.onCall(
     if (!context.auth) {
       throw new functions.https.HttpsError(
         "unauthenticated",
-        "You must be logged in to purchase tokens."
+        "You must be logged in to purchase credits."
       );
     }
 
@@ -96,6 +96,13 @@ export const createTokenCheckout = functions.https.onCall(
         );
       }
 
+      // Determine checkout mode based on pack type
+      const isSubscription = packData?.type === "subscription";
+      const mode: CheckoutMode = isSubscription ? "subscription" : "payment";
+
+      // Get hosting slots for this pack
+      const hostingSlots = packData?.hostingSlots || HOSTING_LIMITS[packId as keyof typeof HOSTING_LIMITS] || 0;
+
       // Create checkout session
       const checkoutUrl = await createCheckoutSession({
         customerId: stripeCustomerId,
@@ -105,10 +112,12 @@ export const createTokenCheckout = functions.https.onCall(
         tokens: packConfig.tokens,
         successUrl: successUrl || DEFAULT_SUCCESS_URL,
         cancelUrl: cancelUrl || DEFAULT_CANCEL_URL,
+        mode,
+        hostingSlots,
       });
 
       functions.logger.info(
-        `Created checkout session for user ${userId}, pack ${packId} (${packConfig.tokens} tokens)`
+        `Created ${mode} checkout session for user ${userId}, pack ${packId} (${packConfig.tokens} credits, ${hostingSlots} hosting slots)`
       );
 
       return { checkoutUrl };

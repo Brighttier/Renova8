@@ -225,7 +225,7 @@ export async function initializeUser(
   // Use batch for atomic writes
   const batch = db.batch();
 
-  // Create user document with trial fields
+  // Create user document with trial fields and default plan
   batch.set(userRef, {
     id: userId,
     email: email,
@@ -233,6 +233,13 @@ export async function initializeUser(
     tokenBalance: initialTokens,
     isTrialUser: true,
     trialEndsAt: trialEndsAt,
+    // Default plan settings
+    currentPlan: "free",
+    hostingSlots: 0,
+    hostingSlotsUsed: 0,
+    hostingType: "static",
+    maintenanceEnabled: false,
+    maintenanceSites: [],
     createdAt: now,
     updatedAt: now,
   });

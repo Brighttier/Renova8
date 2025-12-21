@@ -8,7 +8,21 @@
       "Bash(npm run dev)",
       "Bash(npm run build:*)",
       "Bash(lsof:*)",
-      "Bash(xargs kill -9)"
+      "Bash(xargs kill -9)",
+      "Bash(git checkout:*)",
+      "Bash(git pull:*)",
+      "Bash(git merge:*)",
+      "Bash(firebase apphosting:backends:list:*)",
+      "Bash(firebase apphosting:rollouts:list:*)",
+      "Bash(gh run list:*)",
+      "Bash(firebase apphosting:secrets:grantaccess:*)",
+      "Bash(firebase apphosting:secrets:set:*)",
+      "Bash(git commit:*)",
+      "Bash(node:*)",
+      "Bash(firebase firestore:documents:create:*)",
+      "Bash(gcloud auth application-default login:*)",
+      "Bash(gcloud firestore documents create:*)",
+      "Bash(firebase deploy:*)"
     ],
     "deny": [],
     "ask": []

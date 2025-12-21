@@ -29,6 +29,9 @@ export interface Transaction {
   balanceAfter: number;
 }
 
+export type UserPlan = 'free' | 'beginner' | 'agency50';
+export type SubscriptionStatus = 'active' | 'canceled' | 'past_due' | 'trialing';
+
 export interface UseCreditsReturn {
   // State
   credits: number;
@@ -40,6 +43,12 @@ export interface UseCreditsReturn {
   isTrialUser: boolean;
   trialEndsAt?: Date;
   trialDaysRemaining?: number;
+
+  // Plan & Hosting
+  currentPlan: UserPlan;
+  subscriptionStatus?: SubscriptionStatus;
+  hostingSlots: number;
+  hostingSlotsUsed: number;
 
   // Methods
   refreshCredits: () => Promise<void>;
@@ -60,6 +69,12 @@ export function useCredits(): UseCreditsReturn {
   const [isTrialUser, setIsTrialUser] = useState(false);
   const [trialEndsAt, setTrialEndsAt] = useState<Date | undefined>();
   const [trialDaysRemaining, setTrialDaysRemaining] = useState<number | undefined>();
+
+  // Plan & Hosting state
+  const [currentPlan, setCurrentPlan] = useState<UserPlan>('free');
+  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | undefined>();
+  const [hostingSlots, setHostingSlots] = useState(0);
+  const [hostingSlotsUsed, setHostingSlotsUsed] = useState(0);
 
   // Real-time listener for credit balance
   useEffect(() => {
@@ -86,6 +101,12 @@ export function useCredits(): UseCreditsReturn {
           setCredits(data?.tokenBalance || 0);
           setIsTrialUser(data?.isTrialUser || false);
 
+          // Handle plan & hosting data
+          setCurrentPlan(data?.currentPlan || 'free');
+          setSubscriptionStatus(data?.subscriptionStatus);
+          setHostingSlots(data?.hostingSlots || 0);
+          setHostingSlotsUsed(data?.hostingSlotsUsed || 0);
+
           // Handle trial end date
           if (data?.trialEndsAt) {
             const endDate = data.trialEndsAt.toDate();
@@ -105,6 +126,10 @@ export function useCredits(): UseCreditsReturn {
           setIsTrialUser(false);
           setTrialEndsAt(undefined);
           setTrialDaysRemaining(undefined);
+          setCurrentPlan('free');
+          setSubscriptionStatus(undefined);
+          setHostingSlots(0);
+          setHostingSlotsUsed(0);
         }
         setLoading(false);
       },
@@ -146,6 +171,12 @@ export function useCredits(): UseCreditsReturn {
       if (data.trialEndsAt) {
         setTrialEndsAt(new Date(data.trialEndsAt));
       }
+
+      // Set plan & hosting from API response
+      setCurrentPlan(data.currentPlan || 'free');
+      setSubscriptionStatus(data.subscriptionStatus);
+      setHostingSlots(data.hostingSlots || 0);
+      setHostingSlotsUsed(data.hostingSlotsUsed || 0);
     } catch (err: any) {
       console.error("Error fetching credits:", err);
       setError(getErrorMessage(err));
@@ -192,6 +223,12 @@ export function useCredits(): UseCreditsReturn {
     isTrialUser,
     trialEndsAt,
     trialDaysRemaining,
+    // Plan & Hosting
+    currentPlan,
+    subscriptionStatus,
+    hostingSlots,
+    hostingSlotsUsed,
+    // Methods
     refreshCredits,
     purchaseTokens,
     clearError,

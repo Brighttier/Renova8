@@ -1,35 +1,45 @@
 rules_version = '2';
 
 /**
- * Firestore Security Rules for Renova8
+ * Firestore Security Rules for RenovateMySite
  *
- * These rules ensure:
- * - Users can only access their own data
- * - Credit transactions and usage logs are write-protected (Cloud Functions only)
- * - Token packs are readable but not writable by users
- * - Processed Stripe events are completely private
+ * Production-ready rules with:
+ * - User data isolation
+ * - Platform admin access
+ * - Cloud Functions-only write protection
+ * - Subscription and hosting management
  */
 service cloud.firestore {
   match /databases/{database}/documents {
 
     // ============================================
+    // Helper Functions
+    // ============================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isPlatformAdmin() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/platform_admins/$(request.auth.uid));
+    }
+
+    // ============================================
     // User Documents
     // ============================================
     match /users/{userId} {
-      // Users can read their own document
-      allow read: if request.auth != null && request.auth.uid == userId;
+      // Users can read their own document, admins can read all
+      allow read: if isOwner(userId) || isPlatformAdmin();
 
-      // Users can create their own document (fallback if auth trigger fails)
-      allow create: if request.auth != null && request.auth.uid == userId;
-
-      // Users can update non-sensitive fields
-      // tokenBalance and stripeCustomerId can only be updated by Cloud Functions
-      allow update: if request.auth != null
-        && request.auth.uid == userId
-        && !request.resource.data.diff(resource.data).affectedKeys()
-            .hasAny(['tokenBalance', 'stripeCustomerId']);
-
-      // Users cannot delete their own document
+      // Only Cloud Functions can create/update users
+      // This ensures token balance and subscription integrity
+      allow create: if false;
+      allow update: if false;
       allow delete: if false;
 
       // ============================================
@@ -37,7 +47,7 @@ service cloud.firestore {
       // ============================================
       match /creditTransactions/{transactionId} {
         // Users can read their own transactions
-        allow read: if request.auth != null && request.auth.uid == userId;
+        allow read: if isOwner(userId) || isPlatformAdmin();
 
         // Only Cloud Functions can write transactions
         allow write: if false;
@@ -48,7 +58,7 @@ service cloud.firestore {
       // ============================================
       match /geminiUsageLogs/{logId} {
         // Users can read their own usage logs
-        allow read: if request.auth != null && request.auth.uid == userId;
+        allow read: if isOwner(userId) || isPlatformAdmin();
 
         // Only Cloud Functions can write usage logs
         allow write: if false;
@@ -59,10 +69,25 @@ service cloud.firestore {
     // Token Packs Collection
     // ============================================
     match /tokenPacks/{packId} {
-      // Any authenticated user can read token pack configurations
-      allow read: if request.auth != null;
+      // Anyone can read token pack configurations (for pricing display)
+      allow read: if true;
 
-      // Only admins via Cloud Functions can modify token packs
+      // Only admins can modify token packs
+      allow write: if isPlatformAdmin();
+    }
+
+    // ============================================
+    // Subscriptions Collection
+    // ============================================
+    match /subscriptions/{subscriptionId} {
+      // Users can read their own subscriptions
+      allow read: if isAuthenticated() &&
+        resource.data.userId == request.auth.uid;
+
+      // Admins can read all subscriptions
+      allow read: if isPlatformAdmin();
+
+      // Only Cloud Functions can write subscriptions
       allow write: if false;
     }
 
@@ -79,12 +104,78 @@ service cloud.firestore {
     // ============================================
     match /websites/{websiteId} {
       // Users can read their own websites
-      allow read: if request.auth != null
-        && resource.data.userId == request.auth.uid;
+      allow read: if isAuthenticated() &&
+        resource.data.userId == request.auth.uid;
+
+      // Admins can read all websites
+      allow read: if isPlatformAdmin();
 
       // Only Cloud Functions can create/update/delete websites
       // This ensures all deployments go through proper validation
       allow write: if false;
+    }
+
+    // ============================================
+    // Platform Configuration
+    // ============================================
+    match /platform_config/{docId} {
+      // Only platform admins can read config
+      allow read: if isPlatformAdmin();
+
+      // Only Cloud Functions can write config
+      allow write: if false;
+    }
+
+    // ============================================
+    // Platform Audit Logs
+    // ============================================
+    match /platform_audit_logs/{logId} {
+      // Only platform admins can read audit logs
+      allow read: if isPlatformAdmin();
+
+      // Only Cloud Functions can write audit logs
+      allow write: if false;
+    }
+
+    // ============================================
+    // Rate Limits
+    // ============================================
+    match /rate_limits/{docId} {
+      // Completely private - only Cloud Functions access
+      allow read, write: if false;
+    }
+
+    // ============================================
+    // Platform Admins
+    // ============================================
+    match /platform_admins/{adminId} {
+      // Admins can read their own record or other admin records
+      allow read: if isOwner(adminId) || isPlatformAdmin();
+
+      // Only Cloud Functions can manage admins
+      allow write: if false;
+    }
+
+    // ============================================
+    // Support Tickets
+    // ============================================
+    match /support_tickets/{ticketId} {
+      // Users can read their own tickets
+      allow read: if isAuthenticated() &&
+        resource.data.userId == request.auth.uid;
+
+      // Admins can read all tickets
+      allow read: if isPlatformAdmin();
+
+      // Users can create tickets (must be their own)
+      allow create: if isAuthenticated() &&
+        request.resource.data.userId == request.auth.uid;
+
+      // Only admins can update tickets
+      allow update: if isPlatformAdmin();
+
+      // No one can delete tickets
+      allow delete: if false;
     }
 
     // ============================================

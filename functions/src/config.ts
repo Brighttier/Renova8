@@ -5,14 +5,20 @@ import { TokenPackConfig, ModelPricing } from "./types";
 // ============================================
 
 /**
- * Number of tokens granted to new users upon signup (free trial)
+ * Number of credits granted to new users upon signup (free trial)
+ * $2 worth for testing (100 credits at $0.02/credit)
  */
-export const INITIAL_SIGNUP_TOKENS = 200;
+export const INITIAL_SIGNUP_CREDITS = 100;
 
 /**
- * Trial duration in days - trial tokens expire after this period
+ * Trial duration in days - trial credits expire after this period
  */
 export const TRIAL_DURATION_DAYS = 14;
+
+/**
+ * Credits per dollar - 1 credit = $0.02
+ */
+export const CREDITS_PER_DOLLAR = 50;
 
 // ============================================
 // Profit Margin Configuration
@@ -76,49 +82,128 @@ export const GEMINI_PRICING: Record<string, ModelPricing> = {
 // ============================================
 
 /**
- * Available token packs for purchase
- * Prices are calculated based on Gemini costs + margin
+ * Available packs for purchase
+ * Based on team monetization strategy
  */
 export const TOKEN_PACKS: Record<string, TokenPackConfig> = {
-  starter: {
-    id: "starter",
-    name: "Starter Pack",
-    tokens: 5_000,
+  // One-time purchase - Entry level
+  beginner: {
+    id: "beginner",
+    name: "Beginner Pack",
+    tokens: 1_000,  // 1,000 credits = $20 value
     modelKey: "gemini-3-pro-preview",
   },
-  pro: {
-    id: "pro",
-    name: "Pro Pack",
-    tokens: 25_000,
+  // Credit top-up
+  topup_1000: {
+    id: "topup_1000",
+    name: "Credit Top-up",
+    tokens: 1_000,  // 1,000 credits = $20
     modelKey: "gemini-3-pro-preview",
   },
-  enterprise: {
-    id: "enterprise",
-    name: "Enterprise Pack",
-    tokens: 100_000,
+  // Agency subscription (monthly)
+  agency50: {
+    id: "agency50",
+    name: "Agency 50",
+    tokens: 5_000,  // 5,000 credits/month
     modelKey: "gemini-3-pro-preview",
   },
 };
 
 // ============================================
-// Feature Credit Costs (Legacy/Reference)
+// Hosting Configuration
 // ============================================
 
 /**
- * Approximate credit costs per feature
- * These are reference values - actual costs are computed from Gemini token usage
+ * Hosting slots per plan
  */
-export const FEATURE_CREDIT_ESTIMATES = {
-  lead_search: 5,
-  brand_analysis: 5,
-  pitch_email: 3,
-  website_concept: 10,
-  website_build: 15,
-  image_generation: 10,
-  video_generation: 20,
-  marketing_strategy: 5,
-  chat: 2,
+export const HOSTING_LIMITS = {
+  free: 0,
+  beginner: 3,       // 1-3 static sites
+  agency50: 50,      // Up to 50 static sites
 };
+
+/**
+ * Subscription plans
+ */
+export const SUBSCRIPTION_PLANS = {
+  beginner: {
+    id: "beginner",
+    name: "Beginner Pack",
+    priceUSD: 20.00,
+    type: "one-time" as const,
+    credits: 1000,
+    hostingSlots: 3,
+    hostingType: "static" as const,
+  },
+  agency50: {
+    id: "agency50",
+    name: "Agency 50",
+    priceUSD: 199.00,
+    type: "subscription" as const,
+    billingPeriod: "monthly" as const,
+    credits: 5000,        // Monthly allocation
+    hostingSlots: 50,
+    hostingType: "static" as const,
+    dynamicHosting: true,
+  },
+  maintenance: {
+    id: "maintenance",
+    name: "Managed Maintenance",
+    priceUSD: 50.00,
+    type: "subscription" as const,
+    billingPeriod: "monthly" as const,
+    managedSites: 5,
+  },
+};
+
+// ============================================
+// Credit Costs per Action (Token Markup Strategy)
+// ============================================
+
+/**
+ * Credit costs per action
+ * Based on team pricing strategy with 84-98% profit margins
+ * 1 Credit = $0.02 (50 credits per dollar)
+ *
+ * Pricing:
+ * - Lead Discovery: $0.20 (10 credits) - 92% margin
+ * - Brand Analysis: $0.10 (5 credits) - 98% margin
+ * - Visual Pitch: $1.50 (75 credits) - 84% margin (highest revenue driver)
+ * - Copywriting: $0.05 (2 credits) - 98% margin
+ * - Site Build: $2.50 (125 credits) - 90% margin
+ * - Voice Bot: $0.50/min (25 credits) - 98% margin
+ */
+export const CREDIT_COSTS = {
+  // Lead & Research
+  lead_discovery: 10,       // $0.20 - Google Search + Gemini Flash
+  brand_analysis: 5,        // $0.10 - Gemini 2.5 Flash
+
+  // Content Generation
+  visual_pitch: 75,         // $1.50 - Nano Banana Pro (highest margin driver!)
+  copywriting: 2,           // $0.05 - Gemini 2.5 Flash
+  pitch_email: 3,           // $0.06 - Gemini 2.5 Flash
+
+  // Website
+  website_concept: 15,      // $0.30 - Concept generation
+  site_build: 125,          // $2.50 - Gemini 3 Pro (full site)
+  site_edit: 10,            // $0.20 - Minor edits
+
+  // Media
+  image_generation: 75,     // $1.50 - Nano Banana Pro
+  video_generation: 100,    // $2.00 - Video generation
+
+  // AI Assistance
+  voice_bot_minute: 25,     // $0.50/min - Flash Audio
+  chat_message: 2,          // $0.04 - Gemini 2.5 Flash
+
+  // Marketing
+  marketing_strategy: 10,   // $0.20 - Strategy generation
+};
+
+/**
+ * Legacy reference (deprecated - use CREDIT_COSTS)
+ */
+export const FEATURE_CREDIT_ESTIMATES = CREDIT_COSTS;
 
 // ============================================
 // URLs Configuration

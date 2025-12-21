@@ -89,6 +89,11 @@ export async function getOrCreateCustomer(
 }
 
 /**
+ * Checkout mode types
+ */
+export type CheckoutMode = "payment" | "subscription";
+
+/**
  * Parameters for creating a checkout session
  */
 interface CreateCheckoutSessionParams {
@@ -99,10 +104,12 @@ interface CreateCheckoutSessionParams {
   tokens: number;
   successUrl: string;
   cancelUrl: string;
+  mode: CheckoutMode;
+  hostingSlots?: number;
 }
 
 /**
- * Create a Stripe Checkout Session for purchasing tokens
+ * Create a Stripe Checkout Session for purchasing tokens or subscriptions
  *
  * @param params - Checkout session parameters
  * @returns The checkout session URL
@@ -114,7 +121,7 @@ export async function createCheckoutSession(
 
   const session = await stripe.checkout.sessions.create({
     customer: params.customerId,
-    mode: "payment",
+    mode: params.mode,
     payment_method_types: ["card"],
     line_items: [
       {
@@ -126,7 +133,19 @@ export async function createCheckoutSession(
       userId: params.userId,
       packId: params.packId,
       tokens: params.tokens.toString(),
+      hostingSlots: (params.hostingSlots || 0).toString(),
     },
+    // Subscription metadata stored on the subscription object
+    ...(params.mode === "subscription" && {
+      subscription_data: {
+        metadata: {
+          userId: params.userId,
+          packId: params.packId,
+          tokens: params.tokens.toString(),
+          hostingSlots: (params.hostingSlots || 0).toString(),
+        },
+      },
+    }),
     success_url: params.successUrl,
     cancel_url: params.cancelUrl,
     // Allow promotion codes
@@ -140,10 +159,51 @@ export async function createCheckoutSession(
   }
 
   functions.logger.info(
-    `Created checkout session ${session.id} for user ${params.userId}, pack ${params.packId}`
+    `Created ${params.mode} checkout session ${session.id} for user ${params.userId}, pack ${params.packId}`
   );
 
   return session.url;
+}
+
+/**
+ * Cancel a Stripe subscription
+ *
+ * @param subscriptionId - Stripe subscription ID
+ * @param cancelAtPeriodEnd - If true, cancel at end of billing period; if false, cancel immediately
+ * @returns Updated subscription
+ */
+export async function cancelSubscription(
+  subscriptionId: string,
+  cancelAtPeriodEnd: boolean = true
+): Promise<Stripe.Subscription> {
+  const stripe = getStripe();
+
+  if (cancelAtPeriodEnd) {
+    return await stripe.subscriptions.update(subscriptionId, {
+      cancel_at_period_end: true,
+    });
+  } else {
+    return await stripe.subscriptions.cancel(subscriptionId);
+  }
+}
+
+/**
+ * Get a Stripe subscription by ID
+ *
+ * @param subscriptionId - Stripe subscription ID
+ * @returns Subscription object or null if not found
+ */
+export async function getSubscription(
+  subscriptionId: string
+): Promise<Stripe.Subscription | null> {
+  const stripe = getStripe();
+
+  try {
+    return await stripe.subscriptions.retrieve(subscriptionId);
+  } catch (error) {
+    functions.logger.error(`Failed to retrieve subscription ${subscriptionId}:`, error);
+    return null;
+  }
 }
 
 /**

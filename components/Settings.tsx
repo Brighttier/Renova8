@@ -9,32 +9,82 @@ import React, { useState, useEffect } from 'react';
 import { useCredits } from '../hooks/useCredits';
 import { useAuth } from '../hooks/useAuth';
 
-// Token pack configurations (must match functions/src/config.ts)
-const TOKEN_PACKS = [
+// Credit pack configurations (must match functions/src/config.ts)
+const CREDIT_PACKS = [
   {
-    id: 'starter',
-    name: 'Starter',
-    tokens: 5000,
-    price: '$4.99',
-    priceValue: 4.99,
+    id: 'beginner',
+    name: 'Beginner Pack',
+    credits: 1000,
+    price: '$20',
+    priceValue: 20.00,
     popular: false,
+    description: '1,000 Credits + 1-3 Static Sites',
+    hosting: 3,
+    type: 'one-time',
   },
   {
-    id: 'pro',
-    name: 'Pro',
-    tokens: 25000,
-    price: '$19.99',
-    priceValue: 19.99,
+    id: 'topup_1000',
+    name: 'Credit Top-up',
+    credits: 1000,
+    price: '$20',
+    priceValue: 20.00,
+    popular: true,
+    description: 'Quick credit refill',
+    hosting: 0,
+    type: 'one-time',
+  },
+];
+
+// Subscription plans
+const SUBSCRIPTION_PLANS = [
+  {
+    id: 'free',
+    name: 'Free Trial',
+    price: '$0',
+    period: '',
+    features: [
+      '100 Free Trial Credits',
+      'Basic Lead Search',
+      'Email Pitches',
+      '14-day trial period',
+    ],
+    isCurrent: true,
+  },
+  {
+    id: 'beginner',
+    name: 'Beginner',
+    price: '$20',
+    period: 'one-time',
+    features: [
+      '1,000 Credits',
+      '1-3 Static Site Hosting',
+      'All AI Features',
+      'Self-Service Maintenance',
+    ],
     popular: true,
   },
   {
-    id: 'enterprise',
-    name: 'Enterprise',
-    tokens: 100000,
-    price: '$79.99',
-    priceValue: 79.99,
-    popular: false,
+    id: 'agency50',
+    name: 'Agency 50',
+    price: '$199',
+    period: '/month',
+    features: [
+      '5,000 Credits/month',
+      'Up to 50 Static Sites',
+      'Dynamic Hosting Available',
+      'Priority Support',
+    ],
   },
+];
+
+// Credit usage costs for reference
+const CREDIT_COSTS = [
+  { action: 'Lead Discovery', credits: 10 },
+  { action: 'Brand Analysis', credits: 5 },
+  { action: 'Visual Pitch', credits: 75 },
+  { action: 'Site Build', credits: 125 },
+  { action: 'Site Edit', credits: 10 },
+  { action: 'Email Pitch', credits: 3 },
 ];
 
 interface Props {
@@ -45,7 +95,21 @@ interface Props {
 
 export const Settings: React.FC<Props> = ({ credits: legacyCredits, onAddCredits }) => {
   const { user } = useAuth();
-  const { credits, transactions, loading, error, purchaseTokens, refreshCredits, clearError, isTrialUser, trialDaysRemaining } = useCredits();
+  const {
+    credits,
+    transactions,
+    loading,
+    error,
+    purchaseTokens,
+    refreshCredits,
+    clearError,
+    isTrialUser,
+    trialDaysRemaining,
+    currentPlan,
+    subscriptionStatus,
+    hostingSlots,
+    hostingSlotsUsed,
+  } = useCredits();
   const [purchasing, setPurchasing] = useState<string | null>(null);
   const [showTransactions, setShowTransactions] = useState(false);
 
@@ -71,9 +135,9 @@ export const Settings: React.FC<Props> = ({ credits: legacyCredits, onAddCredits
   const handlePurchase = async (packId: string) => {
     if (!user) {
       // Fall back to legacy behavior if not logged in
-      const pack = TOKEN_PACKS.find(p => p.id === packId);
+      const pack = CREDIT_PACKS.find(p => p.id === packId);
       if (pack && onAddCredits) {
-        onAddCredits(pack.tokens);
+        onAddCredits(pack.credits);
       }
       return;
     }
@@ -158,8 +222,8 @@ export const Settings: React.FC<Props> = ({ credits: legacyCredits, onAddCredits
                 trialDaysRemaining <= 3 ? 'text-red-600' : 'text-gray-600'
               }`}>
                 {trialDaysRemaining <= 3
-                  ? 'Your trial is ending soon! Purchase tokens to continue using all features.'
-                  : 'Enjoy your 200 free tokens. Purchase more anytime to unlock unlimited potential.'
+                  ? 'Your trial is ending soon! Purchase credits to continue using all features.'
+                  : 'Enjoy your 100 free credits. Purchase more anytime to unlock unlimited potential.'
                 }
               </p>
             </div>
@@ -187,10 +251,10 @@ export const Settings: React.FC<Props> = ({ credits: legacyCredits, onAddCredits
             ) : (
               displayCredits.toLocaleString()
             )}
-            <span className="text-2xl font-medium opacity-80 ml-2">Tokens</span>
+            <span className="text-2xl font-medium opacity-80 ml-2">Credits</span>
           </div>
           <p className="text-white/80 mt-2">
-            Use tokens to generate leads, images, videos, and websites.
+            Use credits to generate leads, images, videos, and websites.
           </p>
         </div>
         <button
@@ -250,14 +314,74 @@ export const Settings: React.FC<Props> = ({ credits: legacyCredits, onAddCredits
         </div>
       )}
 
-      {/* Top Up Packs */}
+      {/* Current Plan Badge */}
+      {currentPlan !== 'free' && (
+        <div className="bg-white rounded-2xl p-6 border border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <span className="text-4xl">{currentPlan === 'beginner' ? '🚀' : '⭐'}</span>
+              <div>
+                <h3 className="font-bold text-gray-800 text-lg">
+                  {currentPlan === 'beginner' ? 'Beginner Pack' : 'Agency 50'}
+                </h3>
+                <p className="text-gray-500 text-sm">
+                  {currentPlan === 'beginner' ? 'One-time purchase' : 'Monthly subscription'}
+                </p>
+              </div>
+            </div>
+            {subscriptionStatus === 'active' && (
+              <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
+                Active
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Hosting Slots - Only show if user has hosting */}
+      {hostingSlots > 0 && (
+        <div className="bg-white rounded-2xl p-6 border border-gray-200">
+          <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+            <span className="text-2xl mr-2">🌐</span>
+            Website Hosting
+          </h3>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-3xl font-bold text-gray-800">
+                {hostingSlotsUsed} / {hostingSlots}
+              </div>
+              <p className="text-gray-500 text-sm">Sites Published</p>
+            </div>
+            <div className="w-24 h-24">
+              <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90">
+                <path
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  fill="none"
+                  stroke="#E5E7EB"
+                  strokeWidth="3"
+                />
+                <path
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                  fill="none"
+                  stroke="#D4AF37"
+                  strokeWidth="3"
+                  strokeDasharray={`${hostingSlots > 0 ? (hostingSlotsUsed / hostingSlots) * 100 : 0}, 100`}
+                  strokeLinecap="round"
+                />
+              </svg>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Credit Top-Ups */}
       <div id="token-packs">
         <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
           <span className="bg-green-100 p-2 rounded-lg mr-3 text-2xl">🔋</span>
-          Token Top-Ups
+          Credit Top-Ups
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {TOKEN_PACKS.map((pack) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {CREDIT_PACKS.map((pack) => (
             <div
               key={pack.id}
               className={`bg-white rounded-2xl p-6 border ${
@@ -268,18 +392,24 @@ export const Settings: React.FC<Props> = ({ credits: legacyCredits, onAddCredits
             >
               {pack.popular && (
                 <div className="absolute top-0 right-0 bg-[#D4AF37] text-white text-xs font-bold px-3 py-1 rounded-bl-xl rounded-tr-xl">
-                  BEST VALUE
+                  QUICK REFILL
                 </div>
               )}
               <div className="text-gray-500 font-bold uppercase text-xs mb-2">
                 {pack.name}
               </div>
               <div className="text-3xl font-bold text-gray-800 mb-1">
-                {pack.tokens.toLocaleString()} Tokens
+                {pack.credits.toLocaleString()} Credits
               </div>
-              <div className="text-xl text-[#D4AF37] font-medium mb-4">
+              <div className="text-xl text-[#D4AF37] font-medium mb-2">
                 {pack.price}
               </div>
+              <p className="text-gray-500 text-sm mb-4">{pack.description}</p>
+              {pack.hosting > 0 && (
+                <p className="text-green-600 text-sm mb-4 flex items-center">
+                  <span className="mr-1">🌐</span> +{pack.hosting} hosting slots
+                </p>
+              )}
               <button
                 onClick={() => handlePurchase(pack.id)}
                 disabled={purchasing === pack.id}
@@ -320,25 +450,24 @@ export const Settings: React.FC<Props> = ({ credits: legacyCredits, onAddCredits
 
       <hr className="border-gray-100" />
 
-      {/* Subscriptions - Coming Soon */}
+      {/* Plans */}
       <div>
         <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
           <span className="bg-blue-100 p-2 rounded-lg mr-3 text-2xl">⭐</span>
-          Monthly Plans
-          <span className="ml-3 text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full font-normal">
-            Coming Soon
-          </span>
+          Plans
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 opacity-60">
-          {/* Free Tier */}
-          <div className="bg-white rounded-2xl p-8 border border-gray-200 flex flex-col">
-            <h4 className="font-bold text-gray-800 text-xl mb-2">Hobbyist</h4>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Free Trial */}
+          <div className={`bg-white rounded-2xl p-8 border flex flex-col ${
+            currentPlan === 'free' ? 'border-[#D4AF37] ring-1 ring-[#D4AF37]/20' : 'border-gray-200'
+          }`}>
+            <h4 className="font-bold text-gray-800 text-xl mb-2">Free Trial</h4>
             <div className="text-4xl font-bold text-gray-800 mb-6">
-              $0<span className="text-lg text-gray-400 font-normal">/mo</span>
+              $0
             </div>
             <ul className="space-y-3 mb-8 flex-1">
               <li className="flex items-center text-gray-600 text-sm">
-                <span className="text-green-500 mr-2">✓</span> 200 Free Trial Tokens
+                <span className="text-green-500 mr-2">✓</span> 100 Free Trial Credits
               </li>
               <li className="flex items-center text-gray-600 text-sm">
                 <span className="text-green-500 mr-2">✓</span> Basic Lead Search
@@ -346,66 +475,115 @@ export const Settings: React.FC<Props> = ({ credits: legacyCredits, onAddCredits
               <li className="flex items-center text-gray-600 text-sm">
                 <span className="text-green-500 mr-2">✓</span> Email Pitches
               </li>
+              <li className="flex items-center text-gray-600 text-sm">
+                <span className="text-green-500 mr-2">✓</span> 14-day trial period
+              </li>
             </ul>
-            <button className="w-full py-3 border border-gray-200 rounded-xl font-bold text-gray-500 cursor-not-allowed">
-              Current Plan
-            </button>
+            {currentPlan === 'free' ? (
+              <button className="w-full py-3 border border-[#D4AF37] text-[#D4AF37] rounded-xl font-bold cursor-default">
+                Current Plan
+              </button>
+            ) : (
+              <button className="w-full py-3 border border-gray-200 rounded-xl font-bold text-gray-400 cursor-not-allowed">
+                Trial Used
+              </button>
+            )}
           </div>
 
-          {/* Pro Tier */}
-          <div className="bg-white rounded-2xl p-8 border-2 border-[#D4AF37]/30 shadow-xl relative flex flex-col transform md:-translate-y-4">
+          {/* Beginner Pack */}
+          <div className={`bg-white rounded-2xl p-8 border-2 shadow-xl relative flex flex-col transform md:-translate-y-4 ${
+            currentPlan === 'beginner' ? 'border-[#D4AF37]' : 'border-[#D4AF37]/30'
+          }`}>
             <div className="absolute top-0 inset-x-0 bg-[#D4AF37] text-white text-center text-xs font-bold py-1 rounded-t-lg">
-              RECOMMENDED
+              {currentPlan === 'beginner' ? 'YOUR PLAN' : 'RECOMMENDED'}
             </div>
             <h4 className="font-bold text-gray-800 text-xl mb-2 mt-2">
-              MomPreneur Pro
+              Beginner Pack
             </h4>
-            <div className="text-4xl font-bold text-gray-800 mb-6">
-              $29<span className="text-lg text-gray-400 font-normal">/mo</span>
+            <div className="text-4xl font-bold text-gray-800 mb-2">
+              $20<span className="text-lg text-gray-400 font-normal"> one-time</span>
             </div>
             <ul className="space-y-3 mb-8 flex-1">
               <li className="flex items-center text-gray-800 font-medium text-sm">
-                <span className="text-green-500 mr-2">✓</span> 50,000 Tokens / month
+                <span className="text-green-500 mr-2">✓</span> 1,000 Credits
               </li>
               <li className="flex items-center text-gray-800 font-medium text-sm">
-                <span className="text-green-500 mr-2">✓</span> Website Builder Access
+                <span className="text-green-500 mr-2">✓</span> 1-3 Static Site Hosting
               </li>
               <li className="flex items-center text-gray-800 font-medium text-sm">
-                <span className="text-green-500 mr-2">✓</span> Image Studio Pro
+                <span className="text-green-500 mr-2">✓</span> All AI Features
               </li>
               <li className="flex items-center text-gray-800 font-medium text-sm">
+                <span className="text-green-500 mr-2">✓</span> Self-Service Maintenance
+              </li>
+            </ul>
+            {currentPlan === 'beginner' ? (
+              <button className="w-full py-3 bg-[#D4AF37]/20 text-[#D4AF37] rounded-xl font-bold cursor-default">
+                Current Plan
+              </button>
+            ) : (
+              <button
+                onClick={() => handlePurchase('beginner')}
+                disabled={purchasing === 'beginner'}
+                className="w-full py-3 bg-[#D4AF37] text-white rounded-xl font-bold hover:bg-[#B8963A] transition-colors disabled:opacity-50"
+              >
+                {purchasing === 'beginner' ? 'Processing...' : 'Buy Now'}
+              </button>
+            )}
+          </div>
+
+          {/* Agency 50 */}
+          <div className={`bg-white rounded-2xl p-8 border flex flex-col ${
+            currentPlan === 'agency50' ? 'border-[#D4AF37] ring-1 ring-[#D4AF37]/20' : 'border-gray-200'
+          }`}>
+            <h4 className="font-bold text-gray-800 text-xl mb-2">Agency 50</h4>
+            <div className="text-4xl font-bold text-gray-800 mb-2">
+              $199<span className="text-lg text-gray-400 font-normal">/month</span>
+            </div>
+            <ul className="space-y-3 mb-8 flex-1">
+              <li className="flex items-center text-gray-600 text-sm">
+                <span className="text-green-500 mr-2">✓</span> 5,000 Credits / month
+              </li>
+              <li className="flex items-center text-gray-600 text-sm">
+                <span className="text-green-500 mr-2">✓</span> Up to 50 Static Sites
+              </li>
+              <li className="flex items-center text-gray-600 text-sm">
+                <span className="text-green-500 mr-2">✓</span> Dynamic Hosting Available
+              </li>
+              <li className="flex items-center text-gray-600 text-sm">
                 <span className="text-green-500 mr-2">✓</span> Priority Support
               </li>
             </ul>
-            <button className="w-full py-3 bg-gray-200 text-gray-500 rounded-xl font-bold cursor-not-allowed">
-              Coming Soon
-            </button>
+            {currentPlan === 'agency50' ? (
+              <button className="w-full py-3 bg-[#D4AF37]/20 text-[#D4AF37] rounded-xl font-bold cursor-default">
+                Current Plan
+              </button>
+            ) : (
+              <button
+                onClick={() => handlePurchase('agency50')}
+                disabled={purchasing === 'agency50'}
+                className="w-full py-3 bg-gray-800 text-white rounded-xl font-bold hover:bg-gray-700 transition-colors disabled:opacity-50"
+              >
+                {purchasing === 'agency50' ? 'Processing...' : 'Subscribe'}
+              </button>
+            )}
           </div>
+        </div>
+      </div>
 
-          {/* Business Tier */}
-          <div className="bg-white rounded-2xl p-8 border border-gray-200 flex flex-col">
-            <h4 className="font-bold text-gray-800 text-xl mb-2">Agency Elite</h4>
-            <div className="text-4xl font-bold text-gray-800 mb-6">
-              $99<span className="text-lg text-gray-400 font-normal">/mo</span>
+      {/* Credit Usage Guide */}
+      <div className="bg-gray-50 rounded-2xl p-6 border border-gray-200">
+        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
+          <span className="text-xl mr-2">📊</span>
+          Credit Usage Guide
+        </h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+          {CREDIT_COSTS.map((item) => (
+            <div key={item.action} className="flex justify-between items-center bg-white rounded-lg px-3 py-2">
+              <span className="text-gray-600">{item.action}</span>
+              <span className="font-bold text-gray-800">{item.credits} credits</span>
             </div>
-            <ul className="space-y-3 mb-8 flex-1">
-              <li className="flex items-center text-gray-600 text-sm">
-                <span className="text-green-500 mr-2">✓</span> 200,000 Tokens / month
-              </li>
-              <li className="flex items-center text-gray-600 text-sm">
-                <span className="text-green-500 mr-2">✓</span> Video Studio Access
-              </li>
-              <li className="flex items-center text-gray-600 text-sm">
-                <span className="text-green-500 mr-2">✓</span> Unlimited Projects
-              </li>
-              <li className="flex items-center text-gray-600 text-sm">
-                <span className="text-green-500 mr-2">✓</span> Whitelabel Invoicing
-              </li>
-            </ul>
-            <button className="w-full py-3 bg-gray-200 text-gray-500 rounded-xl font-bold cursor-not-allowed">
-              Coming Soon
-            </button>
-          </div>
+          ))}
         </div>
       </div>
 
