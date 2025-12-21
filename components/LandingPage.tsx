@@ -84,30 +84,30 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
 
   const pricingPlans = [
     {
-      name: 'Starter',
+      name: 'Free Trial',
       price: 'Free',
-      period: '',
-      description: 'Perfect for getting started',
-      features: ['10 credits/month', 'Lead discovery', 'Basic brand analysis', 'Email support'],
-      cta: 'Start Free',
+      period: '14 days',
+      description: 'Try before you buy',
+      features: ['100 credits to start', 'Lead discovery', 'Brand analysis', 'Website concept preview', 'Email support'],
+      cta: 'Start Free Trial',
       popular: false
     },
     {
-      name: 'Pro',
-      price: '$29',
-      period: '/month',
-      description: 'For growing businesses',
-      features: ['100 credits/month', 'Everything in Starter', 'Website generation', 'Full CRM features', 'Priority support'],
-      cta: 'Start Pro Trial',
+      name: 'Beginner',
+      price: '$20',
+      period: 'one-time',
+      description: 'Perfect for getting started',
+      features: ['1,000 credits', '3 website hosting slots', 'Full website generation', 'CRM features', 'Priority support'],
+      cta: 'Get Started',
       popular: true
     },
     {
-      name: 'Agency',
-      price: '$99',
+      name: 'Agency 50',
+      price: '$199',
       period: '/month',
       description: 'For teams and agencies',
-      features: ['500 credits/month', 'Everything in Pro', 'Unlimited clients', 'White-label options', 'Dedicated support'],
-      cta: 'Contact Sales',
+      features: ['5,000 credits/month', '50 website hosting slots', 'Dynamic hosting support', 'Everything in Beginner', 'Dedicated support'],
+      cta: 'Go Agency',
       popular: false
     }
   ];
@@ -140,7 +140,7 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
     },
     {
       question: 'How does the credit system work?',
-      answer: 'Credits are used for AI-powered features. Lead searches cost 5 credits, brand analysis costs 2 credits, website concepts cost 5 credits, website builds cost 10 credits, and pitch emails cost 2 credits. Credits refresh monthly based on your plan.'
+      answer: 'Credits are used for AI-powered features. Each credit equals $0.02. Lead discovery costs 10 credits ($0.20), brand analysis costs 5 credits ($0.10), website concepts cost 15 credits ($0.30), full website builds cost 125 credits ($2.50), and pitch emails cost 3 credits ($0.06). New users get 100 free credits to try the platform.'
     },
     {
       question: 'Do I need technical skills to use RenovateMySite?',
@@ -148,15 +148,15 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
     },
     {
       question: 'Can I cancel anytime?',
-      answer: 'Yes, you can cancel your subscription at any time. There are no long-term contracts or cancellation fees. Your access continues until the end of your billing period.'
+      answer: 'Yes, you can cancel your subscription at any time. There are no long-term contracts or cancellation fees. The Beginner pack is a one-time purchase that never expires. Agency subscriptions can be cancelled before the next billing cycle.'
     },
     {
       question: 'What AI powers RenovateMySite?',
-      answer: 'RenovateMySite uses advanced AI technology to enable high-quality content generation, accurate brand analysis, and professional website creation.'
+      answer: 'RenovateMySite is powered by Google\'s Gemini AI, including Gemini 2.5 Flash for fast operations like lead discovery and brand analysis, and Gemini 3 Pro for complex tasks like full website generation.'
     },
     {
       question: 'How do I contact support?',
-      answer: 'You can reach our support team via email at support@renova8.com. Pro and Agency users get priority support with faster response times.'
+      answer: 'You can reach our support team via email at support@renovatemysite.com. Beginner and Agency users get priority support with faster response times.'
     }
   ];
 
@@ -322,14 +322,30 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
         </div>
       </section>
 
-      {/* Trust Bar */}
+      {/* Stats Bar */}
       <section className="py-12 bg-white border-y border-[#EFEBE4]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <p className="text-center text-[#4A4A4A]/50 text-sm font-medium mb-8">TRUSTED BY ENTREPRENEURS AND AGENCIES WORLDWIDE</p>
-          <div className="flex flex-wrap items-center justify-center gap-12 opacity-40">
-            {['TechCrunch', 'Forbes', 'Entrepreneur', 'Inc.', 'Wired'].map((name) => (
-              <div key={name} className="text-2xl font-serif font-bold text-[#4A4A4A]">{name}</div>
-            ))}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+            <div className="group">
+              <div className="text-3xl sm:text-4xl font-serif font-bold text-[#D4AF37] mb-2 group-hover:scale-110 transition-transform">100</div>
+              <div className="text-sm text-[#4A4A4A]/60">Free Credits to Start</div>
+            </div>
+            <div className="group">
+              <div className="text-3xl sm:text-4xl font-serif font-bold text-[#D4AF37] mb-2 group-hover:scale-110 transition-transform">5 min</div>
+              <div className="text-sm text-[#4A4A4A]/60">Setup Time</div>
+            </div>
+            <div className="group">
+              <div className="text-3xl sm:text-4xl font-serif font-bold text-[#D4AF37] mb-2 group-hover:scale-110 transition-transform flex items-center justify-center gap-2">
+                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+              </div>
+              <div className="text-sm text-[#4A4A4A]/60">Powered by Gemini AI</div>
+            </div>
+            <div className="group">
+              <div className="text-3xl sm:text-4xl font-serif font-bold text-[#D4AF37] mb-2 group-hover:scale-110 transition-transform">24/7</div>
+              <div className="text-sm text-[#4A4A4A]/60">Always Available</div>
+            </div>
           </div>
         </div>
       </section>
@@ -494,26 +510,28 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
 
           {/* Credit Usage Table */}
           <div className="mt-16 max-w-2xl mx-auto">
-            <h3 className="text-xl font-bold text-[#4A4A4A] text-center mb-6">Credit Usage</h3>
+            <h3 className="text-xl font-bold text-[#4A4A4A] text-center mb-2">Credit Usage</h3>
+            <p className="text-sm text-[#4A4A4A]/60 text-center mb-6">1 credit = $0.02 • Only pay for what you use</p>
             <div className="bg-[#F9F6F0] rounded-2xl border border-[#EFEBE4] overflow-hidden">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-[#EFEBE4]">
                     <th className="text-left px-6 py-4 text-[#4A4A4A] font-semibold">Feature</th>
-                    <th className="text-right px-6 py-4 text-[#4A4A4A] font-semibold">Credits</th>
+                    <th className="text-center px-6 py-4 text-[#4A4A4A] font-semibold">Credits</th>
+                    <th className="text-right px-6 py-4 text-[#4A4A4A] font-semibold">Price</th>
                   </tr>
                 </thead>
                 <tbody>
                   {[
-                    ['Lead Search', '5'],
-                    ['Brand Analysis', '2'],
-                    ['Website Concept', '5'],
-                    ['Website Build', '10'],
-                    ['Pitch Email', '2']
-                  ].map(([feature, credits], i) => (
+                    ['Lead Discovery', '10', '$0.20'],
+                    ['Brand Analysis', '5', '$0.10'],
+                    ['Website Concept', '15', '$0.30'],
+                    ['Full Website Build', '125', '$2.50'],
+                    ['Pitch Email', '3', '$0.06']
+                  ].map(([feature, credits, price], i) => (
                     <tr key={i} className="border-b border-[#EFEBE4] last:border-0">
                       <td className="px-6 py-4 text-[#4A4A4A]/80">{feature}</td>
-                      <td className="px-6 py-4 text-right">
+                      <td className="px-6 py-4 text-center">
                         <span className="inline-flex items-center gap-1 text-[#D4AF37] font-semibold">
                           {credits}
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -521,6 +539,7 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
                           </svg>
                         </span>
                       </td>
+                      <td className="px-6 py-4 text-right text-[#4A4A4A]/60">{price}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -638,9 +657,9 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
       {/* Footer */}
       <footer className="bg-[#4A4A4A] text-white py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-12 mb-12">
+          <div className="grid md:grid-cols-3 gap-12 mb-12">
             {/* Brand */}
-            <div className="lg:col-span-2">
+            <div>
               <div className="flex items-center gap-3 mb-4">
                 <img
                   src="/Logo.png"
@@ -652,59 +671,39 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
               <p className="text-white/60 mb-6 max-w-sm">
                 Your AI-powered business concierge. Find customers, build websites, and close deals faster than ever.
               </p>
-              <div className="flex gap-4">
-                {['twitter', 'linkedin', 'facebook'].map((social) => (
-                  <a key={social} href="#" className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center hover:bg-[#D4AF37] transition-colors">
-                    <span className="sr-only">{social}</span>
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                      <path d="M12 2C6.477 2 2 6.477 2 12c0 5.523 4.477 10 10 10s10-4.477 10-10c0-5.523-4.477-10-10-10z" />
+            </div>
+
+            {/* Quick Links - Only functional scroll links */}
+            <div>
+              <h4 className="font-semibold mb-4">Quick Links</h4>
+              <ul className="space-y-3 text-white/60">
+                <li><button onClick={() => scrollToSection('features')} className="hover:text-[#D4AF37] transition-colors">Features</button></li>
+                <li><button onClick={() => scrollToSection('how-it-works')} className="hover:text-[#D4AF37] transition-colors">How It Works</button></li>
+                <li><button onClick={() => scrollToSection('pricing')} className="hover:text-[#D4AF37] transition-colors">Pricing</button></li>
+                <li><button onClick={() => scrollToSection('faq')} className="hover:text-[#D4AF37] transition-colors">FAQ</button></li>
+              </ul>
+            </div>
+
+            {/* Contact */}
+            <div>
+              <h4 className="font-semibold mb-4">Contact</h4>
+              <ul className="space-y-3 text-white/60">
+                <li>
+                  <a href="mailto:support@renovatemysite.com" className="hover:text-[#D4AF37] transition-colors flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                     </svg>
+                    support@renovatemysite.com
                   </a>
-                ))}
-              </div>
-            </div>
-
-            {/* Links */}
-            <div>
-              <h4 className="font-semibold mb-4">Product</h4>
-              <ul className="space-y-3 text-white/60">
-                <li><a href="#features" className="hover:text-[#D4AF37] transition-colors">Features</a></li>
-                <li><a href="#pricing" className="hover:text-[#D4AF37] transition-colors">Pricing</a></li>
-                <li><a href="#" className="hover:text-[#D4AF37] transition-colors">Integrations</a></li>
-                <li><a href="#" className="hover:text-[#D4AF37] transition-colors">API</a></li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-semibold mb-4">Company</h4>
-              <ul className="space-y-3 text-white/60">
-                <li><a href="#" className="hover:text-[#D4AF37] transition-colors">About</a></li>
-                <li><a href="#" className="hover:text-[#D4AF37] transition-colors">Blog</a></li>
-                <li><a href="#" className="hover:text-[#D4AF37] transition-colors">Careers</a></li>
-                <li><a href="#" className="hover:text-[#D4AF37] transition-colors">Press</a></li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-semibold mb-4">Support</h4>
-              <ul className="space-y-3 text-white/60">
-                <li><a href="#" className="hover:text-[#D4AF37] transition-colors">Help Center</a></li>
-                <li><a href="#" className="hover:text-[#D4AF37] transition-colors">Documentation</a></li>
-                <li><a href="#" className="hover:text-[#D4AF37] transition-colors">Community</a></li>
-                <li><a href="mailto:support@renova8.com" className="hover:text-[#D4AF37] transition-colors">Contact</a></li>
+                </li>
               </ul>
             </div>
           </div>
 
-          <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="border-t border-white/10 pt-8 text-center">
             <p className="text-white/40 text-sm">
               © {new Date().getFullYear()} RenovateMySite. All rights reserved.
             </p>
-            <div className="flex gap-6 text-white/40 text-sm">
-              <a href="#" className="hover:text-[#D4AF37] transition-colors">Privacy Policy</a>
-              <a href="#" className="hover:text-[#D4AF37] transition-colors">Terms of Service</a>
-              <a href="#" className="hover:text-[#D4AF37] transition-colors">Security</a>
-            </div>
           </div>
         </div>
       </footer>
