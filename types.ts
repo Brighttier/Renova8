@@ -102,6 +102,8 @@ export interface Lead {
 
   // CRM Data
   addedAt?: number;
+  hasWebsite?: boolean; // Does business have existing website?
+  existingWebsiteUrl?: string; // URL of their current website (if detected)
   websiteUrl?: string; // The deployed URL
   websiteCode?: string; // The actual HTML code for the website
   websiteConceptImage?: string; // The initial AI concept image
@@ -112,6 +114,8 @@ export interface Lead {
     colors: string[];
     tone: string;
     suggestions: string;
+    currentBrandAssessment?: string;  // Assessment of existing brand (only when business has website)
+    logoUrl?: string;  // URL of business logo extracted from website
     designSpec?: DesignSpecification;  // Extended design specifications for strict consistency
   };
   emailDraft?: {

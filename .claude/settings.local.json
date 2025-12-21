@@ -9,20 +9,7 @@
       "Bash(npm run build:*)",
       "Bash(lsof:*)",
       "Bash(xargs kill -9)",
-      "Bash(git checkout:*)",
-      "Bash(git pull:*)",
-      "Bash(git merge:*)",
-      "Bash(firebase apphosting:backends:list:*)",
-      "Bash(firebase apphosting:rollouts:list:*)",
-      "Bash(gh run list:*)",
-      "Bash(firebase apphosting:secrets:grantaccess:*)",
-      "Bash(firebase apphosting:secrets:set:*)",
-      "Bash(git commit:*)",
-      "Bash(node:*)",
-      "Bash(firebase firestore:documents:create:*)",
-      "Bash(gcloud auth application-default login:*)",
-      "Bash(gcloud firestore documents create:*)",
-      "Bash(firebase deploy:*)"
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nfeat: Remove AI branding, add logo, enhance brand DNA analysis\n\n- Remove all specific AI tool mentions \\(Gemini, Nano Banana, Veo\\) from UI\n- Replace \"RMS\" text logo with new gold icon image across all pages\n- Add two-step brand analysis: extract logo URL then analyze colors from logo\n- Add website detection badges \\(Has Website/No Website\\) to lead cards\n- Add existingWebsiteUrl field to Lead interface for tracking business websites\n- Update ServiceCatalog source from \"Gemini 3 Pro\" to \"AI Engine\"\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ],
     "deny": [],
     "ask": []

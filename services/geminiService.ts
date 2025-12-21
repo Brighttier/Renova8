@@ -63,24 +63,282 @@ export const safeParseJSON = (text: string) => {
     }
 };
 
+// Helper function to extract URL from text, filtering out unwanted domains
+function extractValidUrl(text: string): string | null {
+  if (!text) return null;
+
+  // Regex to find URLs in text
+  const urlRegex = /https?:\/\/[^\s<>"'{}|\\^`\[\]]+/gi;
+  const matches = text.match(urlRegex);
+
+  console.log('[extractValidUrl] Found URL matches:', matches);
+
+  if (!matches || matches.length === 0) return null;
+
+  // Domains to exclude
+  const excludedDomains = [
+    'yelp.com', 'tripadvisor.com', 'google.com', 'facebook.com',
+    'instagram.com', 'twitter.com', 'yellowpages.com', 'bbb.org',
+    'linkedin.com', 'tiktok.com', 'pinterest.com', 'maps.google',
+    'goo.gl', 'bit.ly', 'youtube.com', 'foursquare.com', 'zomato.com',
+    'opentable.com', 'doordash.com', 'ubereats.com', 'grubhub.com'
+  ];
+
+  // Find first URL that's not in excluded domains
+  for (const url of matches) {
+    const lowerUrl = url.toLowerCase();
+    const isExcluded = excludedDomains.some(domain => lowerUrl.includes(domain));
+
+    if (!isExcluded) {
+      // Clean trailing punctuation
+      const cleanUrl = url.replace(/[.,;:!?)>\]]+$/, '');
+      console.log('[extractValidUrl] Found valid URL:', cleanUrl);
+      return cleanUrl;
+    }
+  }
+
+  console.log('[extractValidUrl] No valid URL found after filtering');
+  return null;
+}
+
+// Validate that a URL looks like an image file
+const isValidImageUrl = (url: string): boolean => {
+  if (!url || typeof url !== 'string') return false;
+  try {
+    const parsed = new URL(url);
+    const path = parsed.pathname.toLowerCase();
+    // Check for common image extensions or logo-related paths
+    return path.endsWith('.png') || path.endsWith('.jpg') ||
+           path.endsWith('.jpeg') || path.endsWith('.svg') ||
+           path.endsWith('.webp') || path.endsWith('.gif') ||
+           url.includes('/logo') || url.includes('logo.') ||
+           url.includes('brand') || url.includes('-logo');
+  } catch {
+    return false;
+  }
+};
+
+// Fetch an image and convert to base64 for Gemini Vision
+const fetchImageAsBase64 = async (url: string): Promise<{ data: string; mimeType: string } | null> => {
+  try {
+    console.log('[fetchImageAsBase64] Fetching image:', url);
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.warn('[fetchImageAsBase64] Failed to fetch image:', response.status);
+      return null;
+    }
+    const blob = await response.blob();
+    const buffer = await blob.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const base64 = btoa(binary);
+    const mimeType = blob.type || 'image/png';
+    console.log('[fetchImageAsBase64] Success! MIME type:', mimeType, 'Size:', bytes.byteLength);
+    return { data: base64, mimeType };
+  } catch (error) {
+    console.error('[fetchImageAsBase64] Error fetching image:', error);
+    return null;
+  }
+};
+
+// Extract brand colors from a logo image using Gemini Vision
+const extractColorsFromLogo = async (logoUrl: string): Promise<string[]> => {
+  console.log('[extractColorsFromLogo] Starting color extraction from:', logoUrl);
+
+  const imageData = await fetchImageAsBase64(logoUrl);
+  if (!imageData) {
+    console.warn('[extractColorsFromLogo] Could not fetch logo image');
+    return [];
+  }
+
+  const ai = await getClient();
+  const prompt = `Analyze this logo image and extract the 3 most dominant brand colors.
+
+For each color:
+1. Identify the exact hex color code (e.g., #FF5733)
+2. Prioritize the primary brand colors over background/neutral colors
+3. Exclude white (#FFFFFF) and pure black (#000000) unless they are clearly intentional brand colors
+
+Return ONLY a JSON array of exactly 3 hex color codes.
+Example: ["#2E5A88", "#F7931E", "#333333"]
+
+IMPORTANT: Return ONLY the JSON array, nothing else.`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                mimeType: imageData.mimeType,
+                data: imageData.data
+              }
+            }
+          ]
+        }
+      ],
+      config: {
+        maxOutputTokens: 200
+      }
+    });
+
+    console.log('[extractColorsFromLogo] Raw response:', response.text);
+    const colors = safeParseJSON(response.text || "[]");
+
+    // Validate we got an array of hex colors
+    if (Array.isArray(colors) && colors.length > 0) {
+      const validColors = colors.filter((c: any) =>
+        typeof c === 'string' && c.match(/^#[0-9A-Fa-f]{6}$/)
+      );
+      console.log('[extractColorsFromLogo] Extracted colors:', validColors);
+      return validColors.slice(0, 3);
+    }
+
+    console.warn('[extractColorsFromLogo] No valid colors extracted');
+    return [];
+  } catch (error) {
+    console.error('[extractColorsFromLogo] Error:', error);
+    return [];
+  }
+};
+
+// Generate fallback colors when logo extraction fails
+const generateFallbackColors = async (businessName: string, details: string): Promise<string[]> => {
+  console.log('[generateFallbackColors] Generating industry-appropriate colors for:', businessName);
+
+  const ai = await getClient();
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: `Generate 3 professional brand colors (hex codes) appropriate for "${businessName}".
+Context: ${details}
+
+Return ONLY a JSON array of 3 hex codes, nothing else.
+Example: ["#2563EB", "#10B981", "#4A4A4A"]`,
+      config: {
+        maxOutputTokens: 100,
+        responseMimeType: "application/json"
+      }
+    });
+
+    const colors = safeParseJSON(response.text || '[]');
+    if (Array.isArray(colors) && colors.length >= 3) {
+      console.log('[generateFallbackColors] Generated colors:', colors);
+      return colors.slice(0, 3);
+    }
+  } catch (error) {
+    console.error('[generateFallbackColors] Error:', error);
+  }
+
+  // Ultimate fallback
+  return ["#2563EB", "#10B981", "#4A4A4A"];
+};
+
+// Helper function to find a business's official website with a focused search
+async function findBusinessWebsite(businessName: string, location: string): Promise<string | null> {
+  console.log(`\n========================================`);
+  console.log(`[Website Lookup] Starting search for: "${businessName}" in "${location}"`);
+  console.log(`========================================`);
+
+  const ai = await getClient();
+
+  // Very strict prompt - only return URL, nothing else
+  const prompt = `What is the official website URL for "${businessName}" in ${location}?
+
+RESPOND WITH ONLY THE URL. No other text, no explanation.
+Example correct response: https://example.com
+Do NOT return Yelp, Facebook, Instagram, Google Maps, TripAdvisor, or directories.
+If no official website exists, respond with exactly: NONE`;
+
+  console.log('[Website Lookup] Sending prompt to Gemini...');
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',  // Use 2.5 - gemini-2.0-flash has broken googleSearch grounding
+      contents: prompt,
+      config: {
+        tools: [{ googleSearch: {} }],
+        maxOutputTokens: 500,  // Increased from 300 to prevent cut-off responses
+      }
+    });
+
+    // Log the raw response structure for debugging
+    console.log('[Website Lookup] Raw response object keys:', Object.keys(response));
+    console.log('[Website Lookup] response.text value:', response.text);
+    console.log('[Website Lookup] response.candidates:', JSON.stringify(response.candidates, null, 2));
+
+    // Try multiple ways to get the text
+    let responseText = '';
+
+    // Method 1: Direct .text property
+    if (response.text) {
+      responseText = response.text;
+      console.log('[Website Lookup] Got text via response.text');
+    }
+    // Method 2: Through candidates array
+    else if (response.candidates && response.candidates[0]?.content?.parts?.[0]?.text) {
+      responseText = response.candidates[0].content.parts[0].text;
+      console.log('[Website Lookup] Got text via candidates[0].content.parts[0].text');
+    }
+
+    responseText = responseText.trim();
+    console.log(`[Website Lookup] Extracted text: "${responseText}"`);
+
+    // Check if response indicates no website found
+    if (!responseText ||
+        responseText.toUpperCase() === 'NONE' ||
+        responseText.toUpperCase().includes('NONE') ||
+        responseText.toLowerCase().includes('could not find') ||
+        responseText.toLowerCase().includes('no official website') ||
+        responseText.toLowerCase().includes('does not appear to have')) {
+      console.log(`[Website Lookup] ❌ No website found for "${businessName}"`);
+      return null;
+    }
+
+    // Extract URL from the response
+    const extractedUrl = extractValidUrl(responseText);
+
+    if (extractedUrl) {
+      console.log(`[Website Lookup] ✅ SUCCESS! Found website for "${businessName}": ${extractedUrl}`);
+      return extractedUrl;
+    }
+
+    console.log(`[Website Lookup] ⚠️ Could not extract valid URL from response for "${businessName}"`);
+    return null;
+
+  } catch (error) {
+    console.error(`[Website Lookup] ❌ ERROR for "${businessName}":`, error);
+    return null;
+  }
+}
+
 export const findLeadsWithMaps = async (query: string, location: string) => {
   const ai = await getClient();
   const prompt = `Find 5 real local businesses for "${query}" near "${location}".
-  For each business, provide their actual name, address, a short description of what they do, and why they might need a new website or marketing.
 
-  Please also extract their Phone Number and Email address if available in the listing or context.
+For each business, provide their actual name, address, and a brief description.
 
-  You MUST return a strictly valid JSON array with objects containing:
-  - businessName (string - the actual business name)
-  - location (string - their address or area)
-  - details (string - brief description)
-  - phone (string or null)
-  - email (string or null)
+Return a strictly valid JSON array with objects containing:
+- businessName (string - the actual business name)
+- location (string - their full address)
+- details (string - brief description of what they do and why they might benefit from marketing services)
+- phone (string or null)
+- email (string or null)
 
-  IMPORTANT: Ensure all strings are properly escaped. Do not use unescaped newlines or control characters inside string values.
-  Do not include markdown formatting. Just the raw JSON array.`;
+IMPORTANT:
+- Ensure all strings are properly escaped
+- Do not use unescaped newlines or control characters inside string values
+- Do not include markdown formatting. Just the raw JSON array.`;
 
-  // Using gemini-2.0-flash with Google Search grounding for discovery
+  // Step 1: Get the business list from Gemini
+  console.log('📍 Step 1: Searching for businesses...');
   const response = await ai.models.generateContent({
     model: 'gemini-2.0-flash',
     contents: prompt,
@@ -94,39 +352,158 @@ export const findLeadsWithMaps = async (query: string, location: string) => {
   const parsedLeads = safeParseJSON(response.text || "[]");
   console.log('Parsed Leads:', parsedLeads);
 
+  const leads = Array.isArray(parsedLeads) ? parsedLeads : [];
+
+  // Step 2: For each business, do a focused website lookup
+  console.log(`🌐 Step 2: Looking up websites for ${leads.length} businesses...`);
+
+  const leadsWithWebsites = await Promise.all(
+    leads.map(async (lead: any) => {
+      const websiteUrl = await findBusinessWebsite(lead.businessName, location);
+      lead.hasWebsite = !!websiteUrl;
+      lead.existingWebsiteUrl = websiteUrl;
+      return lead;
+    })
+  );
+
+  console.log('✅ Final leads with website data:', leadsWithWebsites);
+
   return {
-    leads: Array.isArray(parsedLeads) ? parsedLeads : [],
-    grounding: response.candidates?.[0]?.groundingMetadata?.groundingChunks
+    leads: leadsWithWebsites,
+    grounding: response.candidates?.[0]?.groundingMetadata?.groundingChunks || []
   };
 };
 
-export const generateBrandAnalysis = async (businessName: string, details: string) => {
+export const generateBrandAnalysis = async (
+  businessName: string,
+  details: string,
+  existingWebsiteUrl?: string
+) => {
   const ai = await getClient();
+  const hasWebsite = !!existingWebsiteUrl;
+
+  // TWO-STEP APPROACH for businesses with websites:
+  // Step 1: Extract logo URL and brand info from website
+  // Step 2: Analyze the logo image to extract accurate brand colors
+
+  if (hasWebsite) {
+    console.log('[Brand Analysis] Step 1: Extracting logo and brand info from website...');
+
+    // STEP 1: Extract logo URL and basic brand info (tone, suggestions)
+    const logoPrompt = `Analyze the website at ${existingWebsiteUrl} for "${businessName}".
+
+Extract:
+1. **LOGO URL** - Find the main logo image. Return the COMPLETE absolute URL (https://...) to the logo file.
+   - Look in the header/navbar first
+   - Check for <img> tags with "logo" in src, alt, or class
+   - Check for SVG logos embedded or linked
+   - Make sure to return the FULL URL including the domain
+2. Brand tone based on copy and design aesthetic
+3. Suggestions for brand improvement
+4. Brief assessment of current brand identity
+
+Business context: ${details}
+
+Return JSON:
+{
+  "logoUrl": "https://example.com/path/to/logo.png",
+  "tone": "professional and modern",
+  "suggestions": "improvement recommendations",
+  "currentBrandAssessment": "brand analysis"
+}
+
+CRITICAL: The logoUrl must be a complete, valid image URL starting with https://. Do NOT return placeholder text or relative paths.`;
+
+    const step1Response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: logoPrompt,
+      config: {
+        tools: [{ urlContext: {} }],
+        maxOutputTokens: 2000
+      }
+    });
+
+    console.log('[Brand Analysis] Step 1 raw response:', step1Response.text);
+    const step1Result = safeParseJSON(step1Response.text || "{}");
+    console.log('[Brand Analysis] Step 1 parsed:', step1Result);
+
+    // STEP 2: If logo URL found, analyze it for colors
+    let colors: string[] = [];
+    const logoUrl = step1Result.logoUrl;
+
+    if (logoUrl && isValidImageUrl(logoUrl)) {
+      console.log('[Brand Analysis] Step 2: Extracting colors from logo image...');
+      try {
+        colors = await extractColorsFromLogo(logoUrl);
+        console.log('[Brand Analysis] Colors extracted from logo:', colors);
+      } catch (e) {
+        console.warn('[Brand Analysis] Could not extract colors from logo:', e);
+      }
+    } else {
+      console.log('[Brand Analysis] No valid logo URL found, logoUrl was:', logoUrl);
+    }
+
+    // If no colors extracted from logo, generate fallback colors
+    if (colors.length === 0) {
+      console.log('[Brand Analysis] Using fallback color generation...');
+      colors = await generateFallbackColors(businessName, details);
+    }
+
+    return {
+      colors,
+      tone: step1Result.tone || '',
+      suggestions: step1Result.suggestions || '',
+      currentBrandAssessment: step1Result.currentBrandAssessment || '',
+      logoUrl: logoUrl || null
+    };
+  }
+
+  // NO WEBSITE - Generate recommended brand guidelines
+  console.log('[Brand Analysis] No website - generating recommended brand guidelines...');
+
+  const noWebsitePrompt = `Create brand guidelines for "${businessName}", a business that currently has NO website.
+
+Business context: ${details}
+
+Generate:
+1. Recommended brand colors (3 hex codes) appropriate for their industry and target market
+2. Suggested brand tone that would resonate with their audience
+3. Strategic suggestions for establishing a strong brand identity
+
+Return JSON with:
+- colors: array of 3 hex codes (recommended colors for their brand)
+- tone: string describing the recommended brand voice
+- suggestions: string with brand establishment guidance (under 75 words)`;
+
   const response = await ai.models.generateContent({
     model: 'gemini-2.5-flash',
-    contents: `Analyze this business: "${businessName}" (${details}).
-    Generate branding guidelines for them.
-    
-    Requirements:
-    - colors: array of 3 hex codes
-    - tone: string (e.g. Friendly, Corporate, Luxury)
-    - suggestions: string (Short paragraph on how to improve their brand, under 50 words)
-    `,
+    contents: noWebsitePrompt,
     config: {
-        maxOutputTokens: 1000,
-        responseMimeType: "application/json",
-        responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-                colors: { type: Type.ARRAY, items: { type: Type.STRING } },
-                tone: { type: Type.STRING },
-                suggestions: { type: Type.STRING }
-            },
-            required: ["colors", "tone", "suggestions"]
-        }
+      maxOutputTokens: 1500,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          colors: { type: Type.ARRAY, items: { type: Type.STRING } },
+          tone: { type: Type.STRING },
+          suggestions: { type: Type.STRING }
+        },
+        required: ["colors", "tone", "suggestions"]
+      }
     }
   });
-  return safeParseJSON(response.text || "{}");
+
+  console.log('[Brand Analysis] Raw response:', response.text);
+  const result = safeParseJSON(response.text || "{}");
+  console.log('[Brand Analysis] Parsed result:', result);
+
+  return {
+    colors: result.colors || [],
+    tone: result.tone || '',
+    suggestions: result.suggestions || '',
+    currentBrandAssessment: '',
+    logoUrl: null
+  };
 }
 
 export const generatePitchEmail = async (businessName: string, websiteUrl: string | undefined, brandTone: string, hasConceptImage: boolean = false) => {

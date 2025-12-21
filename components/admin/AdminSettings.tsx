@@ -783,7 +783,7 @@ export function AdminSettings() {
           max={100}
           className="w-full md:w-64 accent-[#D4AF37]"
         />
-        <p className="text-white/40 text-xs mt-2">Markup on AI API costs for token pricing</p>
+        <p className="text-white/40 text-xs mt-2">Markup on API costs for token pricing</p>
       </div>
     </div>
   );

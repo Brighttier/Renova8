@@ -164,7 +164,9 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
                 phone: l.phone,
                 email: l.email,
                 status: 'new' as const,
-                sourceUrl: response.grounding?.[idx]?.maps?.uri
+                sourceUrl: response.grounding?.[idx]?.maps?.uri,
+                hasWebsite: l.hasWebsite,
+                existingWebsiteUrl: l.existingWebsiteUrl
             }));
             setSearchResults(mapped);
         } catch (e) {
@@ -186,7 +188,12 @@ export const Wizard: React.FC<Props> = ({ onUseCredit, onSaveLead, onUpdateLead,
         setLoading(true);
         try {
             onUseCredit(2);
-            const branding = await generateBrandAnalysis(activeLead.businessName, activeLead.details);
+            // Pass existing website URL for more accurate brand analysis
+            const branding = await generateBrandAnalysis(
+                activeLead.businessName,
+                activeLead.details,
+                activeLead.existingWebsiteUrl
+            );
             const updated = { ...activeLead, brandGuidelines: branding };
             setActiveLead(updated);
             onUpdateLead(updated);
@@ -738,7 +745,19 @@ Sections needed: Hero with call-to-action, About/Services, Features/Benefits, Te
                                 {activeLead.businessName.charAt(0)}
                             </div>
                             <div>
-                                <h3 className="font-bold text-[#4A4A4A] text-lg font-serif">{activeLead.businessName}</h3>
+                                <div className="flex items-center gap-2">
+                                    <h3 className="font-bold text-[#4A4A4A] text-lg font-serif">{activeLead.businessName}</h3>
+                                    {activeLead.hasWebsite && (
+                                        <span className="text-xs bg-white/80 text-blue-700 px-2 py-0.5 rounded-full">
+                                            🌐 Website
+                                        </span>
+                                    )}
+                                    {activeLead.hasWebsite === false && (
+                                        <span className="text-xs bg-white/80 text-orange-700 px-2 py-0.5 rounded-full">
+                                            📝 No Site
+                                        </span>
+                                    )}
+                                </div>
                                 <p className="text-xs text-[#4A4A4A]/60 uppercase tracking-wide">{activeLead.location}</p>
                             </div>
                         </div>
@@ -784,14 +803,39 @@ Sections needed: Hero with call-to-action, About/Services, Features/Benefits, Te
                                 <div className="space-y-4 mt-8">
                                     <p className="font-bold text-[#D4AF37] text-xs uppercase tracking-widest text-center">Select a Business to Start</p>
                                     {searchResults.map(lead => (
-                                        <button 
-                                            key={lead.id} 
+                                        <button
+                                            key={lead.id}
                                             onClick={() => selectLead(lead)}
                                             className="w-full text-left p-5 rounded-2xl border border-gray-100 hover:border-[#D4AF37] hover:bg-[#F9F6F0] transition-all flex justify-between items-center group bg-white shadow-sm"
                                         >
-                                            <div>
-                                                <div className="font-bold text-xl text-[#4A4A4A] font-serif">{lead.businessName}</div>
-                                                <div className="text-gray-500 text-sm">{lead.location}</div>
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2 flex-wrap mb-1">
+                                                    <div className="font-bold text-xl text-[#4A4A4A] font-serif">{lead.businessName}</div>
+                                                    {lead.hasWebsite && (
+                                                        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">
+                                                            ✓ Website
+                                                        </span>
+                                                    )}
+                                                    {!lead.hasWebsite && (
+                                                        <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full font-medium">
+                                                            No Website
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="flex items-center gap-2 text-gray-500 text-sm">
+                                                    <span>{lead.location}</span>
+                                                    {lead.existingWebsiteUrl && (
+                                                        <a
+                                                            href={lead.existingWebsiteUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="text-blue-600 hover:underline text-xs"
+                                                        >
+                                                            🔗 View Site
+                                                        </a>
+                                                    )}
+                                                </div>
                                             </div>
                                             <span className="bg-[#D4AF37] text-white px-5 py-2 rounded-full font-bold shadow-md opacity-0 group-hover:opacity-100 transition-all text-sm transform translate-x-4 group-hover:translate-x-0">Select →</span>
                                         </button>
@@ -804,8 +848,29 @@ Sections needed: Hero with call-to-action, About/Services, Features/Benefits, Te
                     {/* STEP 2: ANALYZE */}
                     {currentStep === 1 && activeLead && (
                         <div className="max-w-3xl mx-auto animate-fadeIn text-center w-full">
-                            <h2 className="text-3xl font-bold mb-8 font-serif text-[#4A4A4A]">Let's analyze their brand DNA</h2>
-                            
+                            <h2 className="text-3xl font-bold mb-4 font-serif text-[#4A4A4A]">Let's analyze their brand DNA</h2>
+
+                            {/* Display existing website if available */}
+                            {activeLead.hasWebsite && activeLead.existingWebsiteUrl && (
+                                <div className="mb-8 bg-blue-50 border border-blue-200 rounded-xl p-4 inline-flex items-center gap-3">
+                                    <span className="text-blue-600 font-medium text-sm">Current Website:</span>
+                                    <a
+                                        href={activeLead.existingWebsiteUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-blue-700 hover:text-blue-900 underline text-sm font-medium"
+                                    >
+                                        {activeLead.existingWebsiteUrl}
+                                    </a>
+                                    <span className="text-blue-400">↗</span>
+                                </div>
+                            )}
+                            {!activeLead.hasWebsite && (
+                                <div className="mb-8 bg-gray-50 border border-gray-200 rounded-xl p-4 inline-flex items-center gap-2">
+                                    <span className="text-gray-500 text-sm">No existing website found</span>
+                                </div>
+                            )}
+
                             {!activeLead.brandGuidelines ? (
                                 <div className="py-12 bg-[#F9F6F0] rounded-3xl border border-dashed border-[#D4AF37]/30">
                                     <div className="text-7xl mb-6">🧬</div>
@@ -817,10 +882,28 @@ Sections needed: Hero with call-to-action, About/Services, Features/Benefits, Te
                             ) : (
                                 <div className="bg-[#F9F6F0] rounded-[2rem] p-10 border border-[#EFEBE4] text-left shadow-inner">
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                                        {/* Extracted Logo - Only shown when logo URL was found */}
+                                        {activeLead.brandGuidelines.logoUrl && (
+                                            <div className="col-span-1 md:col-span-2 mb-2">
+                                                <h3 className="font-bold text-[#D4AF37] mb-3 uppercase text-xs tracking-widest">Current Logo</h3>
+                                                <div className="bg-white p-4 rounded-xl border border-[#EFEBE4] inline-block">
+                                                    <img
+                                                        src={activeLead.brandGuidelines.logoUrl}
+                                                        alt={`${activeLead.businessName} logo`}
+                                                        className="max-h-20 max-w-[200px] object-contain"
+                                                        onError={(e) => {
+                                                            // Hide if image fails to load
+                                                            (e.target as HTMLImageElement).parentElement!.style.display = 'none';
+                                                        }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+
                                         <div>
                                             <h3 className="font-bold text-[#D4AF37] mb-4 uppercase text-xs tracking-widest">Recommended Colors</h3>
                                             <div className="flex gap-4">
-                                                {activeLead.brandGuidelines.colors.map(c => (
+                                                {(activeLead.brandGuidelines.colors || []).map(c => (
                                                     <div key={c} className="w-14 h-14 rounded-full shadow-lg border-4 border-white transform hover:scale-110 transition-transform cursor-pointer" style={{backgroundColor: c}} title={c}></div>
                                                 ))}
                                             </div>
@@ -833,6 +916,16 @@ Sections needed: Hero with call-to-action, About/Services, Features/Benefits, Te
                                             <h3 className="font-bold text-[#D4AF37] mb-4 uppercase text-xs tracking-widest">Strategic Insight</h3>
                                             <p className="text-[#4A4A4A] leading-relaxed font-serif italic text-lg bg-white p-6 rounded-xl shadow-sm border border-[#EFEBE4]">"{activeLead.brandGuidelines.suggestions}"</p>
                                         </div>
+
+                                        {/* Current Brand Assessment - Only shown when business has existing website */}
+                                        {activeLead.brandGuidelines.currentBrandAssessment && (
+                                            <div className="col-span-1 md:col-span-2">
+                                                <h3 className="font-bold text-[#D4AF37] mb-4 uppercase text-xs tracking-widest">Current Brand Assessment</h3>
+                                                <div className="bg-blue-50 p-6 rounded-xl border border-blue-200">
+                                                    <p className="text-[#4A4A4A] leading-relaxed">{activeLead.brandGuidelines.currentBrandAssessment}</p>
+                                                </div>
+                                            </div>
+                                        )}
 
                                         {/* Logo Upload Section */}
                                         <div className="col-span-1 md:col-span-2 mt-4">
@@ -905,7 +998,7 @@ Sections needed: Hero with call-to-action, About/Services, Features/Benefits, Te
                             {!activeLead.websiteConceptImage ? (
                                 <div className="py-12 bg-[#F9F6F0] rounded-3xl border border-dashed border-[#D4AF37]/30">
                                     <div className="text-7xl mb-6">🎨</div>
-                                    <p className="text-[#4A4A4A]/70 mb-8 max-w-md mx-auto text-lg">Create a stunning, high-fidelity website mockup using RenovateMySite AI.</p>
+                                    <p className="text-[#4A4A4A]/70 mb-8 max-w-md mx-auto text-lg">Create a stunning, high-fidelity website mockup.</p>
                                     <button onClick={() => handleVisualize(false)} disabled={loading} className="bg-gradient-to-r from-[#D4AF37] to-[#C5A572] text-white px-10 py-4 rounded-xl font-bold text-lg shadow-xl hover:opacity-90 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed">
                                         {loading ? 'Painting...' : 'Generate Visual Concept (5 Cr)'}
                                     </button>
