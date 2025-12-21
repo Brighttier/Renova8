@@ -96,6 +96,9 @@ export { app, auth, db, functions };
 
 export interface GetCreditsResponse {
   tokenBalance: number;
+  isTrialUser: boolean;
+  trialEndsAt?: string;
+  trialDaysRemaining?: number;
   transactions: Array<{
     id: string;
     type: string;

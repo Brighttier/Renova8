@@ -10,6 +10,8 @@ export interface User {
   displayName?: string;
   stripeCustomerId?: string;
   tokenBalance: number;
+  isTrialUser: boolean;
+  trialEndsAt?: Timestamp;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -110,6 +112,9 @@ export interface ModelPricing {
 
 export interface GetCreditsResponse {
   tokenBalance: number;
+  isTrialUser: boolean;
+  trialEndsAt?: string; // ISO string
+  trialDaysRemaining?: number;
   transactions: CreditTransaction[];
 }
 

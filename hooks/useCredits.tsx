@@ -36,6 +36,11 @@ export interface UseCreditsReturn {
   loading: boolean;
   error: string | null;
 
+  // Trial status
+  isTrialUser: boolean;
+  trialEndsAt?: Date;
+  trialDaysRemaining?: number;
+
   // Methods
   refreshCredits: () => Promise<void>;
   purchaseTokens: (packId: string) => Promise<void>;
@@ -52,6 +57,9 @@ export function useCredits(): UseCreditsReturn {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isTrialUser, setIsTrialUser] = useState(false);
+  const [trialEndsAt, setTrialEndsAt] = useState<Date | undefined>();
+  const [trialDaysRemaining, setTrialDaysRemaining] = useState<number | undefined>();
 
   // Real-time listener for credit balance
   useEffect(() => {
@@ -72,13 +80,31 @@ export function useCredits(): UseCreditsReturn {
     // Set up real-time listener on user document
     const unsubscribe = onSnapshot(
       doc(db, "users", user.uid),
-      (doc) => {
-        if (doc.exists()) {
-          const data = doc.data();
+      (docSnapshot) => {
+        if (docSnapshot.exists()) {
+          const data = docSnapshot.data();
           setCredits(data?.tokenBalance || 0);
+          setIsTrialUser(data?.isTrialUser || false);
+
+          // Handle trial end date
+          if (data?.trialEndsAt) {
+            const endDate = data.trialEndsAt.toDate();
+            setTrialEndsAt(endDate);
+
+            // Calculate days remaining
+            const now = new Date();
+            const msRemaining = endDate.getTime() - now.getTime();
+            setTrialDaysRemaining(Math.max(0, Math.ceil(msRemaining / (1000 * 60 * 60 * 24))));
+          } else {
+            setTrialEndsAt(undefined);
+            setTrialDaysRemaining(undefined);
+          }
         } else {
           // User document doesn't exist yet (might be creating)
           setCredits(0);
+          setIsTrialUser(false);
+          setTrialEndsAt(undefined);
+          setTrialDaysRemaining(undefined);
         }
         setLoading(false);
       },
@@ -115,6 +141,11 @@ export function useCredits(): UseCreditsReturn {
 
       setCredits(data.tokenBalance);
       setTransactions(data.transactions);
+      setIsTrialUser(data.isTrialUser);
+      setTrialDaysRemaining(data.trialDaysRemaining);
+      if (data.trialEndsAt) {
+        setTrialEndsAt(new Date(data.trialEndsAt));
+      }
     } catch (err: any) {
       console.error("Error fetching credits:", err);
       setError(getErrorMessage(err));
@@ -158,6 +189,9 @@ export function useCredits(): UseCreditsReturn {
     transactions,
     loading,
     error,
+    isTrialUser,
+    trialEndsAt,
+    trialDaysRemaining,
     refreshCredits,
     purchaseTokens,
     clearError,

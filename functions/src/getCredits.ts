@@ -1,5 +1,5 @@
 import * as functions from "firebase-functions";
-import { checkBalance, getTransactions } from "./lib/credits";
+import { getTransactions, getUser } from "./lib/credits";
 import { GetCreditsResponse } from "./types";
 import { MAX_TRANSACTIONS_RETURNED } from "./config";
 
@@ -25,8 +25,23 @@ export const getCredits = functions.https.onCall(
     const userId = context.auth.uid;
 
     try {
-      // Get current balance
-      const tokenBalance = await checkBalance(userId);
+      // Get user data including trial status
+      const userData = await getUser(userId);
+      const tokenBalance = userData?.tokenBalance || 0;
+      const isTrialUser = userData?.isTrialUser || false;
+      const trialEndsAt = userData?.trialEndsAt;
+
+      // Calculate days remaining in trial
+      let trialDaysRemaining: number | undefined;
+      let trialEndsAtISO: string | undefined;
+
+      if (isTrialUser && trialEndsAt) {
+        const trialEndDate = trialEndsAt.toDate();
+        trialEndsAtISO = trialEndDate.toISOString();
+        const now = new Date();
+        const msRemaining = trialEndDate.getTime() - now.getTime();
+        trialDaysRemaining = Math.max(0, Math.ceil(msRemaining / (1000 * 60 * 60 * 24)));
+      }
 
       // Get recent transactions
       const limit = data?.limit || MAX_TRANSACTIONS_RETURNED;
@@ -39,11 +54,14 @@ export const getCredits = functions.https.onCall(
       }));
 
       functions.logger.info(
-        `User ${userId} fetched credits: ${tokenBalance} tokens, ${serializedTransactions.length} transactions`
+        `User ${userId} fetched credits: ${tokenBalance} tokens, trial: ${isTrialUser}, ${serializedTransactions.length} transactions`
       );
 
       return {
         tokenBalance,
+        isTrialUser,
+        trialEndsAt: trialEndsAtISO,
+        trialDaysRemaining,
         transactions: serializedTransactions as any,
       };
     } catch (error: any) {

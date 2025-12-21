@@ -45,7 +45,7 @@ interface Props {
 
 export const Settings: React.FC<Props> = ({ credits: legacyCredits, onAddCredits }) => {
   const { user } = useAuth();
-  const { credits, transactions, loading, error, purchaseTokens, refreshCredits, clearError } = useCredits();
+  const { credits, transactions, loading, error, purchaseTokens, refreshCredits, clearError, isTrialUser, trialDaysRemaining } = useCredits();
   const [purchasing, setPurchasing] = useState<string | null>(null);
   const [showTransactions, setShowTransactions] = useState(false);
 
@@ -132,6 +132,51 @@ export const Settings: React.FC<Props> = ({ credits: legacyCredits, onAddCredits
         </div>
       )}
 
+      {/* Trial Banner */}
+      {isTrialUser && trialDaysRemaining !== undefined && (
+        <div className={`rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4 ${
+          trialDaysRemaining <= 3
+            ? 'bg-red-50 border border-red-200'
+            : trialDaysRemaining <= 7
+              ? 'bg-amber-50 border border-amber-200'
+              : 'bg-blue-50 border border-blue-200'
+        }`}>
+          <div className="flex items-center gap-4">
+            <div className={`text-4xl ${trialDaysRemaining <= 3 ? 'animate-pulse' : ''}`}>
+              {trialDaysRemaining <= 3 ? '⚠️' : '🎉'}
+            </div>
+            <div>
+              <h3 className={`font-bold text-lg ${
+                trialDaysRemaining <= 3 ? 'text-red-800' : 'text-gray-800'
+              }`}>
+                {trialDaysRemaining === 0
+                  ? 'Trial Expiring Today!'
+                  : `Free Trial: ${trialDaysRemaining} day${trialDaysRemaining !== 1 ? 's' : ''} remaining`
+                }
+              </h3>
+              <p className={`text-sm ${
+                trialDaysRemaining <= 3 ? 'text-red-600' : 'text-gray-600'
+              }`}>
+                {trialDaysRemaining <= 3
+                  ? 'Your trial is ending soon! Purchase tokens to continue using all features.'
+                  : 'Enjoy your 200 free tokens. Purchase more anytime to unlock unlimited potential.'
+                }
+              </p>
+            </div>
+          </div>
+          <a
+            href="#token-packs"
+            className={`px-6 py-3 rounded-xl font-bold whitespace-nowrap transition-colors ${
+              trialDaysRemaining <= 3
+                ? 'bg-red-600 text-white hover:bg-red-700'
+                : 'bg-[#D4AF37] text-white hover:bg-[#B8963A]'
+            }`}
+          >
+            Upgrade Now
+          </a>
+        </div>
+      )}
+
       {/* Credit Balance */}
       <div className="bg-gradient-to-r from-[#D4AF37] to-[#B8963A] rounded-3xl p-8 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
         <div>
@@ -206,7 +251,7 @@ export const Settings: React.FC<Props> = ({ credits: legacyCredits, onAddCredits
       )}
 
       {/* Top Up Packs */}
-      <div>
+      <div id="token-packs">
         <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
           <span className="bg-green-100 p-2 rounded-lg mr-3 text-2xl">🔋</span>
           Token Top-Ups
@@ -293,7 +338,7 @@ export const Settings: React.FC<Props> = ({ credits: legacyCredits, onAddCredits
             </div>
             <ul className="space-y-3 mb-8 flex-1">
               <li className="flex items-center text-gray-600 text-sm">
-                <span className="text-green-500 mr-2">✓</span> 2,000 Tokens on signup
+                <span className="text-green-500 mr-2">✓</span> 200 Free Trial Tokens
               </li>
               <li className="flex items-center text-gray-600 text-sm">
                 <span className="text-green-500 mr-2">✓</span> Basic Lead Search

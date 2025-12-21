@@ -5,9 +5,14 @@ import { TokenPackConfig, ModelPricing } from "./types";
 // ============================================
 
 /**
- * Number of tokens granted to new users upon signup
+ * Number of tokens granted to new users upon signup (free trial)
  */
-export const INITIAL_SIGNUP_TOKENS = 2000;
+export const INITIAL_SIGNUP_TOKENS = 200;
+
+/**
+ * Trial duration in days - trial tokens expire after this period
+ */
+export const TRIAL_DURATION_DAYS = 14;
 
 // ============================================
 // Profit Margin Configuration

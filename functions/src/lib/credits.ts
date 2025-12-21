@@ -1,6 +1,7 @@
 import * as admin from "firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
 import { GrantTokensParams, DebitTokensParams, CreditTransaction } from "../types";
+import { TRIAL_DURATION_DAYS } from "../config";
 
 /**
  * Get Firestore instance
@@ -83,7 +84,26 @@ export async function debitTokens(params: DebitTokensParams): Promise<number> {
       throw new Error(`User not found: ${params.userId}`);
     }
 
-    const currentBalance = userDoc.data()?.tokenBalance || 0;
+    const userData = userDoc.data();
+    const currentBalance = userData?.tokenBalance || 0;
+    const isTrialUser = userData?.isTrialUser || false;
+    const trialEndsAt = userData?.trialEndsAt;
+
+    // Check if trial has expired for trial users
+    if (isTrialUser && trialEndsAt) {
+      const trialEndDate = trialEndsAt.toDate();
+      const now = new Date();
+
+      if (now > trialEndDate) {
+        // Trial expired - zero out tokens and mark as non-trial
+        transaction.update(userRef, {
+          tokenBalance: 0,
+          isTrialUser: false,
+          updatedAt: Timestamp.now(),
+        });
+        throw new Error("TRIAL_EXPIRED");
+      }
+    }
 
     if (currentBalance < params.tokens) {
       throw new Error("INSUFFICIENT_CREDITS");
@@ -197,15 +217,22 @@ export async function initializeUser(
   const txnRef = userRef.collection("creditTransactions").doc();
   const now = Timestamp.now();
 
+  // Calculate trial end date (14 days from now)
+  const trialEndDate = new Date();
+  trialEndDate.setDate(trialEndDate.getDate() + TRIAL_DURATION_DAYS);
+  const trialEndsAt = Timestamp.fromDate(trialEndDate);
+
   // Use batch for atomic writes
   const batch = db.batch();
 
-  // Create user document
+  // Create user document with trial fields
   batch.set(userRef, {
     id: userId,
     email: email,
     displayName: displayName || "",
     tokenBalance: initialTokens,
+    isTrialUser: true,
+    trialEndsAt: trialEndsAt,
     createdAt: now,
     updatedAt: now,
   });
@@ -216,7 +243,7 @@ export async function initializeUser(
     userId: userId,
     type: "INITIAL_GRANT",
     tokens: initialTokens,
-    description: "Welcome bonus! Start building your business.",
+    description: `Free trial! ${initialTokens} tokens for ${TRIAL_DURATION_DAYS} days.`,
     balanceAfter: initialTokens,
     createdAt: now,
   });
