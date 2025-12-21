@@ -14,7 +14,7 @@ import { Wizard } from './components/Wizard';
 import { WebsiteEditor } from './components/WebsiteEditor';
 import { SitesManager } from './components/SitesManager';
 import { AIWebsiteEditor } from './components/AIWebsiteEditor';
-import { UserProfile, GeneralSettings, UserPassword, PaymentSetup, EmailConfig, HelpSupport } from './components/UserPages';
+import { UserProfile, GeneralSettings, UserPassword, EmailConfig, HelpSupport } from './components/UserPages';
 import { KnowledgeBase } from './components/KnowledgeBase';
 import { SupportTickets } from './components/SupportTickets';
 import { StatusPage } from './components/StatusPage';
@@ -527,7 +527,6 @@ function AppContent() {
             {currentView === AppView.PROFILE && <UserProfile />}
             {currentView === AppView.GENERAL_SETTINGS && <GeneralSettings />}
             {currentView === AppView.PASSWORD && <UserPassword />}
-            {currentView === AppView.PAYMENT_SETUP && <PaymentSetup />}
             {currentView === AppView.EMAIL_CONFIG && <EmailConfig />}
             {currentView === AppView.HELP_SUPPORT && (
               <HelpSupport
@@ -609,7 +608,6 @@ function AppContent() {
       [AppView.PROFILE]: 'Profile',
       [AppView.GENERAL_SETTINGS]: 'General Settings',
       [AppView.PASSWORD]: 'Password',
-      [AppView.PAYMENT_SETUP]: 'Payment Setup',
       [AppView.EMAIL_CONFIG]: 'Email Configuration',
       [AppView.SITES_MANAGER]: 'Sites Manager',
       [AppView.AI_WEBSITE_EDITOR]: 'AI Website Editor',
