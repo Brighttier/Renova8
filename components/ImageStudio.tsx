@@ -84,7 +84,7 @@ export const ImageStudio: React.FC<Props> = ({ leads, onUseCredit, selectedLead,
 
       <div className="text-center space-y-2 mb-8">
             <h1 className="text-3xl font-bold text-gray-800 font-serif">Social Image Studio</h1>
-            <p className="text-gray-500">Create perfectly sized social media assets with Nano Banana Pro.</p>
+            <p className="text-gray-500">Create perfectly sized social media assets.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -173,7 +173,7 @@ export const ImageStudio: React.FC<Props> = ({ leads, onUseCredit, selectedLead,
                   {loading ? (
                       <div className="text-center">
                           <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                          <p className="text-gray-500 font-medium">Nano Banana Pro is painting...</p>
+                          <p className="text-gray-500 font-medium">Generating your image...</p>
                           <p className="text-xs text-purple-400 mt-2">Applying Brand DNA...</p>
                       </div>
                   ) : generatedImage ? (

@@ -259,9 +259,11 @@ function AppContent() {
           <div className={`h-24 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-center lg:justify-start lg:px-8'} transition-all mb-4`}>
              {/* Logo Area */}
              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-[#4A4A4A] text-[#F9F6F0] rounded-full flex items-center justify-center font-serif font-bold text-lg shadow-md">
-                    RMS
-                </div>
+                <img
+                    src="/Logo.png"
+                    alt="RenovateMySite"
+                    className="w-10 h-10 rounded-xl shadow-md"
+                />
                 {!isSidebarCollapsed && <span className="font-serif font-bold text-lg text-[#4A4A4A] hidden lg:block tracking-tight">RenovateMySite</span>}
              </div>
           </div>

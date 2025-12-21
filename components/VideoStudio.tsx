@@ -169,7 +169,7 @@ export const VideoStudio: React.FC<Props> = ({ onUseCredit, selectedLead, leads,
                  {loading ? 'Filming...' : 'Create Video'}
              </button>
          </div>
-         <p className="text-xs text-orange-400 mt-2 ml-1">* Uses Veo 3 Model. Takes about 1-2 minutes.</p>
+         <p className="text-xs text-orange-400 mt-2 ml-1">* Takes about 1-2 minutes.</p>
       </div>
 
       <div className="flex justify-center">

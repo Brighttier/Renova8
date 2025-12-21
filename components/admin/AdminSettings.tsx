@@ -556,7 +556,7 @@ export function AdminSettings() {
           <div className="bg-white/5 rounded-xl p-8 text-center">
             <KeyIcon />
             <p className="text-white/60 mt-2">No API keys configured</p>
-            <p className="text-white/40 text-sm mt-1">Add your first Gemini API key to enable AI features</p>
+            <p className="text-white/40 text-sm mt-1">Add your first API key to enable AI features</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -727,7 +727,7 @@ export function AdminSettings() {
           max={100}
           className="w-full md:w-64 accent-[#D4AF37]"
         />
-        <p className="text-white/40 text-xs mt-2">Markup on Gemini API costs for token pricing</p>
+        <p className="text-white/40 text-xs mt-2">Markup on API costs for token pricing</p>
       </div>
     </div>
   );

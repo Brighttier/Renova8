@@ -650,7 +650,19 @@ Please remember to save the invoice PDF before sending.`;
                     >
                         <h3 className="font-bold text-gray-800 text-sm">{customer.businessName}</h3>
                         <div className="flex justify-between items-center mt-1">
-                            <span className="text-xs text-gray-500 truncate max-w-[100px]">{customer.location}</span>
+                            <div className="flex items-center gap-1">
+                                <span className="text-xs text-gray-500 truncate max-w-[100px]">{customer.location}</span>
+                                {customer.hasWebsite && (
+                                    <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded flex items-center">
+                                        🌐
+                                    </span>
+                                )}
+                                {!customer.hasWebsite && (
+                                    <span className="text-xs bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded flex items-center">
+                                        📝
+                                    </span>
+                                )}
+                            </div>
                             {customer.status === 'converted' && <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Won</span>}
                         </div>
                     </div>
@@ -741,9 +753,32 @@ Please remember to save the invoice PDF before sending.`;
 
                     {/* Website Action */}
                     <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
-                        <h3 className="font-bold text-gray-700 mb-3 flex items-center text-sm">
-                            <span className="bg-purple-100 p-1 rounded mr-2">💻</span> Product
+                        <h3 className="font-bold text-gray-700 mb-3 flex items-center justify-between text-sm">
+                            <span className="flex items-center">
+                                <span className="bg-purple-100 p-1 rounded mr-2">💻</span> Website Status
+                            </span>
+                            {selectedCustomer.hasWebsite && (
+                                <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full">
+                                    🌐 Has Existing
+                                </span>
+                            )}
                         </h3>
+
+                        {/* Show existing website link if available */}
+                        {selectedCustomer.existingWebsiteUrl && (
+                            <div className="mb-3 p-2 bg-blue-50 rounded-lg">
+                                <div className="text-xs text-blue-700 mb-1 font-semibold">Current Website:</div>
+                                <a
+                                    href={selectedCustomer.existingWebsiteUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-xs text-blue-600 hover:underline truncate block"
+                                >
+                                    🔗 {selectedCustomer.existingWebsiteUrl}
+                                </a>
+                            </div>
+                        )}
+
                         {selectedCustomer.websiteConceptImage ? (
                             <div>
                                 <img src={selectedCustomer.websiteConceptImage} alt="Concept" className="w-full h-20 object-cover rounded-lg mb-2" />

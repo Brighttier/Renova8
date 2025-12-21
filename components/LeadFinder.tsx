@@ -128,7 +128,29 @@ export const LeadFinder: React.FC<Props> = ({ onLeadsFound, onUseCredit, onAnaly
                             </a>
                         )}
                         </div>
-                        <h3 className="text-xl font-bold text-gray-800 mb-2">{lead.businessName}</h3>
+                        <h3 className="text-xl font-bold text-gray-800 mb-2 flex items-center gap-2 flex-wrap">
+                            {lead.businessName}
+                            {lead.hasWebsite && (
+                                <span className="inline-flex items-center gap-1 text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                                    🌐 Has Website
+                                </span>
+                            )}
+                            {!lead.hasWebsite && (
+                                <span className="inline-flex items-center gap-1 text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full">
+                                    📝 No Website
+                                </span>
+                            )}
+                        </h3>
+                        {lead.existingWebsiteUrl && (
+                            <a
+                                href={lead.existingWebsiteUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded-full hover:bg-blue-100 inline-block mb-2"
+                            >
+                                🔗 View Their Site
+                            </a>
+                        )}
                         <p className="text-sm text-gray-500 mb-4">{lead.location}</p>
                         <p className="text-gray-600 text-sm mb-6 line-clamp-3">{lead.details}</p>
                         

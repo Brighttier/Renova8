@@ -152,7 +152,7 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
     },
     {
       question: 'What AI powers RenovateMySite?',
-      answer: 'RenovateMySite is powered by Google\'s Gemini AI, one of the most advanced AI models available. This enables high-quality content generation, accurate brand analysis, and professional website creation.'
+      answer: 'RenovateMySite uses advanced AI technology to enable high-quality content generation, accurate brand analysis, and professional website creation.'
     },
     {
       question: 'How do I contact support?',
@@ -168,9 +168,11 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
           <div className="flex items-center justify-between h-20">
             {/* Logo */}
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-[#4A4A4A] text-[#F9F6F0] rounded-full flex items-center justify-center font-serif font-bold text-lg shadow-md">
-                RMS
-              </div>
+              <img
+                src="/Logo.png"
+                alt="RenovateMySite"
+                className="w-10 h-10 rounded-xl shadow-md"
+              />
               <span className="font-serif font-bold text-2xl text-[#4A4A4A] tracking-tight">RenovateMySite.</span>
             </div>
 
@@ -640,9 +642,11 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
             {/* Brand */}
             <div className="lg:col-span-2">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-[#D4AF37] text-[#4A4A4A] rounded-full flex items-center justify-center font-serif font-bold text-lg">
-                  RMS
-                </div>
+                <img
+                  src="/Logo.png"
+                  alt="RenovateMySite"
+                  className="w-10 h-10 rounded-xl shadow-md"
+                />
                 <span className="font-serif font-bold text-2xl">RenovateMySite.</span>
               </div>
               <p className="text-white/60 mb-6 max-w-sm">

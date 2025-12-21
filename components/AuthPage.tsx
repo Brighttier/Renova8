@@ -74,9 +74,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 bg-[#4A4A4A] text-[#F9F6F0] rounded-full flex items-center justify-center font-serif font-bold text-xl shadow-md">
-              RMS
-            </div>
+            <img
+              src="/Logo.png"
+              alt="RenovateMySite"
+              className="w-12 h-12 rounded-xl shadow-md"
+            />
             <span className="font-serif font-bold text-3xl text-[#4A4A4A] tracking-tight">
               RenovateMySite.
             </span>

@@ -14,7 +14,7 @@ export const ApiKeyModal: React.FC<Props> = ({ onClose, onConfirm }) => {
           To use our advanced Creative Studio (High-Quality Images & Video), you need to connect a paid Google Cloud Project.
         </p>
         <p className="text-sm text-gray-500 mb-6">
-           This enables the powerful <strong>Gemini 3 Pro Image</strong> and <strong>Veo</strong> models.
+           This enables premium image and video generation features.
         </p>
         <div className="flex flex-col gap-3">
           <button 
