@@ -11,7 +11,6 @@ import { CampaignHistory } from './components/CampaignHistory';
 import { Settings } from './components/Settings';
 import { Header } from './components/Header';
 import { Wizard } from './components/Wizard';
-import { Inbox } from './components/Inbox';
 import { WebsiteEditor } from './components/WebsiteEditor';
 import { SitesManager } from './components/SitesManager';
 import { AIWebsiteEditor } from './components/AIWebsiteEditor';
@@ -62,7 +61,6 @@ const HeartIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w
 const ImageIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>;
 const ArchiveIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" /></svg>;
 const RocketIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>;
-const InboxIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>;
 const EditIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>;
 const CatalogIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>;
 const ChevronLeftIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" /></svg>;
@@ -268,13 +266,6 @@ function AppContent() {
           </div>
 
           <nav className="px-4 space-y-1">
-            <NavButton
-              active={currentView === AppView.INBOX}
-              onClick={() => setCurrentView(AppView.INBOX)}
-              icon={<InboxIcon />}
-              label="Inbox"
-              collapsed={isSidebarCollapsed}
-            />
             <div data-walkthrough="wizard">
               <NavButton
                 active={currentView === AppView.WIZARD}
@@ -441,12 +432,6 @@ function AppContent() {
                     }}
                 />
             )}
-            {currentView === AppView.INBOX && (
-                <Inbox
-                    customers={myCustomers}
-                    onUpdateCustomer={updateCustomer}
-                />
-            )}
             {currentView === AppView.SERVICE_CATALOG && (
               <ServiceCatalog
                 onOpenSupportChat={(context, initialMessage) => {
@@ -610,7 +595,6 @@ function AppContent() {
       [AppView.DASHBOARD]: 'Dashboard',
       [AppView.LEAD_FINDER]: 'Scout Customers',
       [AppView.MY_CUSTOMERS]: 'My Customers',
-      [AppView.INBOX]: 'Inbox',
       [AppView.MARKETING]: 'Marketing Studio',
       [AppView.CAMPAIGN_HISTORY]: 'Campaign History',
       [AppView.WEBSITE_BUILDER]: 'Website Builder',

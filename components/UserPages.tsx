@@ -173,38 +173,60 @@ export const PaymentSetup = () => (
 );
 
 export const EmailConfig = () => (
-    <PageContainer title="Email Configuration" subtitle="Configure how AI sends emails on your behalf.">
+    <PageContainer title="Email Configuration" subtitle="How pitch emails work in the app.">
         <div className="space-y-6 max-w-2xl">
-            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-start gap-3">
-                 <div className="text-blue-500 text-xl">ℹ️</div>
-                 <div className="text-sm text-blue-800">
-                     Emails are currently sent via your default mail client (mailto: links). 
-                     <br/>Connect your Gmail or Outlook to send directly from the app in the future.
-                 </div>
+            <div className="bg-gradient-to-br from-[#D4AF37]/10 to-[#D4AF37]/5 p-6 rounded-2xl border border-[#D4AF37]/20">
+                <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-[#D4AF37]/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <svg className="w-6 h-6 text-[#D4AF37]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-[#4A4A4A] text-lg mb-2" style={{ fontFamily: 'Playfair Display, serif' }}>
+                            Using Your Default Email App
+                        </h3>
+                        <p className="text-gray-600 text-sm leading-relaxed">
+                            When you click "Send Pitch" for a lead, the app opens your default email client
+                            (Gmail, Outlook, Apple Mail, etc.) with the AI-generated pitch already filled in.
+                        </p>
+                    </div>
+                </div>
             </div>
 
-            <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">Sender Name</label>
-                <input type="text" defaultValue="Jane from Digital Studio" className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-200 outline-none" />
-                <p className="text-xs text-gray-400 mt-1">This name will appear in the generated email templates.</p>
-            </div>
-            
-            <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">Reply-To Address</label>
-                <input type="email" defaultValue="jane@mompreneur.com" className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-200 outline-none" />
+            <div className="bg-white p-6 rounded-2xl border border-[#EFEBE4]">
+                <h4 className="font-bold text-[#4A4A4A] mb-4">How It Works</h4>
+                <div className="space-y-4">
+                    <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-[#D4AF37]/10 rounded-full flex items-center justify-center text-[#D4AF37] font-bold text-sm flex-shrink-0">1</div>
+                        <div>
+                            <p className="font-medium text-[#4A4A4A]">Generate AI Pitch</p>
+                            <p className="text-sm text-gray-500">Click "Generate Pitch" on any lead to create a personalized email</p>
+                        </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-[#D4AF37]/10 rounded-full flex items-center justify-center text-[#D4AF37] font-bold text-sm flex-shrink-0">2</div>
+                        <div>
+                            <p className="font-medium text-[#4A4A4A]">Click Send</p>
+                            <p className="text-sm text-gray-500">Your default mail app opens with subject and body pre-filled</p>
+                        </div>
+                    </div>
+                    <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 bg-[#D4AF37]/10 rounded-full flex items-center justify-center text-[#D4AF37] font-bold text-sm flex-shrink-0">3</div>
+                        <div>
+                            <p className="font-medium text-[#4A4A4A]">Review & Send</p>
+                            <p className="text-sm text-gray-500">Review the email, make any edits, and hit send from your email app</p>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">Email Signature</label>
-                <textarea 
-                    className="w-full h-32 px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-200 outline-none resize-none"
-                    defaultValue={`Best,\nJane Doe\nFounder, Jane's Digital Agency\nwww.janesdigital.com`}
-                />
-            </div>
-             <div className="pt-4 flex justify-end">
-                <button className="bg-purple-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-purple-700 transition-colors">
-                    Save Configuration
-                </button>
+            <div className="bg-green-50 p-4 rounded-xl border border-green-100 flex items-start gap-3">
+                <div className="text-green-500 text-xl">✓</div>
+                <div className="text-sm text-green-800">
+                    <strong>Benefits:</strong> Emails come from your actual email address, appear in your Sent folder,
+                    and replies come directly to you. No complex setup required!
+                </div>
             </div>
         </div>
     </PageContainer>
