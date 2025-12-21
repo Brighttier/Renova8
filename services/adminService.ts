@@ -997,7 +997,7 @@ export async function getSystemHealth(): Promise<SystemHealth> {
     services: [
       { name: 'Firebase', status: 'online', latency: 45, uptime: 99.9, requests: 15420 },
       { name: 'Stripe API', status: 'online', latency: 120, uptime: 99.8, requests: 3240 },
-      { name: 'Gemini AI', status: 'online', latency: 450, uptime: 99.5, requests: 8920 },
+      { name: 'RenovateMySite AI', status: 'online', latency: 450, uptime: 99.5, requests: 8920 },
       { name: 'Hosting CDN', status: 'online', latency: 25, uptime: 99.99, requests: 125000 },
     ],
     webVitals: {
@@ -1021,7 +1021,7 @@ export async function getSystemHealth(): Promise<SystemHealth> {
         { service: 'Functions', usage: 125000, limit: 200000, cost: 0.40 },
       ],
       externalApis: [
-        { api: 'Gemini AI', requests: 8920, quota: 10000, cost: 178.40 },
+        { api: 'RenovateMySite AI', requests: 8920, quota: 10000, cost: 178.40 },
         { api: 'Stripe', requests: 3240, quota: 10000, cost: 32.40 },
         { api: 'SendGrid', requests: 1560, quota: 10000, cost: 15.60 },
       ],

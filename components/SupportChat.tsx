@@ -2,7 +2,7 @@
  * AI Support Chat Component with Voice Conversation
  *
  * A slide-out chat panel that provides intelligent support through AI.
- * Features voice-first interaction with Gemini Live, context awareness,
+ * Features voice-first interaction with RenovateMySite AI, context awareness,
  * intent classification, and escalation options.
  */
 

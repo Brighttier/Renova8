@@ -905,7 +905,7 @@ Sections needed: Hero with call-to-action, About/Services, Features/Benefits, Te
                             {!activeLead.websiteConceptImage ? (
                                 <div className="py-12 bg-[#F9F6F0] rounded-3xl border border-dashed border-[#D4AF37]/30">
                                     <div className="text-7xl mb-6">🎨</div>
-                                    <p className="text-[#4A4A4A]/70 mb-8 max-w-md mx-auto text-lg">Create a stunning, high-fidelity website mockup using Nano Banana Pro AI.</p>
+                                    <p className="text-[#4A4A4A]/70 mb-8 max-w-md mx-auto text-lg">Create a stunning, high-fidelity website mockup using RenovateMySite AI.</p>
                                     <button onClick={() => handleVisualize(false)} disabled={loading} className="bg-gradient-to-r from-[#D4AF37] to-[#C5A572] text-white px-10 py-4 rounded-xl font-bold text-lg shadow-xl hover:opacity-90 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed">
                                         {loading ? 'Painting...' : 'Generate Visual Concept (5 Cr)'}
                                     </button>

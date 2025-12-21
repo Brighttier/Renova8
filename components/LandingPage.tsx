@@ -152,7 +152,7 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
     },
     {
       question: 'What AI powers RenovateMySite?',
-      answer: 'RenovateMySite is powered by Google\'s Gemini AI, one of the most advanced AI models available. This enables high-quality content generation, accurate brand analysis, and professional website creation.'
+      answer: 'RenovateMySite is powered by RenovateMySite AI, our advanced AI technology. This enables high-quality content generation, accurate brand analysis, and professional website creation.'
     },
     {
       question: 'How do I contact support?',

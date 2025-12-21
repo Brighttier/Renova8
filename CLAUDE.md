@@ -2,9 +2,9 @@
 
 ## Project Overview
 
-**Renova8** is an AI-powered business concierge platform designed for non-tech entrepreneurs. It provides an integrated suite of tools for finding local leads, generating marketing content, building websites, and managing client relationships—all powered by Google's Gemini AI.
+**RenovateMySite** is an AI-powered business concierge platform designed for non-tech entrepreneurs. It provides an integrated suite of tools for finding local leads, generating marketing content, building websites, and managing client relationships—all powered by RenovateMySite AI.
 
-**Tagline**: "An easy-to-use platform for non-tech entrepreneurs to find local leads, generate marketing content, and build website concepts using Gemini AI."
+**Tagline**: "An easy-to-use platform for non-tech entrepreneurs to find local leads, generate marketing content, and build website concepts using RenovateMySite AI."
 
 ---
 
@@ -16,7 +16,7 @@
 | **Language** | TypeScript 5.8.2 |
 | **Build Tool** | Vite 6.2.0 |
 | **Styling** | Tailwind CSS (via CDN) |
-| **AI Integration** | Google Gemini AI (`@google/genai` 1.30.0) |
+| **AI Integration** | RenovateMySite AI (`@google/genai` 1.30.0) |
 | **State Management** | React useState/useRef (in-memory) |
 | **Persistence** | localStorage (UI preferences only) |
 
@@ -26,7 +26,7 @@
 
 ### Prerequisites
 - Node.js (v16 or higher)
-- Google Gemini API key
+- RenovateMySite AI API key
 
 ### Installation & Running
 
@@ -34,8 +34,8 @@
 # Install dependencies
 npm install
 
-# Create environment file with your Gemini API key
-echo 'GEMINI_API_KEY=your_api_key_here' > .env
+# Create environment file with your API key
+echo 'VITE_API_KEY=your_api_key_here' > .env
 
 # Start development server (port 3000)
 npm run dev
@@ -89,7 +89,7 @@ Renova8/Untitled/
 │   └── ApiKeyModal.tsx     # API key configuration modal
 │
 └── services/
-    └── geminiService.ts    # Google Gemini AI integration
+    └── geminiService.ts    # RenovateMySite AI integration
 ```
 
 ---
@@ -99,7 +99,7 @@ Renova8/Untitled/
 ### Core Functionality
 | Feature | Description |
 |---------|-------------|
-| **Scout Customers** | AI-powered lead discovery using Google Maps + Gemini |
+| **Scout Customers** | AI-powered lead discovery using Google Maps + RenovateMySite AI |
 | **Client List (CRM)** | Manage leads with status tracking, communications, invoices |
 | **Concierge Wizard** | 5-step guided workflow for customer acquisition |
 | **Website Builder** | AI-generated HTML websites with Tailwind CSS |
@@ -143,29 +143,29 @@ The app uses a single-page architecture with view switching via `AppView` enum:
 
 ---
 
-## AI Integration (Gemini Service)
+## AI Integration (RenovateMySite AI Service)
 
 All AI functionality is centralized in `services/geminiService.ts`:
 
 ### Available Functions
 
-| Function | Model | Purpose |
-|----------|-------|---------|
-| `findLeadsWithMaps()` | gemini-2.5-flash | Find local businesses via Google Maps grounding |
-| `generateBrandAnalysis()` | gemini-2.5-flash | Create color palettes and brand guidelines |
-| `generatePitchEmail()` | gemini-2.5-flash | Generate personalized cold emails |
-| `generateCampaignStrategy()` | gemini-2.5-flash | Create marketing strategies with content ideas |
-| `generateWebsiteConceptImage()` | gemini-3-pro-image | AI-generated website mockups |
-| `generateSocialMediaImage()` | gemini-3-pro-image | Platform-specific social graphics |
-| `generateWebsiteStructure()` | gemini-3-pro-preview | Full HTML website code generation |
-| `refineWebsiteCode()` | gemini-3-pro-preview | Iterative website code editing |
-| `generateMarketingVideo()` | veo-3.1-fast | AI video generation |
+| Function | Purpose |
+|----------|---------|
+| `findLeadsWithMaps()` | Find local businesses via Google Maps grounding |
+| `generateBrandAnalysis()` | Create color palettes and brand guidelines |
+| `generatePitchEmail()` | Generate personalized cold emails |
+| `generateCampaignStrategy()` | Create marketing strategies with content ideas |
+| `generateWebsiteConceptImage()` | AI-generated website mockups |
+| `generateSocialMediaImage()` | Platform-specific social graphics |
+| `generateWebsiteStructure()` | Full HTML website code generation |
+| `refineWebsiteCode()` | Iterative website code editing |
+| `generateMarketingVideo()` | AI video generation |
 
 ### API Key Configuration
 
 ```typescript
 // Environment variable required
-GEMINI_API_KEY=your_api_key_here
+VITE_API_KEY=your_api_key_here
 
 // For paid features (Pro Image), uses AI Studio key selection
 window.aistudio.openSelectKey()
@@ -280,7 +280,7 @@ Users start with **50 credits**. Operations cost:
 
 ### Architecture
 - **Frontend-only**: No backend server or database
-- **AI-first**: Every major feature leverages Gemini AI
+- **AI-first**: Every major feature leverages RenovateMySite AI
 - **Single-session**: Data exists only in browser memory
 - **Component-driven**: Modular components with clear separation
 
@@ -311,7 +311,7 @@ Users start with **50 credits**. Operations cost:
 1. **No data persistence**: All customer data lost on refresh
 2. **No authentication**: Single-user, no accounts
 3. **No real-time sync**: Client-side only
-4. **API key required**: Gemini API key needed for all AI features
+4. **API key required**: API key needed for all AI features
 5. **Pro features**: Some image generation requires paid API key
 
 ---
@@ -343,7 +343,7 @@ npm run preview  # Preview production build
 - [TypeScript Handbook](https://www.typescriptlang.org/docs/)
 - [Vite Guide](https://vitejs.dev/guide/)
 - [Tailwind CSS](https://tailwindcss.com/docs)
-- [Google Gemini AI](https://ai.google.dev/docs)
+- [RenovateMySite AI](https://renovatemysite.com/docs)
 
 ---
 

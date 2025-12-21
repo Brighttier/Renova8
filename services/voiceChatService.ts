@@ -98,7 +98,7 @@ export class VoiceChatSession {
       const apiKey = import.meta.env.VITE_API_KEY || import.meta.env.VITE_GEMINI_API_KEY || localStorage.getItem('gemini_api_key');
 
       if (!apiKey) {
-        throw new Error('Gemini API key not found. Please configure your API key.');
+        throw new Error('API key not found. Please configure your API key.');
       }
 
       this.genAI = new GoogleGenAI({ apiKey });
@@ -627,7 +627,7 @@ export async function checkVoiceChatAvailability(): Promise<{
   // Check for API key
   const apiKey = import.meta.env.VITE_API_KEY || import.meta.env.VITE_GEMINI_API_KEY || localStorage.getItem('gemini_api_key');
   if (!apiKey) {
-    return { available: false, reason: 'Please configure your Gemini API key in Settings to enable voice chat' };
+    return { available: false, reason: 'Please configure your API key in Settings to enable voice chat' };
   }
 
   // Check for secure context (HTTPS or localhost)
