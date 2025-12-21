@@ -30,9 +30,6 @@ const ServiceCatalog: React.FC<ServiceCatalogProps> = ({ onOpenSupportChat }) =>
       lastUpdate: 'December 2025',
 
       source: 'AI Engine',
-
-      source: 'AI Engine',
-
       features: ['Custom page creation', 'URL slug configuration', 'Navigation menu integration', 'Template selection', 'SEO-ready structure'],
       serviceType: 'diy',
       diyPrompt: `Add a new page to my website with the following details:
@@ -55,9 +52,6 @@ The page should match the existing design system and be mobile-responsive.`
       lastUpdate: 'December 2025',
 
       source: 'AI Engine',
-
-      source: 'AI Engine',
-
       features: ['Safe page deletion', 'Navigation cleanup', 'Link removal', 'Preserve data backups', 'Redirect handling'],
       serviceType: 'diy',
       diyPrompt: `Remove the following page from my website:
@@ -80,9 +74,6 @@ Ensure no broken links remain after deletion.`
       lastUpdate: 'December 2025',
 
       source: 'AI Engine',
-
-      source: 'AI Engine',
-
       features: ['Title updates', 'URL slug changes', 'Navigation label editing', 'Meta title updates', 'Breadcrumb updates'],
       serviceType: 'diy',
       diyPrompt: `Rename an existing page on my website:
@@ -106,8 +97,6 @@ Maintain all page content and design while updating names.`
 
       source: 'AI Engine',
 
-      source: 'AI Engine',
-
       features: ['Drag-and-drop ordering', 'Menu position control', 'Mobile menu ordering', 'Dropdown organization', 'Visual hierarchy'],
       serviceType: 'diy',
       diyPrompt: `Reorder the navigation menu on my website:
@@ -127,8 +116,6 @@ Ensure navigation remains intuitive and matches user expectations.`
       icon: '➕',
       iconBg: '#3B82F6',
       lastUpdate: 'December 2025',
-
-      source: 'AI Engine',
 
       source: 'AI Engine',
 
@@ -155,8 +142,6 @@ Include placeholder content that I can customize later.`
 
       source: 'AI Engine',
 
-      source: 'AI Engine',
-
       features: ['Visual section moving', 'Smooth transitions', 'Maintain content', 'Preview changes', 'Responsive handling'],
       serviceType: 'diy',
       diyPrompt: `Reorder sections on the following page:
@@ -176,8 +161,6 @@ Ensure visual flow and user experience remain optimal after reordering.`
       icon: '⚓',
       iconBg: '#3B82F6',
       lastUpdate: 'December 2025',
-
-      source: 'AI Engine',
 
       source: 'AI Engine',
 
@@ -201,8 +184,6 @@ Ensure visual flow and user experience remain optimal after reordering.`
       icon: '👣',
       iconBg: '#3B82F6',
       lastUpdate: 'December 2025',
-
-      source: 'AI Engine',
 
       source: 'AI Engine',
 
@@ -234,8 +215,6 @@ Ensure footer is mobile-responsive and matches brand design.`
 
       source: 'AI Engine',
 
-      source: 'AI Engine',
-
       features: ['Global color system', 'Primary/secondary colors', 'Accent colors', 'Text contrast', 'Color accessibility'],
       serviceType: 'diy',
       diyPrompt: `Update the website color scheme:
@@ -256,8 +235,6 @@ Update all pages consistently with the new color palette.`
       icon: '🔤',
       iconBg: '#EC4899',
       lastUpdate: 'December 2025',
-
-      source: 'AI Engine',
 
       source: 'AI Engine',
 
@@ -284,8 +261,6 @@ Apply consistently across all pages and ensure readability on mobile.`
 
       source: 'AI Engine',
 
-      source: 'AI Engine',
-
       features: ['Button variants', 'Hover effects', 'Border radius', 'Shadows', 'Icon buttons'],
       serviceType: 'diy',
       diyPrompt: `Update button styles throughout the website:
@@ -306,8 +281,6 @@ Apply to all call-to-action buttons, form submissions, and navigation.`
       icon: '📐',
       iconBg: '#EC4899',
       lastUpdate: 'December 2025',
-
-      source: 'AI Engine',
 
       source: 'AI Engine',
 
@@ -334,8 +307,6 @@ Create a more balanced, professional layout with improved readability.`
 
       source: 'AI Engine',
 
-      source: 'AI Engine',
-
       features: ['Responsive breakpoints', 'Mobile navigation', 'Touch targets', 'Image scaling', 'Content stacking'],
       serviceType: 'diy',
       diyPrompt: `Optimize the website for mobile devices:
@@ -356,8 +327,6 @@ Test on common mobile screen sizes (iPhone, Android) and ensure usability.`
       icon: '✨',
       iconBg: '#EC4899',
       lastUpdate: 'December 2025',
-
-      source: 'AI Engine',
 
       source: 'AI Engine',
 
@@ -388,8 +357,6 @@ Keep animations subtle and professional, avoiding distractions.`
 
       source: 'AI Engine',
 
-      source: 'AI Engine',
-
       features: ['Tone transformation', 'Voice consistency', 'Length adjustment', 'Keyword integration', 'Readability optimization'],
       serviceType: 'diy',
       diyPrompt: `Rewrite the copy on the following page:
@@ -411,8 +378,6 @@ Preserve all factual information while adapting the writing style.`
       icon: '📋',
       iconBg: '#F59E0B',
       lastUpdate: 'December 2025',
-
-      source: 'AI Engine',
 
       source: 'AI Engine',
 
@@ -440,8 +405,6 @@ Include a clear call-to-action at the end.`
 
       source: 'AI Engine',
 
-      source: 'AI Engine',
-
       features: ['Compelling headlines', 'Action-oriented CTAs', 'Value propositions', 'Urgency creation', 'Benefit focus'],
       serviceType: 'diy',
       diyPrompt: `Improve headlines and calls-to-action:
@@ -462,8 +425,6 @@ Make headlines attention-grabbing and CTAs clear and actionable.`
       icon: '💬',
       iconBg: '#F59E0B',
       lastUpdate: 'December 2025',
-
-      source: 'AI Engine',
 
       source: 'AI Engine',
 
@@ -490,8 +451,6 @@ Make headlines attention-grabbing and CTAs clear and actionable.`
 
       source: 'AI Engine',
 
-      source: 'AI Engine',
-
       features: ['Expandable questions', 'Organized categories', 'Search functionality', 'Jump links', 'Schema markup'],
       serviceType: 'diy',
       diyPrompt: `Add or update FAQ section:
@@ -512,8 +471,6 @@ Generate placeholder questions relevant to [INDUSTRY: plumbing, web design, etc.
       icon: '👥',
       iconBg: '#F59E0B',
       lastUpdate: 'December 2025',
-
-      source: 'AI Engine',
 
       source: 'AI Engine',
 
@@ -540,8 +497,6 @@ Generate placeholder questions relevant to [INDUSTRY: plumbing, web design, etc.
 
       source: 'AI Engine',
 
-      source: 'AI Engine',
-
       features: ['Company name', 'Address updates', 'Contact info', 'Business hours', 'Service area'],
       serviceType: 'diy',
       diyPrompt: `Update business information throughout the website:
@@ -564,8 +519,6 @@ Ensure consistency across all pages and sections.`
       icon: '📖',
       iconBg: '#F59E0B',
       lastUpdate: 'December 2025',
-
-      source: 'AI Engine',
 
       source: 'AI Engine',
 
@@ -597,8 +550,6 @@ Create an authentic, engaging story that builds trust with customers.`
 
       source: 'AI Engine',
 
-      source: 'AI Engine',
-
       features: ['Form fields', 'Validation', 'Spam protection', 'Success message', 'Mobile-friendly'],
       serviceType: 'diy',
       diyPrompt: `Add a contact form to my website:
@@ -620,8 +571,6 @@ Create an authentic, engaging story that builds trust with customers.`
       icon: '✏️',
       iconBg: '#10B981',
       lastUpdate: 'December 2025',
-
-      source: 'AI Engine',
 
       source: 'AI Engine',
 
@@ -649,8 +598,6 @@ Create an authentic, engaging story that builds trust with customers.`
 
       source: 'AI Engine',
 
-      source: 'AI Engine',
-
       features: ['Multi-step form', 'Service selection', 'Budget range', 'Timeline', 'File uploads'],
       serviceType: 'diy',
       diyPrompt: `Add a "Request a Quote" form:
@@ -672,8 +619,6 @@ Create an authentic, engaging story that builds trust with customers.`
       icon: '📬',
       iconBg: '#10B981',
       lastUpdate: 'December 2025',
-
-      source: 'AI Engine',
 
       source: 'AI Engine',
 
@@ -705,8 +650,6 @@ Create an authentic, engaging story that builds trust with customers.`
 
       source: 'AI Engine',
 
-      source: 'AI Engine',
-
       features: ['Interactive map', 'Location pin', 'Directions link', 'Responsive sizing', 'Custom styling'],
       serviceType: 'diy',
       diyPrompt: `Embed Google Maps on my website:
@@ -728,8 +671,6 @@ Generate the Google Maps embed code for the specified address.
       icon: '📅',
       iconBg: '#EF4444',
       lastUpdate: 'December 2025',
-
-      source: 'AI Engine',
 
       source: 'AI Engine',
 
@@ -757,8 +698,6 @@ Generate the Google Maps embed code for the specified address.
 
       source: 'AI Engine',
 
-      source: 'AI Engine',
-
       features: ['Form embed', 'Full width option', 'Popup mode', 'Custom height', 'Responsive design'],
       serviceType: 'diy',
       diyPrompt: `Embed a Typeform or Google Form:
@@ -783,8 +722,6 @@ Generate the Google Maps embed code for the specified address.
 
       source: 'AI Engine',
 
-      source: 'AI Engine',
-
       features: ['Responsive player', 'Auto-play option', 'Custom thumbnail', 'Playlist support', 'Privacy mode'],
       serviceType: 'diy',
       diyPrompt: `Embed a YouTube or Vimeo video:
@@ -806,8 +743,6 @@ Generate the Google Maps embed code for the specified address.
       icon: '📸',
       iconBg: '#EF4444',
       lastUpdate: 'December 2025',
-
-      source: 'AI Engine',
 
       source: 'AI Engine',
 
@@ -839,8 +774,6 @@ Generate the Google Maps embed code for the specified address.
 
       source: 'AI Engine',
 
-      source: 'AI Engine',
-
       features: ['Title tags', 'Meta descriptions', 'Character limits', 'Keyword optimization', 'Social preview'],
       serviceType: 'diy',
       diyPrompt: `Update SEO meta tags for the following pages:
@@ -862,8 +795,6 @@ Generate optimized titles and descriptions for each page.`
       icon: '📑',
       iconBg: '#8B5CF6',
       lastUpdate: 'December 2025',
-
-      source: 'AI Engine',
 
       source: 'AI Engine',
 
@@ -891,8 +822,6 @@ Restructure headings for better SEO and screen reader accessibility.`
 
       source: 'AI Engine',
 
-      source: 'AI Engine',
-
       features: ['LocalBusiness schema', 'Organization markup', 'Contact info', 'Service area', 'Opening hours'],
       serviceType: 'diy',
       diyPrompt: `Add local business schema markup (JSON-LD):
@@ -915,8 +844,6 @@ Generate valid JSON-LD schema markup to paste in the website <head> section.`
       icon: '🛡️',
       iconBg: '#8B5CF6',
       lastUpdate: 'December 2025',
-
-      source: 'AI Engine',
 
       source: 'AI Engine',
 

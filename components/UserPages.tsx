@@ -124,54 +124,6 @@ export const UserPassword = () => (
     </PageContainer>
 );
 
-export const PaymentSetup = () => (
-    <PageContainer title="Payment Setup" subtitle="Manage your payment methods for subscriptions and credit top-ups.">
-        <div className="space-y-8">
-            <div className="bg-gradient-to-r from-gray-800 to-gray-900 rounded-2xl p-6 text-white shadow-lg max-w-md relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-20">
-                    <svg className="w-24 h-24" fill="currentColor" viewBox="0 0 24 24"><path d="M20 4H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/></svg>
-                </div>
-                <div className="flex justify-between items-start mb-8">
-                    <div className="text-xs font-mono opacity-70">CURRENT METHOD</div>
-                    <div className="font-bold italic text-xl">VISA</div>
-                </div>
-                <div className="font-mono text-xl tracking-widest mb-4">**** **** **** 4242</div>
-                <div className="flex justify-between text-sm opacity-80">
-                    <div>JANE DOE</div>
-                    <div>EXP 12/25</div>
-                </div>
-            </div>
-
-            <div>
-                <h3 className="font-bold text-gray-800 mb-4">Add New Payment Method</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl">
-                    <div className="col-span-2">
-                        <label className="block text-sm font-bold text-gray-700 mb-2">Card Number</label>
-                        <input type="text" placeholder="0000 0000 0000 0000" className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-200 outline-none" />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">Expiry Date</label>
-                        <input type="text" placeholder="MM/YY" className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-200 outline-none" />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-bold text-gray-700 mb-2">CVC</label>
-                        <input type="text" placeholder="123" className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-200 outline-none" />
-                    </div>
-                    <div className="col-span-2">
-                        <label className="block text-sm font-bold text-gray-700 mb-2">Cardholder Name</label>
-                        <input type="text" placeholder="Jane Doe" className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-200 outline-none" />
-                    </div>
-                </div>
-                 <div className="pt-6">
-                    <button className="bg-purple-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-purple-700 transition-colors shadow-md">
-                        Add Card
-                    </button>
-                </div>
-            </div>
-        </div>
-    </PageContainer>
-);
-
 export const EmailConfig = () => (
     <PageContainer title="Email Configuration" subtitle="How pitch emails work in the app.">
         <div className="space-y-6 max-w-2xl">
