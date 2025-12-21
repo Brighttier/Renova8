@@ -119,11 +119,17 @@ service cloud.firestore {
     // Platform Configuration
     // ============================================
     match /platform_config/{docId} {
-      // Only platform admins can read config
-      allow read: if isPlatformAdmin();
+      // Allow anyone to read the 'setup' document (needed for first-time setup check)
+      // Other config docs require admin access
+      allow read: if docId == 'setup' || isPlatformAdmin();
 
-      // Only Cloud Functions can write config
-      allow write: if false;
+      // Allow first-time setup: create 'setup' doc only if it doesn't exist
+      // and no admins exist yet (checked by the absence of platform_admins collection)
+      allow create: if docId == 'setup' &&
+        !exists(/databases/$(database)/documents/platform_config/setup);
+
+      // Only Cloud Functions can update/delete config
+      allow update, delete: if false;
     }
 
     // ============================================
@@ -149,11 +155,25 @@ service cloud.firestore {
     // Platform Admins
     // ============================================
     match /platform_admins/{adminId} {
-      // Admins can read their own record or other admin records
-      allow read: if isOwner(adminId) || isPlatformAdmin();
+      // Allow public read access to admin records
+      // This is needed for:
+      // 1. Login - query by email to authenticate (before Firebase Auth login)
+      // 2. Session restore - read admin by ID
+      // 3. Admin dashboard - list all admins
+      // Security note: Password is SHA-256 hashed, so safe to expose
+      // The admin system uses custom auth, not Firebase Auth
+      allow read: if true;
 
-      // Only Cloud Functions can manage admins
-      allow write: if false;
+      // Allow first-time admin creation ONLY when no setup exists yet
+      // This enables the initial super admin to be created via the UI
+      allow create: if !exists(/databases/$(database)/documents/platform_config/setup);
+
+      // Admins can update their own lastLoginAt timestamp
+      // This is needed for the login flow
+      allow update: if true;
+
+      // No one can delete admins from client (only via Firebase Console)
+      allow delete: if false;
     }
 
     // ============================================

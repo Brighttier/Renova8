@@ -108,17 +108,25 @@ export function AdminRevenue() {
       const [metricsData, transactionsData, plansData] = await Promise.all([
         getRevenueMetrics(startDate ? { start: startDate, end: Date.now() } : undefined),
         getTransactions({
-          type: typeFilter !== 'all' ? typeFilter : undefined,
-          startDate,
-          page: currentPage,
-          limit: transactionsPerPage,
+          type: typeFilter !== 'all' ? typeFilter as any : undefined,
+          limit: transactionsPerPage * 10, // Get more to filter client-side
         }),
         getSubscriptionPlans(),
       ]);
 
+      // Filter by date range client-side if needed
+      let filteredTransactions = transactionsData;
+      if (startDate) {
+        filteredTransactions = transactionsData.filter(t => t.createdAt >= startDate);
+      }
+
+      // Simple client-side pagination
+      const startIndex = (currentPage - 1) * transactionsPerPage;
+      const paginatedTransactions = filteredTransactions.slice(startIndex, startIndex + transactionsPerPage);
+
       setMetrics(metricsData);
-      setTransactions(transactionsData.transactions);
-      setTotalTransactions(transactionsData.total);
+      setTransactions(paginatedTransactions);
+      setTotalTransactions(filteredTransactions.length);
       setPlans(plansData);
     } catch (error) {
       console.error('Error loading revenue data:', error);

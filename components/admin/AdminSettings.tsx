@@ -81,6 +81,12 @@ const UserIcon = () => (
   </svg>
 );
 
+const CpuIcon = () => (
+  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 3v2m6-2v2M9 19v2m6-2v2M3 9h2m-2 6h2m14-6h2m-2 6h2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+  </svg>
+);
+
 const EditIcon = () => (
   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -100,7 +106,57 @@ const CheckIcon = () => (
 );
 
 // Tab type
-type SettingsTab = 'api-keys' | 'rate-limits' | 'token-settings' | 'admins';
+type SettingsTab = 'ai-models' | 'api-keys' | 'rate-limits' | 'token-settings' | 'admins';
+
+// AI Models Configuration
+const AI_MODELS = [
+  {
+    id: 'gemini-3-pro',
+    nickname: 'The Architect',
+    icon: '🏗️',
+    bgColor: 'bg-purple-500/20',
+    textColor: 'text-purple-400',
+    borderColor: 'border-purple-500/30',
+    purpose: 'Core website construction, layout logic, and structural edits',
+    features: [
+      'Full HTML website generation',
+      'Responsive layout design',
+      'Component structure optimization',
+      'Code refinement and edits',
+    ],
+  },
+  {
+    id: 'gemini-2.5-flash',
+    nickname: 'The Brain',
+    icon: '🧠',
+    bgColor: 'bg-blue-500/20',
+    textColor: 'text-blue-400',
+    borderColor: 'border-blue-500/30',
+    purpose: 'Fast brand analysis, copy generation, and AI Chatbot (Voice & Text)',
+    features: [
+      'Brand color palette analysis',
+      'Marketing copy generation',
+      'Email pitch writing',
+      'Voice & text chatbot responses',
+      'Lead discovery with Maps',
+    ],
+  },
+  {
+    id: 'nano-banana-pro',
+    nickname: 'The Artist',
+    icon: '🎨',
+    bgColor: 'bg-amber-500/20',
+    textColor: 'text-amber-400',
+    borderColor: 'border-amber-500/30',
+    purpose: 'High-end image generation and visual brand assets',
+    features: [
+      'Website concept mockups',
+      'Social media graphics',
+      'Brand visual assets',
+      'Marketing imagery',
+    ],
+  },
+];
 
 const ROLE_PERMISSIONS: Record<AdminRole, AdminPermission[]> = {
   super_admin: [
@@ -136,7 +192,7 @@ const ROLE_PERMISSIONS: Record<AdminRole, AdminPermission[]> = {
 
 export function AdminSettings() {
   const { admin: currentAdmin, hasPermission } = useAdminAuth();
-  const [activeTab, setActiveTab] = useState<SettingsTab>('api-keys');
+  const [activeTab, setActiveTab] = useState<SettingsTab>('ai-models');
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
@@ -833,6 +889,64 @@ export function AdminSettings() {
     </div>
   );
 
+  const renderAiModelsTab = () => (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 bg-gradient-to-br from-purple-500/20 to-blue-500/20 rounded-xl flex items-center justify-center">
+          <span className="text-2xl">🤖</span>
+        </div>
+        <div>
+          <h3 className="text-white font-semibold">AI Models</h3>
+          <p className="text-white/60 text-sm">The AI engines powering RenovateMySite</p>
+        </div>
+      </div>
+
+      {/* Model Cards */}
+      <div className="grid gap-6">
+        {AI_MODELS.map((model) => (
+          <div
+            key={model.id}
+            className={`bg-white/5 border ${model.borderColor} rounded-2xl p-6 hover:bg-white/[0.08] transition-colors`}
+          >
+            <div className="flex items-start gap-4">
+              <div className={`w-14 h-14 ${model.bgColor} rounded-xl flex items-center justify-center text-3xl shrink-0`}>
+                {model.icon}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-3 mb-2">
+                  <h4 className="text-xl font-bold text-white">{model.nickname}</h4>
+                  <span className={`px-3 py-1 text-xs font-mono ${model.bgColor} ${model.textColor} rounded-full`}>
+                    {model.id}
+                  </span>
+                </div>
+                <p className="text-white/70 mb-4">{model.purpose}</p>
+                <div className="flex flex-wrap gap-2">
+                  {model.features.map((feature, idx) => (
+                    <span
+                      key={idx}
+                      className="px-3 py-1 text-xs bg-white/5 text-white/60 rounded-full border border-white/10"
+                    >
+                      {feature}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Info Note */}
+      <div className="bg-[#D4AF37]/10 border border-[#D4AF37]/30 rounded-xl p-4 mt-6">
+        <p className="text-[#D4AF37] text-sm">
+          <strong>Note:</strong> API keys configured in the "API Keys" tab are used to authenticate
+          requests to these models. Ensure you have valid Gemini API keys with appropriate quotas.
+        </p>
+      </div>
+    </div>
+  );
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -860,6 +974,17 @@ export function AdminSettings() {
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-2 border-b border-white/10 pb-2">
+        <button
+          onClick={() => setActiveTab('ai-models')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-colors ${
+            activeTab === 'ai-models'
+              ? 'bg-[#D4AF37] text-white'
+              : 'text-white/60 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <CpuIcon />
+          AI Models
+        </button>
         <button
           onClick={() => setActiveTab('api-keys')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-colors ${
@@ -908,6 +1033,7 @@ export function AdminSettings() {
 
       {/* Tab Content */}
       <div className="bg-slate-800/50 border border-white/5 rounded-2xl p-6">
+        {activeTab === 'ai-models' && renderAiModelsTab()}
         {activeTab === 'api-keys' && renderApiKeysTab()}
         {activeTab === 'rate-limits' && renderRateLimitsTab()}
         {activeTab === 'token-settings' && renderTokenSettingsTab()}
