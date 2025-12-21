@@ -1,12 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import type { ServiceItem, ServiceCategory, ServiceType } from '../types';
-import type { SupportContext } from '../services/supportChatService';
 
-interface ServiceCatalogProps {
-  onOpenSupportChat?: (context: SupportContext, initialMessage?: string) => void;
-}
-
-const ServiceCatalog: React.FC<ServiceCatalogProps> = ({ onOpenSupportChat }) => {
+const ServiceCatalog: React.FC = () => {
   const [catalogView, setCatalogView] = useState<'diy' | 'assistance'>('diy');
   const [selectedCategory, setSelectedCategory] = useState<ServiceCategory | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -1492,28 +1487,10 @@ Generate valid JSON-LD schema markup to paste in the website <head> section.`
   };
 
   const handleGetAssistanceClick = (service: ServiceItem) => {
-    // Build service context
-    const context: SupportContext = {
-      currentPage: 'Service Catalog',
-      currentWebsiteName: service.name,
-      recentActions: [{
-        type: 'requested_assistance',
-        timestamp: Date.now(),
-        success: true,
-        details: `User requested assistance for: ${service.name}`
-      }]
-    };
-
-    // Pre-populated message
-    const initialMessage = `Hi! I need help implementing ${service.name} for my client's website. Could you assist me with the setup and requirements?`;
-
-    // Call support chat callback
-    if (onOpenSupportChat) {
-      onOpenSupportChat(context, initialMessage);
-    } else {
-      // Fallback if not wired up yet
-      alert(`Support integration coming soon!\n\nService: ${service.name}\n\nOur team will help you implement this feature.`);
-    }
+    // Copy service details to clipboard and show instructions
+    const message = `I need help implementing "${service.name}" for my website.\n\nDescription: ${service.description}`;
+    navigator.clipboard.writeText(message);
+    alert(`Details copied to clipboard!\n\nClick the gold Contact button (bottom-right) to submit a support ticket for "${service.name}".`);
   };
 
   const handleCopyPrompt = () => {

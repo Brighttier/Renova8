@@ -25,8 +25,7 @@ import { AuthProvider, useAuth } from './hooks/useAuth';
 import { useCredits } from './hooks/useCredits';
 import { AuthPage } from './components/AuthPage';
 import WizardLoaderPreview from './components/WizardLoaderPreview';
-import { SupportChat } from './components/SupportChat';
-import { SupportContext } from './services/supportChatService';
+import { FloatingContactButton } from './components/FloatingContactButton';
 import ServiceCatalog from './components/ServiceCatalog';
 import ErrorBoundary from './components/ErrorBoundary';
 import * as Sentry from '@sentry/react';
@@ -85,11 +84,6 @@ function AppContent() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | null>(null);
-
-  // Support chat state
-  const [isSupportOpen, setIsSupportOpen] = useState(false);
-  const [supportContext, setSupportContext] = useState<any>(null);
-  const [supportInitialMessage, setSupportInitialMessage] = useState<string | undefined>(undefined);
 
   // Walkthrough state - check localStorage for completion status
   const [showWalkthrough, setShowWalkthrough] = useState(false);
@@ -435,20 +429,7 @@ function AppContent() {
                 />
             )}
             {currentView === AppView.SERVICE_CATALOG && (
-              <ServiceCatalog
-                onOpenSupportChat={(context, initialMessage) => {
-                  // Set support context
-                  setSupportContext(context);
-
-                  // Set initial message if provided
-                  if (initialMessage) {
-                    setSupportInitialMessage(initialMessage);
-                  }
-
-                  // Open support chat
-                  setIsSupportOpen(true);
-                }}
-              />
+              <ServiceCatalog />
             )}
             {currentView === AppView.MARKETING && (
                 <MarketingStudio
@@ -556,35 +537,8 @@ function AppContent() {
         </main>
       </div>
 
-      {/* Support Chat */}
-      <SupportChat
-        isOpen={isSupportOpen}
-        onClose={() => {
-          setIsSupportOpen(false);
-          setSupportInitialMessage(undefined); // Clear initial message
-        }}
-        context={supportContext || {
-          userId: user?.uid,
-          userEmail: user?.email || undefined,
-          userPlan: user ? 'pro' : 'free',
-          currentPage: getPageName(currentView),
-          systemStatus: { publishingAvailable: true }
-        }}
-        initialMessage={supportInitialMessage}
-        onNavigate={(path) => {
-          const pathMap: Record<string, AppView> = {
-            '/settings': AppView.SETTINGS,
-            '/settings/billing': AppView.SETTINGS,
-            '/website-builder': AppView.WEBSITE_BUILDER,
-            '/deploy': AppView.WEBSITE_BUILDER,
-            '/help/publishing': AppView.HELP_SUPPORT,
-          };
-          const view = pathMap[path];
-          if (view) {
-            setCurrentView(view);
-          }
-        }}
-      />
+      {/* Floating Contact Button - Show on all views except Landing */}
+      {currentView !== AppView.LANDING && <FloatingContactButton />}
     </div>
   );
 
