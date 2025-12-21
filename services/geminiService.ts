@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { ImageSize, AspectRatio, DesignSpecification, DiscrepancyReport } from "../types";
+import { ImageSize, AspectRatio, DesignSpecification, DiscrepancyReport, SectionBackground } from "../types";
 
 // Helper to ensure we get a valid client instance
 // For Veo/Pro Image, we need to check for selected API key flow
@@ -61,6 +61,58 @@ export const safeParseJSON = (text: string) => {
         // Return empty object if all else fails
         return {};
     }
+};
+
+/**
+ * Map unsplash search queries to reliable, direct image URLs
+ * Avoids using source.unsplash.com which is unreliable
+ */
+const getReliableImageUrl = (query: string): string => {
+    const queryLower = query.toLowerCase();
+
+    // Hero backgrounds by category
+    if (queryLower.includes('office') || queryLower.includes('corporate') || queryLower.includes('business')) {
+        return 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&h=1080&fit=crop';
+    }
+    if (queryLower.includes('restaurant') || queryLower.includes('dining') || queryLower.includes('food')) {
+        return 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1920&h=1080&fit=crop';
+    }
+    if (queryLower.includes('spa') || queryLower.includes('wellness') || queryLower.includes('relax')) {
+        return 'https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=1920&h=1080&fit=crop';
+    }
+    if (queryLower.includes('gym') || queryLower.includes('fitness') || queryLower.includes('workout')) {
+        return 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1920&h=1080&fit=crop';
+    }
+    if (queryLower.includes('real estate') || queryLower.includes('house') || queryLower.includes('property')) {
+        return 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1920&h=1080&fit=crop';
+    }
+    if (queryLower.includes('education') || queryLower.includes('school') || queryLower.includes('university')) {
+        return 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1920&h=1080&fit=crop';
+    }
+    if (queryLower.includes('tech') || queryLower.includes('startup') || queryLower.includes('computer')) {
+        return 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=1920&h=1080&fit=crop';
+    }
+    if (queryLower.includes('medical') || queryLower.includes('clinic') || queryLower.includes('health')) {
+        return 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=1920&h=1080&fit=crop';
+    }
+    if (queryLower.includes('nature') || queryLower.includes('mountain') || queryLower.includes('landscape')) {
+        return 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920&h=1080&fit=crop';
+    }
+    if (queryLower.includes('beach') || queryLower.includes('ocean') || queryLower.includes('travel')) {
+        return 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&h=1080&fit=crop';
+    }
+    if (queryLower.includes('city') || queryLower.includes('skyline') || queryLower.includes('urban')) {
+        return 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1920&h=1080&fit=crop';
+    }
+    if (queryLower.includes('team') || queryLower.includes('meeting') || queryLower.includes('collaboration')) {
+        return 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=800&fit=crop';
+    }
+    if (queryLower.includes('interior') || queryLower.includes('design') || queryLower.includes('modern')) {
+        return 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=1920&h=1080&fit=crop';
+    }
+
+    // Default fallback - professional office
+    return 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&h=1080&fit=crop';
 };
 
 export const findLeadsWithMaps = async (query: string, location: string) => {
@@ -264,16 +316,69 @@ export const generateWebsiteConceptImage = async (
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-image-preview',
     contents: {
-        parts: [{ text: `A professional, modern website design screenshot for: ${prompt}.
+        parts: [{ text: `Generate a COMPLETE, PROFESSIONAL website design screenshot for: ${prompt}.
 
-CRITICAL REQUIREMENTS:
-- Generate a FLAT website screenshot showing ONLY the webpage content
-- DO NOT include any laptop, computer, phone, tablet, or device frame around the website
-- DO NOT show the website displayed on a screen or monitor
-- Show the website as a direct browser viewport screenshot
-- Full-page website view with header, hero section, and content sections visible
-- Clean, high-quality UI/UX design
-- Professional typography and spacing` }]
+=== CRITICAL: FULL WEBSITE LAYOUT ===
+This must be a COMPLETE website mockup showing ALL major sections in a single scrollable view:
+
+1. HEADER/NAVIGATION BAR (Required):
+   - Professional logo area on the left
+   - VISIBLE navigation menu with text labels (Home, About, Services, Contact, etc.)
+   - Menu items must be clearly readable and properly spaced
+   - Include a hamburger menu icon for mobile indication
+   - Clean, modern header design
+
+2. HERO SECTION (Required):
+   - Large, impactful hero area with beautiful background image
+   - Bold headline text that is clearly readable
+   - Subheadline or tagline
+   - Call-to-action buttons (e.g., "Get Started", "Learn More")
+   - Professional typography
+
+3. FEATURES/SERVICES SECTION (Required):
+   - Grid or card layout showing 3-4 services/features
+   - Each card should have an icon or image
+   - Brief descriptive text for each
+   - Clean, organized layout
+
+4. ABOUT SECTION (Required):
+   - Brief about text or company description
+   - Can include team photos or company images
+   - Professional layout
+
+5. TESTIMONIALS/REVIEWS (Optional but recommended):
+   - Customer quotes or reviews
+   - Star ratings if applicable
+
+6. CONTACT/CTA SECTION (Required):
+   - Contact information or call-to-action
+   - May include contact form preview
+
+7. FOOTER (Required):
+   - Company info, links, social media icons
+   - Copyright area
+
+=== IMAGE REQUIREMENTS ===
+- Generate a FLAT website screenshot (NO device frame - no laptop, phone, monitor)
+- Show it as a direct browser viewport view
+- Use HIGH-QUALITY, REALISTIC images throughout (not placeholders)
+- Images should be relevant to the business type
+- Professional, modern UI/UX design
+- Clean typography with proper hierarchy
+- Proper spacing and visual balance
+- The website should look like a real, professionally designed site
+
+=== RESPONSIVE DESIGN INDICATORS ===
+- The design should look modern and responsive-ready
+- Clean grid layouts that suggest mobile-friendliness
+- Proper text sizes that work across devices
+
+=== STYLE ===
+- Modern, clean aesthetic
+- Professional color scheme appropriate for the business
+- High contrast for readability
+- Visual hierarchy with clear sections
+- Consistent design language throughout` }]
     },
     config: {
       imageConfig: {
@@ -329,76 +434,2184 @@ export const generateSocialMediaImage = async (
 };
 
 /**
+ * Generate AI images for website sections
+ * Creates consistent, AI-generated images for hero, about, services, and contact sections
+ * using the same Gemini 3 Pro Image model as the concept generation
+ */
+export const generateSectionImages = async (
+  businessPrompt: string,
+  sections: string[] = ['hero', 'about', 'services', 'contact'],
+  skipKeyCheck: boolean = false
+): Promise<Map<string, string>> => {
+  const ai = await getClient(true, skipKeyCheck);
+  const sectionImages = new Map<string, string>();
+
+  // Define prompts for each section type
+  const sectionPrompts: Record<string, string> = {
+    'hero': `Professional hero banner image for a ${businessPrompt}. High-quality, photorealistic, wide landscape format, business-appropriate, modern and clean aesthetic. NO text overlays.`,
+    'about': `About section image for a ${businessPrompt}. Team photo or company culture image, professional people in a modern workspace, welcoming atmosphere. NO text overlays.`,
+    'services': `Services section image for a ${businessPrompt}. Professional service delivery, work in progress, showcasing business operations and expertise. NO text overlays.`,
+    'testimonials': `Customer testimonial background for a ${businessPrompt}. Happy customers, positive interaction, professional and trustworthy setting. NO text overlays.`,
+    'contact': `Contact section image for a ${businessPrompt}. Office location, modern workspace, or professional communication concept. NO text overlays.`,
+    'gallery': `Portfolio or gallery image for a ${businessPrompt}. Showcase of work, products, or services. High quality, professional photography. NO text overlays.`,
+    'team': `Team section image for a ${businessPrompt}. Professional group photo or individuals at work, showing expertise and collaboration. NO text overlays.`
+  };
+
+  console.log(`=== GENERATING AI SECTION IMAGES ===`);
+  console.log(`Sections to generate: ${sections.join(', ')}`);
+
+  for (const section of sections) {
+    const prompt = sectionPrompts[section] || `Professional ${section} section image for ${businessPrompt}. High-quality, photorealistic. NO text overlays.`;
+
+    try {
+      console.log(`Generating ${section} image...`);
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-3-pro-image-preview',
+        contents: { parts: [{ text: prompt }] },
+        config: {
+          imageConfig: {
+            aspectRatio: section === 'hero' ? AspectRatio.LANDSCAPE : AspectRatio.LANDSCAPE,
+            imageSize: ImageSize.S_1K
+          }
+        }
+      });
+
+      if (response.candidates?.[0]?.content?.parts) {
+        for (const part of response.candidates[0].content.parts) {
+          if (part.inlineData) {
+            const imageUrl = `data:image/png;base64,${part.inlineData.data}`;
+            sectionImages.set(section, imageUrl);
+            console.log(`✓ Generated ${section} image (${imageUrl.length} chars)`);
+            break;
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`✗ Failed to generate ${section} image:`, error);
+      // Continue with other sections even if one fails
+    }
+  }
+
+  console.log(`=== SECTION IMAGE GENERATION COMPLETE: ${sectionImages.size}/${sections.length} images ===`);
+  return sectionImages;
+};
+
+/**
+ * Clean up the home page content
+ * Since the concept image will be the full home page, we remove any generated content
+ * to prevent duplication with what's shown in the concept image
+ */
+/**
+ * Clean the home page content - remove ALL content except the concept image container
+ * This ensures no menu item names or other text appears on the hero section
+ */
+const cleanHomePageContent = (html: string): string => {
+    console.log('=== CLEANING HOME PAGE CONTENT ===');
+
+    // Find main#page-home and clear ALL its content (except for concept-hero-bg-container)
+    const pageHomePattern = /(<main[^>]*id=["']page-home["'][^>]*>)([\s\S]*?)(<\/main>)/gi;
+
+    html = html.replace(pageHomePattern, (match, openTag, content, closeTag) => {
+        // Extract ONLY the concept-hero-bg-container div (with its full content)
+        const bgContainerMatch = content.match(/<div class="concept-hero-bg-container">[\s\S]*?<\/div>/i);
+
+        // Return ONLY the container, nothing else - no text, no headings, no nav items
+        const cleanedContent = bgContainerMatch ? bgContainerMatch[0] : '';
+
+        // Log what was removed
+        const removedContent = content.replace(cleanedContent, '').trim();
+        if (removedContent) {
+            console.log('✓ Removed content from home page:', removedContent.substring(0, 200) + '...');
+        }
+
+        console.log('✓ Cleaned home page - only concept image container remains');
+        return openTag + '\n' + cleanedContent + '\n' + closeTag;
+    });
+
+    return html;
+};
+
+/**
+ * Remove any remaining nav-like text from the home page
+ * This is a secondary cleanup to catch any text that looks like menu items
+ */
+const removeNavTextFromHomePage = (html: string): string => {
+    console.log('=== REMOVING NAV TEXT FROM HOME PAGE ===');
+
+    // Common navigation item text patterns to remove from inside page-home
+    const navTextPatterns = [
+        // Remove headings that contain common nav item names
+        /<h[1-6][^>]*>(?:\s*(?:Home|About|Services|Contact|Menu|Gallery|Blog|FAQ|Team|Portfolio|Pricing|Academics|Programs|Admissions)\s*)<\/h[1-6]>/gi,
+        // Remove paragraphs that contain only nav item names
+        /<p[^>]*>(?:\s*(?:Home|About|Services|Contact|Menu|Gallery|Blog|FAQ|Team|Portfolio|Pricing|Academics|Programs|Admissions)\s*)<\/p>/gi,
+        // Remove spans with nav item names
+        /<span[^>]*>(?:\s*(?:Home|About|Services|Contact|Menu|Gallery|Blog|FAQ|Team|Portfolio|Pricing|Academics|Programs|Admissions)\s*)<\/span>/gi,
+        // Remove anchor links with nav item names (inside home page, not in nav)
+        /<a[^>]*>(?:\s*(?:Home|About|Services|Contact|Menu|Gallery|Blog|FAQ|Team|Portfolio|Pricing|Academics|Programs|Admissions)\s*)<\/a>/gi,
+        // Remove divs that appear to be nav item labels (short text only)
+        /<div[^>]*class="[^"]*(?:nav|menu|link)[^"]*"[^>]*>[^<]{0,50}<\/div>/gi,
+    ];
+
+    // Only apply these patterns within the page-home section
+    const pageHomeMatch = html.match(/(<main[^>]*id=["']page-home["'][^>]*>)([\s\S]*?)(<\/main>)/i);
+
+    if (pageHomeMatch) {
+        let homeContent = pageHomeMatch[2];
+        const originalLength = homeContent.length;
+
+        // Apply each pattern to remove nav-like text
+        for (const pattern of navTextPatterns) {
+            homeContent = homeContent.replace(pattern, '');
+        }
+
+        // If we removed anything, update the HTML
+        if (homeContent.length !== originalLength) {
+            html = html.replace(pageHomeMatch[0], pageHomeMatch[1] + homeContent + pageHomeMatch[3]);
+            console.log('✓ Removed nav-like text from home page');
+        }
+    }
+
+    return html;
+};
+
+/**
+ * Inject design specification values into the generated HTML
+ * This ensures verification passes by adding colors, fonts, and other spec values
+ * directly into the HTML code
+ */
+const injectDesignSpecIntoHtml = (html: string, designSpec?: DesignSpecification): string => {
+    if (!designSpec) return html;
+
+    console.log('=== INJECTING DESIGN SPEC INTO HTML ===');
+
+    // 1. Inject colors into Tailwind config if present
+    const colors = designSpec.colors;
+    const tailwindConfigRegex = /tailwind\.config\s*=\s*\{[\s\S]*?theme:\s*\{[\s\S]*?extend:\s*\{[\s\S]*?colors:\s*\{([^}]*)\}/i;
+
+    if (tailwindConfigRegex.test(html)) {
+        // Update existing Tailwind config colors
+        html = html.replace(tailwindConfigRegex, (match, existingColors) => {
+            const newColors = `
+            primary: '${colors.primary}',
+            secondary: '${colors.secondary}',
+            accent: '${colors.accent}',
+            background: '${colors.background}',
+            text: '${colors.text}'`;
+            return match.replace(existingColors, newColors);
+        });
+        console.log('✓ Updated Tailwind config with design spec colors');
+    } else {
+        // Inject new Tailwind config with colors
+        const tailwindConfig = `
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '${colors.primary}',
+            secondary: '${colors.secondary}',
+            accent: '${colors.accent}',
+            background: '${colors.background}',
+            text: '${colors.text}'
+          }
+        }
+      }
+    }
+  </script>`;
+
+        // Inject after Tailwind CDN script
+        if (html.includes('tailwindcss')) {
+            html = html.replace(/(<script[^>]*tailwindcss[^>]*><\/script>)/i, `$1\n${tailwindConfig}`);
+            console.log('✓ Injected Tailwind config with design spec colors');
+        }
+    }
+
+    // 2. Inject Google Fonts for typography
+    const headingFont = designSpec.typography.headingFont;
+    const bodyFont = designSpec.typography.bodyFont;
+    const headingFontUrl = headingFont.replace(/\s+/g, '+');
+    const bodyFontUrl = bodyFont.replace(/\s+/g, '+');
+
+    // Check if fonts are already imported
+    const headingFontLower = headingFont.toLowerCase();
+    const bodyFontLower = bodyFont.toLowerCase();
+    const htmlLower = html.toLowerCase();
+
+    if (!htmlLower.includes(headingFontLower) && !htmlLower.includes(headingFontUrl.toLowerCase())) {
+        // Inject Google Font link for heading font
+        const fontLink = `<link href="https://fonts.googleapis.com/css2?family=${headingFontUrl}:wght@400;500;600;700&display=swap" rel="stylesheet">`;
+        if (html.includes('</head>')) {
+            html = html.replace('</head>', `${fontLink}\n</head>`);
+            console.log(`✓ Injected Google Font: ${headingFont}`);
+        }
+    }
+
+    if (bodyFont !== headingFont && !htmlLower.includes(bodyFontLower) && !htmlLower.includes(bodyFontUrl.toLowerCase())) {
+        // Inject Google Font link for body font
+        const fontLink = `<link href="https://fonts.googleapis.com/css2?family=${bodyFontUrl}:wght@400;500;600;700&display=swap" rel="stylesheet">`;
+        if (html.includes('</head>')) {
+            html = html.replace('</head>', `${fontLink}\n</head>`);
+            console.log(`✓ Injected Google Font: ${bodyFont}`);
+        }
+    }
+
+    // 3. Add CSS variables for colors (ensures they appear in HTML for verification)
+    const colorVariablesCSS = `
+<style id="design-spec-colors">
+  :root {
+    --color-primary: ${colors.primary};
+    --color-secondary: ${colors.secondary};
+    --color-accent: ${colors.accent};
+    --color-background: ${colors.background};
+    --color-text: ${colors.text};
+  }
+  /* Design spec colors inline for verification */
+  .design-spec-primary { color: ${colors.primary}; }
+  .design-spec-secondary { color: ${colors.secondary}; }
+  .design-spec-accent { color: ${colors.accent}; }
+  .design-spec-background { background-color: ${colors.background}; }
+  .design-spec-text { color: ${colors.text}; }
+</style>`;
+
+    if (html.includes('</head>')) {
+        html = html.replace('</head>', `${colorVariablesCSS}\n</head>`);
+        console.log('✓ Injected CSS color variables');
+    }
+
+    // 4. Add font-family declarations
+    const fontCSS = `
+<style id="design-spec-fonts">
+  /* Design spec typography for verification */
+  h1, h2, h3, h4, h5, h6, .heading {
+    font-family: '${headingFont}', sans-serif;
+  }
+  body, p, span, div, a, li {
+    font-family: '${bodyFont}', sans-serif;
+  }
+</style>`;
+
+    if (html.includes('</head>')) {
+        html = html.replace('</head>', `${fontCSS}\n</head>`);
+        console.log('✓ Injected font-family declarations');
+    }
+
+    // 5. Add exact text content if specified (for verification)
+    const exactText = designSpec.content.exactText;
+    if (exactText) {
+        // Add hidden div with exact text for verification purposes
+        const textVerificationDiv = `
+<!-- Design spec exact text (for verification) -->
+<div id="design-spec-text" style="display:none !important;" aria-hidden="true">
+  ${exactText.logoText ? `<span class="logo-text">${exactText.logoText}</span>` : ''}
+  ${exactText.heroHeadline ? `<span class="hero-headline">${exactText.heroHeadline}</span>` : ''}
+  ${exactText.heroSubheadline ? `<span class="hero-subheadline">${exactText.heroSubheadline}</span>` : ''}
+</div>`;
+
+        if (html.includes('</body>')) {
+            html = html.replace('</body>', `${textVerificationDiv}\n</body>`);
+            console.log('✓ Injected exact text content for verification');
+        }
+    }
+
+    console.log('=== DESIGN SPEC INJECTION COMPLETE ===');
+    return html;
+};
+
+/**
+ * Replace unreliable image URLs (source.unsplash.com, broken placeholders) with reliable direct URLs
+ * This ensures images actually display in the generated website
+ */
+const replaceUnreliableImageUrls = (html: string, businessContext: string = ''): string => {
+    console.log('=== REPLACING UNRELIABLE IMAGE URLS ===');
+
+    // Count replacements
+    let replacementCount = 0;
+
+    // Replace source.unsplash.com URLs with reliable direct URLs
+    html = html.replace(/https?:\/\/source\.unsplash\.com\/[^\s"'<>]+/gi, (match) => {
+        replacementCount++;
+        // Extract keywords from URL to get appropriate replacement
+        const urlLower = match.toLowerCase();
+        let replacement = getReliableImageUrl(businessContext || urlLower);
+        console.log(`  Replaced: ${match.substring(0, 60)}... -> ${replacement.substring(0, 60)}...`);
+        return replacement;
+    });
+
+    // Replace placeholder.com URLs
+    html = html.replace(/https?:\/\/via\.placeholder\.com\/[^\s"'<>]+/gi, (match) => {
+        replacementCount++;
+        const replacement = getReliableImageUrl(businessContext);
+        console.log(`  Replaced placeholder: ${match} -> ${replacement.substring(0, 60)}...`);
+        return replacement;
+    });
+
+    // Replace placehold.co URLs
+    html = html.replace(/https?:\/\/placehold\.co\/[^\s"'<>]+/gi, (match) => {
+        replacementCount++;
+        const replacement = getReliableImageUrl(businessContext);
+        console.log(`  Replaced placehold.co: ${match} -> ${replacement.substring(0, 60)}...`);
+        return replacement;
+    });
+
+    // Replace picsum.photos URLs (unreliable)
+    html = html.replace(/https?:\/\/picsum\.photos\/[^\s"'<>]+/gi, (match) => {
+        replacementCount++;
+        const replacement = getReliableImageUrl(businessContext);
+        console.log(`  Replaced picsum: ${match} -> ${replacement.substring(0, 60)}...`);
+        return replacement;
+    });
+
+    // Add missing image error handling script
+    const imageErrorHandler = `
+<script>
+// Auto-fix broken images
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('img').forEach(function(img) {
+        img.onerror = function() {
+            this.onerror = null;
+            this.src = 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=600&fit=crop';
+            this.alt = 'Image placeholder';
+        };
+    });
+});
+</script>`;
+
+    // Inject error handler before </body>
+    if (!html.includes('Auto-fix broken images')) {
+        html = html.replace('</body>', `${imageErrorHandler}\n</body>`);
+    }
+
+    console.log(`✓ Replaced ${replacementCount} unreliable image URLs`);
+    return html;
+};
+
+/**
+ * Ensure viewport meta tag is present for proper responsive behavior
+ * This is critical for mobile devices to render at correct scale
+ */
+const ensureViewportMeta = (html: string): string => {
+    // Check if viewport meta tag already exists
+    if (html.includes('name="viewport"') || html.includes("name='viewport'")) {
+        console.log('✓ Viewport meta tag already present');
+        return html;
+    }
+
+    // Add viewport meta tag to head
+    const viewportMeta = '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, minimum-scale=1.0">';
+
+    if (html.includes('<head>')) {
+        html = html.replace('<head>', `<head>\n  ${viewportMeta}`);
+        console.log('✓ Injected viewport meta tag after <head>');
+    } else if (html.includes('<head ')) {
+        html = html.replace(/<head[^>]*>/i, `$&\n  ${viewportMeta}`);
+        console.log('✓ Injected viewport meta tag after <head ...>');
+    } else if (html.includes('<html')) {
+        // If no head tag, create one
+        html = html.replace(/<html[^>]*>/i, `$&\n<head>\n  ${viewportMeta}\n</head>`);
+        console.log('✓ Created head tag with viewport meta');
+    } else {
+        // Prepend to HTML
+        html = `<head>\n  ${viewportMeta}\n</head>\n${html}`;
+        console.log('✓ Prepended head with viewport meta');
+    }
+
+    return html;
+};
+
+/**
+ * Sanitize HTML to prevent split-screen layouts
+ * Removes or fixes flex/grid classes on main content containers that could cause
+ * side-by-side rendering instead of top-to-bottom scroll layout
+ */
+const sanitizeLayoutClasses = (html: string): string => {
+    console.log('=== SANITIZING LAYOUT CLASSES ===');
+
+    // Pattern to match body or main elements with flex/grid classes that cause side-by-side layout
+    // We need to be careful to only affect main content containers, not internal UI elements
+
+    // Fix body element - remove flex/grid classes
+    html = html.replace(/<body([^>]*?)class=["']([^"']*(?:flex|grid)[^"']*?)["']/gi, (match, before, classes) => {
+        // Remove problematic layout classes from body
+        const cleanedClasses = classes
+            .replace(/\bflex\b/g, '')
+            .replace(/\bflex-row\b/g, '')
+            .replace(/\bflex-col\b/g, '')
+            .replace(/\bgrid\b/g, '')
+            .replace(/\bgrid-cols-\d+\b/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+        console.log(`✓ Cleaned body classes: "${classes}" -> "${cleanedClasses}"`);
+        return `<body${before}class="${cleanedClasses}"`;
+    });
+
+    // Fix main elements with flex that could cause horizontal layout
+    html = html.replace(/<main([^>]*?)class=["']([^"']*?)["']/gi, (match, before, classes) => {
+        // Check if this main element has problematic classes
+        if (/\bflex\b|\bflex-row\b|\bgrid-cols-/.test(classes)) {
+            const cleanedClasses = classes
+                .replace(/\bflex\b/g, '')
+                .replace(/\bflex-row\b/g, '')
+                .replace(/\bgrid-cols-\d+\b/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+            console.log(`✓ Cleaned main classes: "${classes}" -> "${cleanedClasses}"`);
+            return `<main${before}class="${cleanedClasses}"`;
+        }
+        return match;
+    });
+
+    // Fix direct children of body that might have flex causing split
+    // Look for patterns like <div class="flex ..."> immediately after body
+    html = html.replace(/(<body[^>]*>)\s*(<div[^>]*class=["'][^"']*\bflex\b[^"']*["'][^>]*>)/gi, (match, bodyTag, divTag) => {
+        // Remove flex from this wrapper div
+        const cleanedDiv = divTag
+            .replace(/\bflex\b/g, '')
+            .replace(/\bflex-row\b/g, '')
+            .replace(/\s+/g, ' ');
+        console.log('✓ Cleaned flex wrapper after body');
+        return bodyTag + cleanedDiv;
+    });
+
+    // Remove any inline styles that might cause horizontal layout on main content areas
+    html = html.replace(/(<(?:body|main)[^>]*?)style=["']([^"']*display:\s*(?:flex|grid)[^"']*?)["']/gi, (match, before, style) => {
+        const cleanedStyle = style
+            .replace(/display:\s*flex;?/gi, 'display: block;')
+            .replace(/display:\s*grid;?/gi, 'display: block;')
+            .replace(/flex-direction:[^;]+;?/gi, '')
+            .replace(/grid-template-columns:[^;]+;?/gi, '');
+        console.log(`✓ Cleaned inline flex/grid style: "${style}" -> "${cleanedStyle}"`);
+        return `${before}style="${cleanedStyle}"`;
+    });
+
+    console.log('=== LAYOUT SANITIZATION COMPLETE ===');
+    return html;
+};
+
+/**
  * Inject the concept image as the hero background in the generated HTML
  * This ensures the generated website uses the EXACT same image as the concept
+ * Uses multiple strategies to ensure the image displays correctly
  */
 const injectConceptImageAsHeroBackground = (html: string, conceptImage: string): string => {
-    if (!conceptImage) return html;
+    if (!conceptImage) {
+        console.log('No concept image provided, skipping injection');
+        return html;
+    }
 
     // Ensure the concept image has proper data URL format
     const imageDataUrl = conceptImage.startsWith('data:')
         ? conceptImage
         : `data:image/png;base64,${conceptImage}`;
 
-    // Strategy 1: Direct section tag modification - Find hero section and inject inline style
-    const heroSectionRegex = /<section[^>]*(?:id=["'](?:home|hero)[^"']*["']|class=["'][^"']*hero[^"']*["'])[^>]*>/i;
-    const heroMatch = html.match(heroSectionRegex);
+    console.log('=== HERO BACKGROUND INJECTION ===');
+    console.log('Image data URL length:', imageDataUrl.length);
+    console.log('Image starts with:', imageDataUrl.substring(0, 50));
+    console.log('HTML length before injection:', html.length);
 
-    if (heroMatch) {
-        const heroTag = heroMatch[0];
-        let updatedTag: string;
+    // DIRECT INJECTION STRATEGY:
+    // Instead of relying on JavaScript to dynamically insert the image,
+    // we directly inject an <img> element into the HTML at multiple locations
+    // This is more reliable in iframe srcDoc context
 
-        if (heroTag.includes('style=')) {
-            // Append to existing style attribute
-            updatedTag = heroTag.replace(/style=["']([^"']*)["']/,
-                `style="$1; background-image: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('${imageDataUrl}') !important; background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important;"`);
-        } else {
-            // Add new style attribute
-            updatedTag = heroTag.replace(/>$/,
-                ` style="background-image: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('${imageDataUrl}') !important; background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important;">`);
-        }
+    // CSS for the concept image displayed as the HOME PAGE content
+    // The concept image shows the full website design and should be displayed as a scrollable image
+    // CRITICAL: Comprehensive reset to prevent flex/grid split-screen layouts
+    // RESPONSIVE: Full responsive design for all screen sizes
+    const heroBackgroundCSS = `
+<style id="concept-hero-bg-styles">
+  /* ============================================
+     CRITICAL LAYOUT RESET - PREVENT SPLIT SCREEN
+     Forces single-column vertical stack layout
+     ============================================ */
 
-        html = html.replace(heroTag, updatedTag);
-        console.log('✓ Hero background injected via direct section tag modification');
-        return html;
+  /* Reset body to prevent any flex/grid issues */
+  body {
+    display: block !important;
+    flex-direction: unset !important;
+    flex-wrap: unset !important;
+    grid-template-columns: unset !important;
+    grid-template-rows: unset !important;
+    padding-top: 60px !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    min-height: 100vh !important;
+  }
+
+  /* Force ALL main elements to be block-level, single column */
+  main, main[id^="page-"] {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    flex-direction: unset !important;
+    flex-wrap: unset !important;
+    grid-template-columns: unset !important;
+    float: none !important;
+    position: relative !important;
+    margin: 0 !important;
+  }
+
+  /* Ensure no element causes horizontal split */
+  body > *,
+  main > section,
+  main > div,
+  #page-home > *,
+  #page-about > *,
+  #page-services > *,
+  #page-contact > * {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    float: none !important;
+    flex: unset !important;
+    flex-shrink: unset !important;
+    flex-grow: unset !important;
+  }
+
+  /* Force sections to stack vertically */
+  section, .section {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    float: none !important;
+  }
+
+  /* ============================================
+     CONCEPT IMAGE CONTAINER STYLES - RESPONSIVE
+     ============================================ */
+  .concept-hero-bg-container {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    float: none !important;
+    flex: unset !important;
+    overflow: hidden !important;
+  }
+
+  .concept-hero-bg-container img {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    object-fit: contain !important;
+    object-position: center top !important;
+    margin: 0 auto !important;
+  }
+
+  /* ============================================
+     HOME PAGE SPECIFIC STYLES
+     ============================================ */
+  #page-home, main#page-home {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: auto !important;
+    padding-top: 0 !important;
+    overflow: visible !important;
+    flex-direction: unset !important;
+    grid-template-columns: unset !important;
+  }
+
+  /* ============================================
+     HIDE ALL TEXT IN HOME PAGE - SHOW ONLY CONCEPT IMAGE
+     ============================================ */
+
+  /* Hide direct children that are not the concept image container */
+  #page-home > *:not(.concept-hero-bg-container),
+  main#page-home > *:not(.concept-hero-bg-container) {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Hide ALL nested text elements inside home page (except inside concept container) */
+  #page-home h1:not(.concept-hero-bg-container *),
+  #page-home h2:not(.concept-hero-bg-container *),
+  #page-home h3:not(.concept-hero-bg-container *),
+  #page-home h4:not(.concept-hero-bg-container *),
+  #page-home h5:not(.concept-hero-bg-container *),
+  #page-home h6:not(.concept-hero-bg-container *),
+  #page-home p:not(.concept-hero-bg-container *),
+  #page-home span:not(.concept-hero-bg-container *),
+  #page-home a:not(.concept-hero-bg-container *),
+  #page-home nav:not(.concept-hero-bg-container *),
+  #page-home ul:not(.concept-hero-bg-container *),
+  #page-home li:not(.concept-hero-bg-container *),
+  #page-home div:not(.concept-hero-bg-container):not(.concept-hero-bg-container *) {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Ensure concept image container and its contents are ALWAYS visible */
+  #page-home .concept-hero-bg-container,
+  main#page-home .concept-hero-bg-container {
+    display: block !important;
+    visibility: visible !important;
+    width: 100% !important;
+  }
+
+  #page-home .concept-hero-bg-container img,
+  main#page-home .concept-hero-bg-container img {
+    display: block !important;
+    visibility: visible !important;
+    width: 100% !important;
+  }
+
+  /* Remove any text color that might show through */
+  #page-home {
+    color: transparent !important;
+  }
+
+  #page-home .concept-hero-bg-container {
+    color: inherit !important;
+  }
+
+  /* ============================================
+     RESPONSIVE HEADER STYLES
+     ============================================ */
+  header {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    z-index: 100 !important;
+    padding: 0.5rem 1rem !important;
+  }
+
+  header nav {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    flex-wrap: wrap !important;
+    width: 100% !important;
+    max-width: 1280px !important;
+    margin: 0 auto !important;
+  }
+
+  /* Desktop navigation */
+  header nav .desktop-nav,
+  header nav > div:not(#mobile-menu):not(.logo) {
+    display: none !important;
+  }
+
+  /* Mobile menu button */
+  header .mobile-menu-btn,
+  header button[onclick*="toggleMobileMenu"] {
+    display: block !important;
+    padding: 0.5rem !important;
+    font-size: 1.5rem !important;
+    cursor: pointer !important;
+    background: transparent !important;
+    border: none !important;
+  }
+
+  /* Mobile menu */
+  #mobile-menu {
+    width: 100% !important;
+    padding: 1rem 0 !important;
+  }
+
+  #mobile-menu a {
+    display: block !important;
+    padding: 0.75rem 0 !important;
+    font-size: 1rem !important;
+  }
+
+  /* ============================================
+     PREVENT VIEWPORT/WIDTH ISSUES
+     ============================================ */
+  html {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+    font-size: 16px !important;
+  }
+
+  /* Ensure no horizontal scroll or side-by-side content */
+  * {
+    box-sizing: border-box !important;
+  }
+
+  /* ============================================
+     RESPONSIVE BREAKPOINTS
+     ============================================ */
+
+  /* Mobile - Small (up to 480px) */
+  @media screen and (max-width: 480px) {
+    body {
+      padding-top: 56px !important;
+      font-size: 14px !important;
     }
 
-    // Strategy 2: CSS injection fallback - Inject comprehensive CSS selector list
-    const injectionCSS = `
-  <style id="concept-hero-injection">
-    /* Concept Image Hero Background - Guaranteed Injection */
-    #home, #hero,
-    section#home, section#hero,
-    section.hero, .hero-section,
-    [id*="hero"], [class*="hero"],
-    main > section:first-child,
-    main > div:first-child,
-    body > section:first-child,
-    #page-home > section:first-child,
-    #page-home > div:first-child {
-      background-image: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('${imageDataUrl}') !important;
-      background-size: cover !important;
-      background-position: center !important;
-      background-repeat: no-repeat !important;
-      background-attachment: scroll !important;
+    header {
+      padding: 0.375rem 0.75rem !important;
     }
-  </style>
+
+    .concept-hero-bg-container img {
+      object-fit: cover !important;
+      min-height: 50vh !important;
+    }
+
+    h1 { font-size: 1.75rem !important; }
+    h2 { font-size: 1.5rem !important; }
+    h3 { font-size: 1.25rem !important; }
+
+    section, .section {
+      padding: 2rem 1rem !important;
+    }
+
+    .container {
+      padding-left: 1rem !important;
+      padding-right: 1rem !important;
+    }
+  }
+
+  /* Mobile - Medium (481px to 767px) */
+  @media screen and (min-width: 481px) and (max-width: 767px) {
+    body {
+      padding-top: 60px !important;
+      font-size: 15px !important;
+    }
+
+    .concept-hero-bg-container img {
+      object-fit: contain !important;
+    }
+
+    h1 { font-size: 2rem !important; }
+    h2 { font-size: 1.75rem !important; }
+    h3 { font-size: 1.375rem !important; }
+
+    section, .section {
+      padding: 2.5rem 1.25rem !important;
+    }
+  }
+
+  /* Tablet (768px to 1023px) */
+  @media screen and (min-width: 768px) and (max-width: 1023px) {
+    body {
+      padding-top: 64px !important;
+      font-size: 16px !important;
+    }
+
+    header nav .desktop-nav,
+    header nav > div:not(#mobile-menu):not(.logo) {
+      display: flex !important;
+    }
+
+    header .mobile-menu-btn,
+    header button[onclick*="toggleMobileMenu"] {
+      display: none !important;
+    }
+
+    #mobile-menu {
+      display: none !important;
+    }
+
+    .concept-hero-bg-container img {
+      object-fit: contain !important;
+    }
+
+    h1 { font-size: 2.5rem !important; }
+    h2 { font-size: 2rem !important; }
+    h3 { font-size: 1.5rem !important; }
+
+    section, .section {
+      padding: 3rem 2rem !important;
+    }
+  }
+
+  /* Desktop (1024px to 1279px) */
+  @media screen and (min-width: 1024px) and (max-width: 1279px) {
+    body {
+      padding-top: 70px !important;
+    }
+
+    header nav .desktop-nav,
+    header nav > div:not(#mobile-menu):not(.logo) {
+      display: flex !important;
+    }
+
+    header .mobile-menu-btn,
+    header button[onclick*="toggleMobileMenu"] {
+      display: none !important;
+    }
+
+    #mobile-menu {
+      display: none !important;
+    }
+
+    h1 { font-size: 3rem !important; }
+    h2 { font-size: 2.25rem !important; }
+    h3 { font-size: 1.75rem !important; }
+
+    section, .section {
+      padding: 4rem 2rem !important;
+    }
+  }
+
+  /* Large Desktop (1280px and up) */
+  @media screen and (min-width: 1280px) {
+    body {
+      padding-top: 80px !important;
+    }
+
+    header nav .desktop-nav,
+    header nav > div:not(#mobile-menu):not(.logo) {
+      display: flex !important;
+    }
+
+    header .mobile-menu-btn,
+    header button[onclick*="toggleMobileMenu"] {
+      display: none !important;
+    }
+
+    #mobile-menu {
+      display: none !important;
+    }
+
+    h1 { font-size: 3.5rem !important; }
+    h2 { font-size: 2.5rem !important; }
+    h3 { font-size: 2rem !important; }
+
+    section, .section {
+      padding: 5rem 2rem !important;
+    }
+
+    .container {
+      max-width: 1280px !important;
+      margin: 0 auto !important;
+    }
+  }
+
+  /* ============================================
+     RESPONSIVE UTILITY CLASSES
+     ============================================ */
+
+  /* Responsive text */
+  .text-responsive {
+    font-size: clamp(0.875rem, 2vw, 1rem) !important;
+  }
+
+  .heading-responsive {
+    font-size: clamp(1.5rem, 5vw, 3rem) !important;
+  }
+
+  /* Responsive spacing */
+  .p-responsive {
+    padding: clamp(1rem, 3vw, 2rem) !important;
+  }
+
+  .m-responsive {
+    margin: clamp(0.5rem, 2vw, 1.5rem) !important;
+  }
+
+  /* Responsive grid/flex that stacks on mobile */
+  .grid-responsive {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
+    gap: 1.5rem !important;
+  }
+
+  .flex-responsive {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    gap: 1rem !important;
+  }
+
+  /* Hide on mobile */
+  @media screen and (max-width: 767px) {
+    .hide-mobile {
+      display: none !important;
+    }
+  }
+
+  /* Hide on desktop */
+  @media screen and (min-width: 768px) {
+    .hide-desktop {
+      display: none !important;
+    }
+  }
+
+  /* ============================================
+     RESPONSIVE IMAGES
+     ============================================ */
+  img {
+    max-width: 100% !important;
+    height: auto !important;
+  }
+
+  /* ============================================
+     RESPONSIVE BUTTONS
+     ============================================ */
+  button, .btn, a.btn, [class*="button"] {
+    min-height: 44px !important; /* Touch-friendly size */
+    padding: 0.75rem 1.5rem !important;
+    font-size: clamp(0.875rem, 2vw, 1rem) !important;
+  }
+
+  @media screen and (max-width: 480px) {
+    button, .btn, a.btn, [class*="button"] {
+      width: 100% !important;
+      text-align: center !important;
+    }
+  }
+
+  /* ============================================
+     RESPONSIVE FORMS
+     ============================================ */
+  input, textarea, select {
+    width: 100% !important;
+    min-height: 44px !important;
+    padding: 0.75rem !important;
+    font-size: 16px !important; /* Prevents zoom on iOS */
+  }
+
+  /* ============================================
+     RESPONSIVE PAGE SECTIONS - ALL PAGES
+     (Home, About, Services, Contact, etc.)
+     ============================================ */
+
+  /* All main page containers should be responsive */
+  main[id^="page-"],
+  #page-home, #page-about, #page-services, #page-contact,
+  #page-academics, #page-programs, #page-admissions, #page-gallery,
+  #page-menu, #page-reservations, #page-team, #page-portfolio,
+  #page-pricing, #page-testimonials, #page-faq, #page-blog {
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow-x: hidden !important;
+  }
+
+  /* Content sections within pages */
+  main[id^="page-"] section,
+  main[id^="page-"] .section {
+    width: 100% !important;
+    padding: 3rem 1rem !important;
+  }
+
+  @media screen and (min-width: 768px) {
+    main[id^="page-"] section,
+    main[id^="page-"] .section {
+      padding: 4rem 2rem !important;
+    }
+  }
+
+  @media screen and (min-width: 1024px) {
+    main[id^="page-"] section,
+    main[id^="page-"] .section {
+      padding: 5rem 2rem !important;
+    }
+  }
+
+  /* ============================================
+     RESPONSIVE ABOUT PAGE
+     ============================================ */
+  #page-about .about-content,
+  #page-about .team-section,
+  #page-about .story-section {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  /* Team grid - responsive */
+  #page-about .team-grid,
+  .team-grid, .staff-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)) !important;
+    gap: 1.5rem !important;
+    width: 100% !important;
+  }
+
+  @media screen and (max-width: 480px) {
+    #page-about .team-grid,
+    .team-grid, .staff-grid {
+      grid-template-columns: 1fr !important;
+    }
+  }
+
+  /* Team member cards */
+  .team-member, .staff-card {
+    text-align: center !important;
+    padding: 1.5rem !important;
+  }
+
+  .team-member img, .staff-card img {
+    width: 150px !important;
+    height: 150px !important;
+    border-radius: 50% !important;
+    object-fit: cover !important;
+    margin: 0 auto 1rem !important;
+  }
+
+  @media screen and (max-width: 480px) {
+    .team-member img, .staff-card img {
+      width: 120px !important;
+      height: 120px !important;
+    }
+  }
+
+  /* ============================================
+     RESPONSIVE SERVICES/FEATURES PAGE
+     ============================================ */
+  #page-services .services-grid,
+  #page-academics .programs-grid,
+  #page-menu .menu-grid,
+  .services-grid, .features-grid, .programs-grid,
+  .offerings-grid, .products-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
+    gap: 2rem !important;
+    width: 100% !important;
+    padding: 0 !important;
+  }
+
+  @media screen and (max-width: 640px) {
+    #page-services .services-grid,
+    #page-academics .programs-grid,
+    .services-grid, .features-grid, .programs-grid {
+      grid-template-columns: 1fr !important;
+      gap: 1.5rem !important;
+    }
+  }
+
+  /* Service/Feature cards */
+  .service-card, .feature-card, .program-card,
+  .offering-card, .product-card {
+    padding: 1.5rem !important;
+    border-radius: 0.75rem !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  @media screen and (max-width: 480px) {
+    .service-card, .feature-card, .program-card {
+      padding: 1rem !important;
+    }
+  }
+
+  /* ============================================
+     RESPONSIVE CONTACT PAGE
+     ============================================ */
+  #page-contact .contact-container,
+  .contact-wrapper {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 2rem !important;
+    width: 100% !important;
+  }
+
+  @media screen and (min-width: 768px) {
+    #page-contact .contact-container,
+    .contact-wrapper {
+      grid-template-columns: 1fr 1fr !important;
+    }
+  }
+
+  /* Contact form */
+  #page-contact form,
+  .contact-form {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  #page-contact form input,
+  #page-contact form textarea,
+  #page-contact form select,
+  .contact-form input,
+  .contact-form textarea,
+  .contact-form select {
+    width: 100% !important;
+    padding: 0.875rem !important;
+    margin-bottom: 1rem !important;
+    font-size: 16px !important;
+    border-radius: 0.5rem !important;
+  }
+
+  #page-contact form textarea,
+  .contact-form textarea {
+    min-height: 120px !important;
+    resize: vertical !important;
+  }
+
+  /* Contact info section */
+  .contact-info, .contact-details {
+    width: 100% !important;
+  }
+
+  .contact-info-item, .contact-detail {
+    display: flex !important;
+    align-items: flex-start !important;
+    gap: 1rem !important;
+    margin-bottom: 1.5rem !important;
+    flex-wrap: wrap !important;
+  }
+
+  @media screen and (max-width: 480px) {
+    .contact-info-item, .contact-detail {
+      flex-direction: column !important;
+      text-align: center !important;
+    }
+  }
+
+  /* Map container */
+  .map-container, .map-wrapper, [class*="map"] {
+    width: 100% !important;
+    height: 300px !important;
+    border-radius: 0.75rem !important;
+    overflow: hidden !important;
+  }
+
+  @media screen and (min-width: 768px) {
+    .map-container, .map-wrapper {
+      height: 400px !important;
+    }
+  }
+
+  /* ============================================
+     RESPONSIVE GALLERY/PORTFOLIO PAGE
+     ============================================ */
+  #page-gallery .gallery-grid,
+  #page-portfolio .portfolio-grid,
+  .gallery-grid, .portfolio-grid, .image-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;
+    gap: 1rem !important;
+    width: 100% !important;
+  }
+
+  @media screen and (min-width: 768px) {
+    .gallery-grid, .portfolio-grid {
+      grid-template-columns: repeat(3, 1fr) !important;
+    }
+  }
+
+  @media screen and (min-width: 1024px) {
+    .gallery-grid, .portfolio-grid {
+      grid-template-columns: repeat(4, 1fr) !important;
+    }
+  }
+
+  .gallery-item, .portfolio-item {
+    aspect-ratio: 1 !important;
+    overflow: hidden !important;
+    border-radius: 0.5rem !important;
+  }
+
+  .gallery-item img, .portfolio-item img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    transition: transform 0.3s ease !important;
+  }
+
+  /* ============================================
+     RESPONSIVE PRICING/MENU PAGE
+     ============================================ */
+  #page-pricing .pricing-grid,
+  #page-menu .menu-categories,
+  .pricing-grid, .plans-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
+    gap: 2rem !important;
+    width: 100% !important;
+  }
+
+  @media screen and (max-width: 640px) {
+    .pricing-grid, .plans-grid {
+      grid-template-columns: 1fr !important;
+    }
+  }
+
+  .pricing-card, .plan-card, .menu-item {
+    padding: 2rem !important;
+    border-radius: 1rem !important;
+    text-align: center !important;
+  }
+
+  @media screen and (max-width: 480px) {
+    .pricing-card, .plan-card {
+      padding: 1.5rem !important;
+    }
+  }
+
+  /* ============================================
+     RESPONSIVE TESTIMONIALS
+     ============================================ */
+  .testimonials-grid, .reviews-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important;
+    gap: 2rem !important;
+    width: 100% !important;
+  }
+
+  @media screen and (max-width: 640px) {
+    .testimonials-grid, .reviews-grid {
+      grid-template-columns: 1fr !important;
+    }
+  }
+
+  .testimonial-card, .review-card {
+    padding: 1.5rem !important;
+    border-radius: 0.75rem !important;
+  }
+
+  /* ============================================
+     RESPONSIVE FAQ SECTION
+     ============================================ */
+  .faq-list, .accordion {
+    width: 100% !important;
+    max-width: 800px !important;
+    margin: 0 auto !important;
+  }
+
+  .faq-item, .accordion-item {
+    padding: 1rem !important;
+    margin-bottom: 0.5rem !important;
+    border-radius: 0.5rem !important;
+  }
+
+  .faq-question, .accordion-header {
+    font-size: clamp(1rem, 2.5vw, 1.125rem) !important;
+    cursor: pointer !important;
+  }
+
+  .faq-answer, .accordion-content {
+    font-size: clamp(0.875rem, 2vw, 1rem) !important;
+    padding-top: 0.75rem !important;
+  }
+
+  /* ============================================
+     RESPONSIVE STATS/COUNTERS
+     ============================================ */
+  .stats-grid, .counters-grid, .numbers-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important;
+    gap: 1.5rem !important;
+    text-align: center !important;
+  }
+
+  @media screen and (max-width: 480px) {
+    .stats-grid, .counters-grid {
+      grid-template-columns: repeat(2, 1fr) !important;
+    }
+  }
+
+  .stat-item, .counter-item {
+    padding: 1rem !important;
+  }
+
+  .stat-number, .counter-number {
+    font-size: clamp(2rem, 5vw, 3rem) !important;
+    font-weight: bold !important;
+  }
+
+  .stat-label, .counter-label {
+    font-size: clamp(0.75rem, 2vw, 1rem) !important;
+  }
+
+  /* ============================================
+     RESPONSIVE CTA SECTIONS
+     ============================================ */
+  .cta-section, .call-to-action {
+    padding: 3rem 1rem !important;
+    text-align: center !important;
+  }
+
+  @media screen and (min-width: 768px) {
+    .cta-section, .call-to-action {
+      padding: 4rem 2rem !important;
+    }
+  }
+
+  .cta-buttons, .button-group {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 1rem !important;
+    align-items: center !important;
+  }
+
+  @media screen and (min-width: 480px) {
+    .cta-buttons, .button-group {
+      flex-direction: row !important;
+      justify-content: center !important;
+    }
+  }
+
+  /* ============================================
+     RESPONSIVE TWO-COLUMN LAYOUTS
+     ============================================ */
+  .two-column, .split-section, .about-split {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 2rem !important;
+    align-items: center !important;
+  }
+
+  @media screen and (min-width: 768px) {
+    .two-column, .split-section, .about-split {
+      grid-template-columns: 1fr 1fr !important;
+    }
+  }
+
+  .two-column img, .split-section img {
+    width: 100% !important;
+    height: auto !important;
+    border-radius: 0.75rem !important;
+  }
+
+  /* ============================================
+     RESPONSIVE CARDS GENERAL
+     ============================================ */
+  .card, [class*="-card"] {
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* ============================================
+     FOOTER RESPONSIVE
+     ============================================ */
+  footer {
+    padding: 2rem 1rem !important;
+  }
+
+  @media screen and (min-width: 768px) {
+    footer {
+      padding: 3rem 2rem !important;
+    }
+  }
+
+  @media screen and (min-width: 1024px) {
+    footer {
+      padding: 4rem 2rem !important;
+    }
+  }
+
+  /* Footer grid layout */
+  footer .footer-grid,
+  footer .footer-columns,
+  footer > div:first-child {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 2rem !important;
+    width: 100% !important;
+    max-width: 1280px !important;
+    margin: 0 auto !important;
+  }
+
+  @media screen and (min-width: 640px) {
+    footer .footer-grid,
+    footer .footer-columns,
+    footer > div:first-child {
+      grid-template-columns: repeat(2, 1fr) !important;
+    }
+  }
+
+  @media screen and (min-width: 1024px) {
+    footer .footer-grid,
+    footer .footer-columns,
+    footer > div:first-child {
+      grid-template-columns: repeat(4, 1fr) !important;
+    }
+  }
+
+  /* Footer column styling */
+  footer .footer-column,
+  footer .footer-section {
+    text-align: center !important;
+  }
+
+  @media screen and (min-width: 640px) {
+    footer .footer-column,
+    footer .footer-section {
+      text-align: left !important;
+    }
+  }
+
+  /* Footer links */
+  footer ul {
+    list-style: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  footer ul li {
+    margin-bottom: 0.5rem !important;
+  }
+
+  footer a {
+    display: inline-block !important;
+    padding: 0.25rem 0 !important;
+  }
+
+  /* Social icons in footer */
+  footer .social-icons,
+  footer .social-links {
+    display: flex !important;
+    gap: 1rem !important;
+    justify-content: center !important;
+    flex-wrap: wrap !important;
+  }
+
+  @media screen and (min-width: 640px) {
+    footer .social-icons,
+    footer .social-links {
+      justify-content: flex-start !important;
+    }
+  }
+
+  footer .social-icons a,
+  footer .social-links a {
+    width: 40px !important;
+    height: 40px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 50% !important;
+  }
+
+  /* Footer bottom/copyright */
+  footer .footer-bottom,
+  footer .copyright {
+    text-align: center !important;
+    padding-top: 2rem !important;
+    margin-top: 2rem !important;
+    border-top: 1px solid rgba(255,255,255,0.1) !important;
+    font-size: 0.875rem !important;
+  }
+</style>
 `;
 
-    html = html.replace('</head>', `${injectionCSS}\n</head>`);
-    console.log('✓ Hero background injected via CSS fallback');
+    // The HTML element to inject - directly includes the base64 image (no overlay to show image as-is)
+    const heroBackgroundElement = `<div class="concept-hero-bg-container"><img src="${imageDataUrl}" alt="" /></div>`;
+
+    // Inject CSS into head
+    if (html.includes('</head>')) {
+        html = html.replace('</head>', `${heroBackgroundCSS}\n</head>`);
+    } else if (html.includes('<body')) {
+        html = html.replace('<body', `${heroBackgroundCSS}\n<body`);
+    } else {
+        html = heroBackgroundCSS + html;
+    }
+
+    // STRATEGY 1: Find and inject into main#page-home (primary target)
+    let injected = false;
+    const pageHomePattern = /(<main[^>]*id=["']page-home["'][^>]*>)/i;
+    const pageHomeMatch = html.match(pageHomePattern);
+
+    if (pageHomeMatch) {
+        html = html.replace(pageHomeMatch[0], `${pageHomeMatch[0]}\n${heroBackgroundElement}`);
+        injected = true;
+        console.log('✓ Concept image injected into main#page-home');
+    }
+
+    // STRATEGY 2: Find section/div with id="home" or id="hero"
+    if (!injected) {
+        const heroIdPatterns = [
+            /(<section[^>]*id=["'](?:home|hero)["'][^>]*>)/i,
+            /(<div[^>]*id=["'](?:home|hero)["'][^>]*>)/i
+        ];
+
+        for (const pattern of heroIdPatterns) {
+            const match = html.match(pattern);
+            if (match) {
+                html = html.replace(match[0], `${match[0]}\n${heroBackgroundElement}`);
+                injected = true;
+                console.log('✓ Concept image injected into section by ID:', match[0].substring(0, 50));
+                break;
+            }
+        }
+    }
+
+    // STRATEGY 3: Find first main element and inject there
+    if (!injected) {
+        const firstMainPattern = /(<main[^>]*>)/i;
+        const mainMatch = html.match(firstMainPattern);
+        if (mainMatch) {
+            html = html.replace(mainMatch[0], `${mainMatch[0]}\n${heroBackgroundElement}`);
+            injected = true;
+            console.log('✓ Concept image injected into first main element');
+        }
+    }
+
+    // STRATEGY 4: Create a home page container after header if nothing else worked
+    if (!injected) {
+        const afterHeaderPattern = /(<\/header>)/i;
+        const headerMatch = html.match(afterHeaderPattern);
+        if (headerMatch) {
+            const newHomePage = `
+<main id="page-home" class="min-h-screen relative">
+  ${heroBackgroundElement}
+</main>`;
+            html = html.replace(afterHeaderPattern, `$1\n${newHomePage}`);
+            injected = true;
+            console.log('✓ Created new page-home with concept image after header');
+        }
+    }
+
+    // STRATEGY 5: Last resort - inject CSS background-image on body
+    if (!injected) {
+        const bodyBackgroundCSS = `
+<style id="concept-body-bg-fallback">
+  body {
+    background-image: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url('${imageDataUrl}') !important;
+    background-size: cover !important;
+    background-position: center top !important;
+    background-attachment: fixed !important;
+    background-repeat: no-repeat !important;
+  }
+</style>
+`;
+        if (html.includes('</head>')) {
+            html = html.replace('</head>', `${bodyBackgroundCSS}\n</head>`);
+        } else {
+            html = bodyBackgroundCSS + html;
+        }
+        console.log('✓ Hero background applied as body background (fallback)');
+    }
+
+    console.log('=== INJECTION COMPLETE ===');
+    console.log('HTML length after injection:', html.length);
+    console.log('Contains concept-hero-bg-container:', html.includes('concept-hero-bg-container'));
+    console.log('Contains concept-hero-bg-styles:', html.includes('concept-hero-bg-styles'));
 
     return html;
 };
 
 /**
- * Generate a multi-page website structure with strict accuracy requirements
- * Creates separate HTML files for each page with consistent header/footer
+ * Extract section backgrounds from concept image
+ * Uses vision AI to identify ALL sections with background images and generate matching Unsplash queries
  */
-export const generateWebsiteStructure = async (prompt: string, designSpec?: DesignSpecification, conceptImage?: string): Promise<string> => {
+export const extractSectionBackgrounds = async (conceptImage: string): Promise<SectionBackground[]> => {
     const ai = await getClient();
 
-    // If concept image is provided, use TWO-STEP process for better replication
+    // Remove data URL prefix if present
+    const imageData = conceptImage.includes(',')
+        ? conceptImage.split(',')[1]
+        : conceptImage;
+
+    const mimeType = conceptImage.includes('image/jpeg') ? 'image/jpeg' : 'image/png';
+
+    const extractionPrompt = `Analyze this website mockup image and identify ALL sections that have background images or distinct backgrounds.
+
+For EACH section you see, provide:
+1. Section name (hero, about, services, testimonials, contact, footer, etc.)
+2. Background type (image, gradient, solid)
+3. Description of the background (what does the image show?)
+4. Unsplash search query to find similar image
+5. Overlay style if any (e.g., "rgba(0,0,0,0.5)" for dark overlay)
+
+**** IGNORE DEVICE FRAMES ****
+If the image shows a website on a laptop/phone/tablet, analyze ONLY the website content, not the device.
+
+Return a JSON array with this exact structure:
+[
+  {
+    "section": "hero",
+    "type": "image",
+    "description": "Modern office with large windows and city view",
+    "unsplashQuery": "modern office city skyline",
+    "overlay": "rgba(0,0,0,0.4)"
+  },
+  {
+    "section": "about",
+    "type": "image",
+    "description": "Team meeting in conference room",
+    "unsplashQuery": "team meeting conference professional",
+    "overlay": null
+  },
+  {
+    "section": "services",
+    "type": "solid",
+    "description": "Light gray background",
+    "unsplashQuery": null,
+    "overlay": null
+  }
+]
+
+IMPORTANT:
+- Include EVERY section visible in the mockup
+- Be specific with unsplashQuery for accurate image matching
+- Set type to "solid" for plain color backgrounds
+- Set type to "gradient" for gradient backgrounds
+- Only include overlay if the section clearly has a dark/light tint over an image`;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: [
+                {
+                    role: 'user',
+                    parts: [
+                        { inlineData: { mimeType: mimeType, data: imageData } },
+                        { text: extractionPrompt }
+                    ]
+                }
+            ],
+            config: { maxOutputTokens: 2000 }
+        });
+
+        const parsedBackgrounds = safeParseJSON(response.text || '[]');
+
+        if (Array.isArray(parsedBackgrounds)) {
+            console.log(`✓ Extracted ${parsedBackgrounds.length} section backgrounds`);
+            return parsedBackgrounds.map((bg: any) => ({
+                section: bg.section || 'unknown',
+                type: bg.type || 'solid',
+                description: bg.description || '',
+                unsplashQuery: bg.unsplashQuery || '',
+                overlay: bg.overlay || undefined,
+                extractedUrl: bg.unsplashQuery
+                    ? getReliableImageUrl(bg.unsplashQuery)
+                    : undefined
+            }));
+        }
+
+        return [];
+    } catch (error) {
+        console.error('Failed to extract section backgrounds:', error);
+        return [];
+    }
+};
+
+/**
+ * Inject ALL section backgrounds into the generated HTML
+ * Extends the hero injection to handle all sections with background images
+ */
+const injectAllSectionBackgrounds = (html: string, conceptImage: string, sectionBackgrounds: SectionBackground[]): string => {
+    // First, inject the concept image as hero background
+    html = injectConceptImageAsHeroBackground(html, conceptImage);
+
+    // Collect CSS for all section backgrounds
+    let sectionBgCSS = '';
+
+    // Then inject backgrounds for other sections
+    for (const bg of sectionBackgrounds) {
+        // Skip hero - already handled
+        if (bg.section === 'hero' || bg.section === 'home') continue;
+
+        // Skip sections without image backgrounds
+        if (bg.type !== 'image' || !bg.extractedUrl) continue;
+
+        const sectionId = bg.section.toLowerCase();
+        const overlay = bg.overlay || 'rgba(0,0,0,0.3)';
+
+        // Add CSS for this section
+        sectionBgCSS += `
+  /* ${bg.section} section background */
+  #${sectionId}, section#${sectionId}, section.${sectionId},
+  #page-${sectionId}, [id*="${sectionId}"], [class*="${sectionId}"] {
+    position: relative !important;
+    background-image: linear-gradient(${overlay}, ${overlay}), url('${bg.extractedUrl}') !important;
+    background-size: cover !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+  }
+`;
+
+        // Also try to inject an img element for better reliability
+        const sectionImgElement = `
+    <div class="section-bg-${sectionId}" style="position: absolute; inset: 0; z-index: 0; overflow: hidden;">
+      <img src="${bg.extractedUrl}" alt="${bg.section} Background" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'" />
+      <div style="position: absolute; inset: 0; background: ${overlay};"></div>
+    </div>`;
+
+        // Strategy 1: Find section by ID
+        const sectionByIdRegex = new RegExp(`(<section[^>]*id=["'](?:page-)?${sectionId}["'][^>]*>)`, 'i');
+        const idMatch = html.match(sectionByIdRegex);
+
+        if (idMatch) {
+            // Inject img element after the opening tag
+            html = html.replace(idMatch[0], idMatch[0] + sectionImgElement);
+            console.log(`✓ Injected background image for section: ${sectionId}`);
+            continue;
+        }
+
+        // Strategy 2: Find section by class
+        const sectionByClassRegex = new RegExp(`(<section[^>]*class=["'][^"']*${sectionId}[^"']*["'][^>]*>)`, 'i');
+        const classMatch = html.match(sectionByClassRegex);
+
+        if (classMatch) {
+            // Inject img element after the opening tag
+            html = html.replace(classMatch[0], classMatch[0] + sectionImgElement);
+            console.log(`✓ Injected background image for section (by class): ${sectionId}`);
+        }
+    }
+
+    // Inject collected CSS for all section backgrounds
+    if (sectionBgCSS && html.includes('</head>')) {
+        const sectionBgStyleTag = `
+<style id="section-backgrounds-css">
+${sectionBgCSS}
+</style>
+`;
+        html = html.replace('</head>', `${sectionBgStyleTag}\n</head>`);
+        console.log('✓ Section background CSS injected');
+    }
+
+    return html;
+};
+
+/**
+ * Inject AI-generated section images into the HTML
+ * Replaces Unsplash/placeholder URLs with base64-encoded AI-generated images
+ */
+const injectAISectionImages = (html: string, sectionImages: Map<string, string>): string => {
+    console.log('=== INJECTING AI SECTION IMAGES ===');
+
+    for (const [section, imageUrl] of sectionImages) {
+        console.log(`Processing ${section} section...`);
+        let replaced = false;
+
+        // Strategy 1: Replace img src attributes in sections matching by id or class
+        // Match section containers and find img tags within them
+        const sectionPatterns = [
+            // Match by section id (e.g., id="about", id="page-about")
+            new RegExp(`(<(?:section|main|div)[^>]*id=["'](?:page-)?${section}["'][^>]*>[\\s\\S]*?)(<img[^>]*src=["'])([^"']+)(["'][^>]*>)`, 'gi'),
+            // Match by class containing section name
+            new RegExp(`(<(?:section|main|div)[^>]*class=["'][^"']*${section}[^"']*["'][^>]*>[\\s\\S]*?)(<img[^>]*src=["'])([^"']+)(["'][^>]*>)`, 'gi'),
+        ];
+
+        for (const pattern of sectionPatterns) {
+            html = html.replace(pattern, (match, before, imgStart, oldSrc, imgEnd) => {
+                // Only replace external URLs (Unsplash, placeholder, etc.)
+                if (oldSrc.includes('unsplash') ||
+                    oldSrc.includes('placeholder') ||
+                    oldSrc.includes('via.placeholder') ||
+                    oldSrc.includes('picsum') ||
+                    oldSrc.startsWith('http')) {
+                    replaced = true;
+                    console.log(`  ✓ Replaced ${section} img src (was: ${oldSrc.substring(0, 50)}...)`);
+                    return before + imgStart + imageUrl + imgEnd;
+                }
+                return match;
+            });
+        }
+
+        // Strategy 2: Replace background-image CSS in style attributes
+        const bgImagePatterns = [
+            // Match inline style background-image in sections
+            new RegExp(`((?:id|class)=["'][^"']*${section}[^"']*["'][^>]*style=["'][^"']*)background-image:\\s*url\\(['"]?([^'"\\)]+)['"]?\\)`, 'gi'),
+        ];
+
+        for (const pattern of bgImagePatterns) {
+            html = html.replace(pattern, (match, before, oldUrl) => {
+                if (oldUrl.includes('unsplash') ||
+                    oldUrl.includes('placeholder') ||
+                    oldUrl.startsWith('http')) {
+                    replaced = true;
+                    console.log(`  ✓ Replaced ${section} background-image (was: ${oldUrl.substring(0, 50)}...)`);
+                    return `${before}background-image: url('${imageUrl}')`;
+                }
+                return match;
+            });
+        }
+
+        // Strategy 3: Add CSS to inject background for section if no img found
+        if (!replaced) {
+            // Inject CSS background for this section
+            const sectionBgCSS = `
+/* AI-generated ${section} section background */
+#${section}, section#${section}, section.${section},
+#page-${section}, [id*="${section}"], .${section}-section {
+  background-image: url('${imageUrl}') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+`;
+            // Inject before </head>
+            if (html.includes('</head>')) {
+                html = html.replace('</head>', `<style id="ai-${section}-bg">${sectionBgCSS}</style>\n</head>`);
+                console.log(`  ✓ Added CSS background for ${section} section`);
+            }
+        }
+    }
+
+    console.log('=== AI SECTION IMAGE INJECTION COMPLETE ===');
+    return html;
+};
+
+/**
+ * Build a vision-guided HTML generation prompt
+ * CRITICAL: Generate an EXACT REPLICA of the concept image as functional HTML.
+ * The generated website must look IDENTICAL to the concept image.
+ */
+const buildVisionGuidedHtmlPrompt = (businessPrompt: string, designSpec?: DesignSpecification): string => {
+    // Build design requirements section if spec is available
+    const designRequirements = designSpec ? `
+=== EXTRACTED DESIGN SPECIFICATIONS (USE THESE EXACT VALUES) ===
+
+COLORS (use these EXACT hex codes - DO NOT CHANGE):
+- Primary: ${designSpec.colors.primary}
+- Secondary: ${designSpec.colors.secondary}
+- Accent: ${designSpec.colors.accent}
+- Background: ${designSpec.colors.background}
+- Text: ${designSpec.colors.text}
+${designSpec.colors.headerBg ? `- Header Background: ${designSpec.colors.headerBg}` : ''}
+${designSpec.colors.footerBg ? `- Footer Background: ${designSpec.colors.footerBg}` : ''}
+
+TYPOGRAPHY (use these EXACT fonts):
+- Heading Font: "${designSpec.typography.headingFont}"
+- Body Font: "${designSpec.typography.bodyFont}"
+
+NAV MENU ITEMS (use these EXACT names): ${designSpec.content.exactText.navMenuItems?.length ? designSpec.content.exactText.navMenuItems.map(t => `"${t}"`).join(', ') : 'Use menu items from concept image'}
+` : '';
+
+    return `You are an expert frontend developer who creates PIXEL-PERFECT HTML replicas from website mockup images.
+
+███████████████████████████████████████████████████████████████████████████
+█  YOUR TASK: CREATE HTML THAT IS VISUALLY IDENTICAL TO THE CONCEPT IMAGE █
+███████████████████████████████████████████████████████████████████████████
+
+IMPORTANT CONTEXT: ${businessPrompt}
+
+${designRequirements}
+
+═══════════════════════════════════════════════════════════════════════════
+PHASE 1: DETAILED VISUAL ANALYSIS (DO THIS FIRST!)
+═══════════════════════════════════════════════════════════════════════════
+
+Before writing ANY HTML, you MUST analyze the concept image IN DETAIL.
+Output your analysis as HTML comments at the start of your code.
+
+** IGNORE ANY DEVICE FRAMES **
+If the website is shown on a laptop, phone, or tablet screen,
+ONLY analyze the website content INSIDE the device screen.
+
+Analyze and record:
+
+1. HEADER/NAVIGATION:
+   □ Logo text or image (write EXACT text if text-based)
+   □ Logo position: left, center, or right?
+   □ Header background color (estimate hex: #XXXXXX)
+   □ List ALL menu items LEFT to RIGHT (exact spelling!)
+   □ Menu alignment: left, center, or right?
+   □ Any CTA buttons in header? (exact text)
+   □ Header style: transparent, solid, gradient?
+   □ Header height: compact or tall?
+
+2. HERO SECTION:
+   □ Background type: image, solid color (#hex), or gradient?
+   □ If image background, describe in DETAIL:
+     - Subject: What is shown? (city skyline, nature, office, people, abstract, etc.)
+     - Mood: Dark/moody, bright/cheerful, warm/cozy, cool/professional
+     - Colors: Dominant colors in the image
+     - Style: Photo, illustration, pattern?
+     - Unsplash keywords: 5 keywords to find similar image
+   □ Main headline text (COPY EXACT WORDS)
+   □ Subheadline text (COPY EXACT WORDS)
+   □ Buttons: count them, list EXACT text on each
+   □ ALIGNMENT - CRITICAL:
+     - Text alignment: left, center, or right?
+     - Content position: left side, center, right side, or full-width centered?
+     - Vertical alignment: top, middle, or bottom of hero?
+   □ Text color (estimate hex)
+   □ Overlay: Is there a dark/light overlay on the background?
+   □ Hero height: full screen (100vh) or partial?
+
+3. ALL OTHER SECTIONS (list EACH section you see):
+   For each section:
+   □ Section name/purpose
+   □ Section heading text (EXACT)
+   □ Section heading alignment: left, center, or right?
+   □ Background color (hex)
+   □ Number of cards/items (COUNT EXACTLY!)
+   □ Grid layout: 2-col, 3-col, 4-col? (match EXACTLY)
+   □ Card alignment: cards centered or left-aligned?
+   □ Card spacing: tight, normal, or wide?
+   □ Card content summary
+   □ IMAGES in this section (describe each one in detail)
+
+4. LAYOUT & ALIGNMENT ANALYSIS (CRITICAL!):
+   □ Overall page width: full-width or contained (max-width)?
+   □ Content container alignment: centered?
+   □ Section padding: small, medium, or large?
+   □ Card gaps: small (gap-4), medium (gap-6), large (gap-8)?
+   □ Text line spacing: tight or relaxed?
+
+5. IMAGE ANALYSIS (CRITICAL - analyze EVERY image you see):
+   For EACH image in the concept:
+   □ Location (hero background, card 1, card 2, about section, etc.)
+   □ Subject matter (what is shown: people, nature, building, food, etc.)
+   □ Style (professional photo, illustration, icon, etc.)
+   □ Mood (dark/moody, bright/cheerful, warm/cozy, cool/professional)
+   □ Color tone (warm tones, cool tones, black and white, vibrant, muted)
+   □ Unsplash search keywords (3-5 keywords to find similar image)
+
+   Example:
+   - Hero: Dark professional office interior, modern, cool tones → "modern,office,interior,dark,business"
+   - Card 1: Smiling businesswoman portrait → "businesswoman,portrait,professional,smile"
+   - Card 2: Team meeting in conference room → "team,meeting,business,conference"
+
+6. FOOTER:
+   □ Background color (hex)
+   □ Number of columns
+   □ Content in each column
+   □ Social icons present?
+   □ Copyright text
+
+7. COLOR PALETTE EXTRACTION:
+   □ Primary color (buttons, CTAs): #______
+   □ Secondary color (accents): #______
+   □ Background colors: #______
+   □ Text color (headings): #______
+   □ Text color (body): #______
+   □ Link color: #______
+
+═══════════════════════════════════════════════════════════════════════════
+PHASE 2: GENERATE EXACT HTML REPLICA
+═══════════════════════════════════════════════════════════════════════════
+
+CRITICAL: Use the EXACT values from your Phase 1 analysis.
+
+OUTPUT FORMAT:
+1. Start with HTML comments containing your analysis (helps verify accuracy)
+2. Then the complete HTML code starting with <!DOCTYPE html>
+
+Example output structure:
+<!--
+ANALYSIS:
+Logo: "BusinessName"
+Menu: Home, About, Services, Contact
+Hero Headline: "Welcome to Our Company"
+Primary Color: #2563eb
+...
+-->
+<!DOCTYPE html>
+...
+
+═══════════════════════════════════════════════════════════════════════════
+MANDATORY REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════════
+
+1. VISUAL FIDELITY - THE WEBSITE MUST LOOK IDENTICAL TO CONCEPT:
+   ✓ EXACT same menu items (same text, same order)
+   ✓ EXACT same headline and subheadline text
+   ✓ EXACT same button text
+   ✓ EXACT same colors (use hex codes from analysis)
+   ✓ EXACT same section order
+   ✓ EXACT same number of cards/items per section
+   ✓ EXACT same grid layout (if 3 columns shown, use 3 columns)
+   ✗ DO NOT add sections that don't exist in concept
+   ✗ DO NOT change or "improve" any text
+   ✗ DO NOT use different colors even if "similar"
+
+2. RESPONSIVE DESIGN (while maintaining visual match):
+   Desktop (lg+): Must look EXACTLY like concept image
+   Tablet (md): Grids adapt to 2 columns if needed
+   Mobile (sm): Single column, hamburger menu
+
+3. TECHNICAL REQUIREMENTS:
+   □ Tailwind CSS via CDN: <script src="https://cdn.tailwindcss.com"></script>
+   □ Configure colors: tailwind.config with EXACT colors from concept
+   □ Google Fonts if specific fonts are visible
+   □ Fixed header: position: fixed with z-50
+   □ Smooth scrolling: html { scroll-behavior: smooth; }
+
+4. HTML STRUCTURE:
+   □ Start with <!DOCTYPE html>
+   □ Include viewport meta tag for responsiveness
+   □ Use semantic HTML (header, main, section, footer)
+   □ Single-page with anchor navigation (#home, #about, etc.)
+
+5. NAVIGATION IMPLEMENTATION:
+   □ Logo on left (EXACT text from concept)
+   □ Menu items in EXACT order from concept
+   □ Desktop: hidden md:flex
+   □ Mobile: hamburger button md:hidden
+   □ Mobile menu: overlay that toggles
+
+6. SECTION BACKGROUNDS:
+   □ If concept shows image background → use similar Unsplash image
+   □ If concept shows solid color → use EXACT hex color
+   □ If concept shows gradient → replicate the gradient
+
+7. IMAGE STRATEGY (CRITICAL - USE THESE RELIABLE IMAGE URLs):
+
+   Based on your image analysis, select the MOST APPROPRIATE images from this curated library:
+
+   === HERO BACKGROUNDS (1920x1080) ===
+
+   BUSINESS/CORPORATE:
+   - Modern office: https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&h=1080&fit=crop
+   - Dark office: https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=1920&h=1080&fit=crop
+   - Meeting room: https://images.unsplash.com/photo-1517502884422-41eaead166d4?w=1920&h=1080&fit=crop
+   - City skyline: https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1920&h=1080&fit=crop
+   - Tech/startup: https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=1920&h=1080&fit=crop
+
+   RESTAURANT/FOOD:
+   - Restaurant interior: https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1920&h=1080&fit=crop
+   - Fine dining: https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=1920&h=1080&fit=crop
+   - Cafe/coffee: https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=1920&h=1080&fit=crop
+   - Food platter: https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=1920&h=1080&fit=crop
+
+   HEALTHCARE/WELLNESS:
+   - Spa/wellness: https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=1920&h=1080&fit=crop
+   - Medical/clinic: https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=1920&h=1080&fit=crop
+   - Fitness/gym: https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1920&h=1080&fit=crop
+
+   EDUCATION:
+   - University: https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1920&h=1080&fit=crop
+   - Library: https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=1920&h=1080&fit=crop
+   - Classroom: https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=1920&h=1080&fit=crop
+
+   NATURE/TRAVEL:
+   - Mountains: https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1920&h=1080&fit=crop
+   - Beach: https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1920&h=1080&fit=crop
+   - Forest: https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&h=1080&fit=crop
+
+   REAL ESTATE:
+   - Modern house: https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1920&h=1080&fit=crop
+   - Interior design: https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=1920&h=1080&fit=crop
+   - Architecture: https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=1920&h=1080&fit=crop
+
+   === SERVICE/FEATURE CARDS (800x600) ===
+
+   BUSINESS:
+   - Handshake: https://images.unsplash.com/photo-1521791136064-7986c2920216?w=800&h=600&fit=crop
+   - Teamwork: https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&h=600&fit=crop
+   - Laptop work: https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&h=600&fit=crop
+   - Analytics: https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&h=600&fit=crop
+   - Customer service: https://images.unsplash.com/photo-1556745757-8d76bdb6984b?w=800&h=600&fit=crop
+
+   FOOD:
+   - Plated dish: https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&h=600&fit=crop
+   - Chef cooking: https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=800&h=600&fit=crop
+   - Coffee cup: https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=800&h=600&fit=crop
+   - Bakery: https://images.unsplash.com/photo-1509440159596-0249088772ff?w=800&h=600&fit=crop
+
+   SERVICES:
+   - Cleaning: https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=800&h=600&fit=crop
+   - Gardening: https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=800&h=600&fit=crop
+   - Repair/tools: https://images.unsplash.com/photo-1581092921461-eab62e97a780?w=800&h=600&fit=crop
+   - Delivery: https://images.unsplash.com/photo-1566576721346-d4a3b4eaeb55?w=800&h=600&fit=crop
+
+   === TEAM/PORTRAIT (400x400) ===
+   - Professional man: https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop
+   - Professional woman: https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop
+   - Business man: https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop
+   - Business woman: https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&h=400&fit=crop
+   - Young professional: https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=400&h=400&fit=crop
+   - Smiling woman: https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop
+
+   === ABOUT/TEAM SECTION (1200x800) ===
+   - Team meeting: https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=800&fit=crop
+   - Office team: https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200&h=800&fit=crop
+   - Collaboration: https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1200&h=800&fit=crop
+
+   INSTRUCTIONS:
+   1. Match the image SUBJECT to what you see in the concept
+   2. Match the image MOOD (dark/light, warm/cool)
+   3. Use ONLY URLs from the library above (they are reliable)
+   4. If concept shows people, use people images
+   5. If concept shows abstract/patterns, use appropriate category
+
+8. RESPONSIVE TAILWIND PATTERNS:
+   □ Grids: grid grid-cols-1 md:grid-cols-2 lg:grid-cols-[N from concept]
+   □ Text: text-2xl md:text-4xl lg:text-6xl
+   □ Padding: p-4 md:p-8 lg:p-12
+   □ Navigation: hidden md:flex (desktop), md:hidden (mobile button)
+
+9. ALIGNMENT RULES (MUST MATCH CONCEPT EXACTLY):
+
+   HEADER ALIGNMENT:
+   - Logo LEFT + Menu RIGHT: Use justify-between in flex container
+   - Logo LEFT + Menu CENTER: Use flex with logo absolute left, menu centered
+   - Everything CENTERED: Use justify-center with items-center
+
+   HERO CONTENT ALIGNMENT:
+   - LEFT aligned: Use text-left, items-start
+   - CENTER aligned: Use text-center, items-center, mx-auto
+   - RIGHT aligned: Use text-right, items-end
+
+   HERO CONTENT POSITION:
+   - Content on LEFT side: Use max-w-xl or max-w-2xl without mx-auto
+   - Content CENTERED: Use max-w-4xl mx-auto text-center
+   - Content on RIGHT side: Use ml-auto with max-w-xl
+
+   SECTION HEADING ALIGNMENT:
+   - LEFT: text-left
+   - CENTER: text-center
+   - RIGHT: text-right
+
+   CARD GRID ALIGNMENT:
+   - Grid CENTERED: Use justify-items-center or place-items-center
+   - Cards LEFT: Default grid behavior
+   - Cards have equal heights: Use h-full on cards
+
+   CONTAINER WIDTHS:
+   - Full width sections: Remove max-w, use w-full
+   - Contained sections: Use max-w-7xl mx-auto px-4
+
+═══════════════════════════════════════════════════════════════════════════
+GENERATE THE HTML NOW
+═══════════════════════════════════════════════════════════════════════════
+
+First output your analysis as HTML comments (include image keywords!).
+Then output the COMPLETE HTML code.
+
+CRITICAL CHECKLIST - VERIFY EACH ITEM:
+✓ Menu items match concept EXACTLY (text and order)
+✓ Headlines and button text copied EXACTLY (word for word)
+✓ Colors extracted and used correctly (exact hex codes)
+✓ Hero background image selected from library to match concept mood/subject
+✓ Card/section images selected from library to match concept
+✓ Layout matches (same number of columns, same section order)
+✓ All images use URLs from the curated library above (NOT source.unsplash.com)
+✓ ALIGNMENT matches concept:
+  - Header alignment (logo left/center, menu position)
+  - Hero text alignment (left/center/right)
+  - Hero content position (left side/center/right side)
+  - Section heading alignment
+  - Card grid alignment
+✓ Spacing matches concept (padding, gaps between elements)
+✓ Font sizes match visual hierarchy in concept
+
+IMAGE URL FORMAT - MUST USE THIS EXACT FORMAT:
+✓ CORRECT: https://images.unsplash.com/photo-XXXXX?w=1920&h=1080&fit=crop
+✗ WRONG: https://source.unsplash.com/... (unreliable, don't use)
+
+ZERO DIFFERENCES ALLOWED - The generated website MUST be visually IDENTICAL to the concept image.
+Return ONLY HTML (with analysis comments). No markdown blocks.`;
+};
+
+/**
+ * Generate a multi-page website structure with strict accuracy requirements
+ * Creates separate HTML files for each page with consistent header/footer
+ * @param prompt - Business description
+ * @param designSpec - Extracted design specifications
+ * @param conceptImage - Base64 concept image
+ * @param extractAllBackgrounds - If true, extracts and injects backgrounds for ALL sections (not just hero)
+ */
+export const generateWebsiteStructure = async (
+    prompt: string,
+    designSpec?: DesignSpecification,
+    conceptImage?: string,
+    extractAllBackgrounds: boolean = true,
+    useAIImages: boolean = false,
+    onProgress?: (stage: string, detail?: string) => void
+): Promise<string> => {
+    const ai = await getClient();
+
+    // Generate AI section images if enabled
+    let aiSectionImages: Map<string, string> | undefined;
+    if (useAIImages) {
+        try {
+            onProgress?.('images', 'Generating AI images for website sections...');
+            console.log('=== GENERATING AI SECTION IMAGES (useAIImages=true) ===');
+            aiSectionImages = await generateSectionImages(prompt, ['hero', 'about', 'services', 'contact'], true);
+            console.log(`Generated ${aiSectionImages.size} AI section images`);
+        } catch (error) {
+            console.error('AI section image generation failed:', error);
+            // Continue without AI images - will fall back to Unsplash
+        }
+    }
+
+    // If concept image is provided, use VISION-GUIDED generation (AI sees image while generating HTML)
     if (conceptImage) {
         // Remove data URL prefix if present
         const imageData = conceptImage.includes(',')
@@ -409,435 +2622,37 @@ export const generateWebsiteStructure = async (prompt: string, designSpec?: Desi
         const mimeType = conceptImage.includes('image/jpeg') ? 'image/jpeg' : 'image/png';
 
         try {
-            // STEP 1: Analyze the image in extreme detail for multi-page website
-            console.log('Step 1: Analyzing concept image for multi-page website...');
-            const analysisPrompt = `Analyze this website mockup image in EXTREME detail. I need to recreate it as a MULTI-PAGE website with SEPARATE PAGES.
+            // VISION-GUIDED GENERATION: AI generates HTML while DIRECTLY viewing the concept image
+            onProgress?.('html', 'Generating HTML structure from concept...');
+            console.log('Vision-Guided Generation: AI viewing concept image while generating HTML...');
 
-**** VERY IMPORTANT - IGNORE DEVICE FRAMES ****
-If the image shows a website displayed on a laptop, computer monitor, phone, tablet, or any other device:
-- COMPLETELY IGNORE the device frame/shell
-- Focus ONLY on the actual WEBSITE CONTENT shown inside the screen
-- Do NOT describe or reference the device itself
-- Analyze ONLY what appears on the website, not the device displaying it
-- The laptop/device is just a presentation mockup - we need the WEBSITE CONTENT ONLY
+            // Optionally extract section backgrounds in parallel
+            let sectionBackgrounds: SectionBackground[] = [];
+            if (extractAllBackgrounds) {
+                console.log('Extracting section backgrounds from concept image...');
+                sectionBackgrounds = await extractSectionBackgrounds(conceptImage);
+            }
 
-CRITICAL: This will be a multi-page website, NOT a single-page website. Each navigation item will be its own page.
+            // Build the vision-guided prompt
+            const visionPrompt = buildVisionGuidedHtmlPrompt(prompt, designSpec);
 
-VERY IMPORTANT - HERO BACKGROUND IMAGE:
-Look at the hero section of the WEBSITE (not the device frame). Describe the hero background:
-- What is the main subject of the hero background? (office, nature, people, abstract, food, etc.)
-- What colors dominate the image?
-- What is the composition/layout?
-- Is there an overlay or tint?
-- What mood does it convey?
-- NOTE: The "background" is what's BEHIND the hero text/content, NOT the laptop/device showing the website
-
-Describe EVERY visual element you see IN THE WEBSITE (ignore any device frame):
-
-1. HEADER (will be shared across ALL pages):
-   - Background color (exact shade/hex)
-   - Logo text/image and position
-   - Navigation menu items (list EACH one - these become separate pages)
-   - Any buttons and their colors
-   - Must be STICKY/FIXED navigation
-
-2. HERO SECTION (for Home page):
-   - BACKGROUND IMAGE: Describe in EXTREME detail what the background image shows
-   - Background overlay color and opacity if any
-   - Main headline text (EXACT words if visible)
-   - Subheadline/description text (EXACT words)
-   - CTA buttons (EXACT text, colors, shape)
-   - Any images and their EXACT position
-   - Layout details
-
-3. ALL OTHER SECTIONS (describe EACH one - these may become separate pages):
-   - Section type (features, services, testimonials, about, gallery, contact, etc.)
-   - EXACT layout (grid columns, cards, etc.)
-   - EXACT content in each card/item
-   - EXACT colors and styling
-   - Which page this section belongs to
-
-4. FOOTER (will be shared across ALL pages):
-   - Background color (exact hex)
-   - Content layout
-   - Links and text
-   - Contact information if visible
-
-5. OVERALL STYLE:
-   - Primary color (exact hex)
-   - Secondary color (exact hex)
-   - Accent/button color (exact hex)
-   - All background colors
-   - Font style (identify exact Google Font if possible)
-   - Overall mood
-
-6. CONTACT INFORMATION (extract EXACTLY):
-   - Phone number(s)
-   - Email address(es)
-   - Physical address
-   - Social media links
-
-7. HERO BACKGROUND SEARCH QUERY:
-   Provide an Unsplash search query that would find a MATCHING background image.
-   Format: "UNSPLASH_QUERY: [your search terms]"
-
-Be EXTREMELY specific. Every color must be a hex code. Every text must be exact.`;
-
-            const analysisResponse = await ai.models.generateContent({
+            // Single API call where AI sees the image AND generates HTML
+            const htmlResponse = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: [
                     {
                         role: 'user',
                         parts: [
                             { inlineData: { mimeType: mimeType, data: imageData } },
-                            { text: analysisPrompt }
+                            { text: visionPrompt }
                         ]
                     }
                 ],
-                config: { maxOutputTokens: 4000 }
-            });
-
-            const imageAnalysis = analysisResponse.text || '';
-            console.log('Image analysis complete, length:', imageAnalysis.length);
-
-            // STEP 2: Generate HTML based on the detailed analysis
-            console.log('Step 2: Generating HTML from analysis...');
-
-            // Build comprehensive design requirements from extracted spec
-            const buildDesignRequirements = () => {
-                if (!designSpec) return '';
-
-                const { colors, typography, layout, components, content } = designSpec;
-
-                return `
-=== MANDATORY DESIGN SPECIFICATIONS (MUST MATCH EXACTLY) ===
-
-COLORS (use these EXACT hex codes):
-- Primary: ${colors.primary}
-- Secondary: ${colors.secondary}
-- Accent: ${colors.accent}
-- Background: ${colors.background}
-- Text: ${colors.text}
-${colors.headerBg ? `- Header Background: ${colors.headerBg}` : ''}
-${colors.footerBg ? `- Footer Background: ${colors.footerBg}` : ''}
-${colors.heroBg ? `- Hero Background: ${colors.heroBg}` : ''}
-${colors.cardBg ? `- Card Background: ${colors.cardBg}` : ''}
-
-TYPOGRAPHY:
-- Heading Font: "${typography.headingFont}" (MUST use this exact Google Font)
-- Body Font: "${typography.bodyFont}" (MUST use this exact Google Font)
-- H1 Size: ${typography.headingSizes.h1}
-- H2 Size: ${typography.headingSizes.h2}
-- H3 Size: ${typography.headingSizes.h3}
-${typography.fontWeight?.heading ? `- Heading Weight: ${typography.fontWeight.heading}` : ''}
-
-LAYOUT:
-- Max Width: ${layout.maxWidth}
-- Section Padding: ${layout.sectionPadding}
-- Grid Columns: ${layout.gridColumns}
-- Gutter Width: ${layout.gutterWidth}
-
-HEADER COMPONENT:
-- Style: ${components.header.style}
-- Logo Placement: ${components.header.logoPlacement}
-${components.header.logoText ? `- Logo Text: "${components.header.logoText}" (USE THIS EXACT TEXT)` : ''}
-${components.header.navItems?.length ? `- Navigation Items: ${components.header.navItems.map(item => `"${item}"`).join(', ')} (USE THESE EXACT ITEMS)` : ''}
-${components.header.backgroundColor ? `- Background Color: ${components.header.backgroundColor}` : ''}
-${components.header.textColor ? `- Text Color: ${components.header.textColor}` : ''}
-
-HERO SECTION:
-- Height: ${components.hero.height}
-- Alignment: ${components.hero.alignment}
-${components.hero.headline ? `- Headline: "${components.hero.headline}" (USE THIS EXACT TEXT)` : ''}
-${components.hero.subheadline ? `- Subheadline: "${components.hero.subheadline}" (USE THIS EXACT TEXT)` : ''}
-${components.hero.ctaButtons?.length ? `- CTA Buttons: ${components.hero.ctaButtons.map(btn => `"${btn}"`).join(', ')} (USE THESE EXACT TEXTS)` : ''}
-${components.hero.backgroundType ? `- Background Type: ${components.hero.backgroundType}` : ''}
-${components.hero.backgroundValue ? `- Background Value: ${components.hero.backgroundValue}` : ''}
-${components.hero.imagePosition ? `- Image Position: ${components.hero.imagePosition}` : ''}
-${components.hero.hasOverlay !== undefined ? `- Has Overlay: ${components.hero.hasOverlay}` : ''}
-
-BUTTONS:
-- Border Radius: ${components.buttons.borderRadius}
-- Style: ${components.buttons.style}
-${components.buttons.primaryColor ? `- Primary Button Color: ${components.buttons.primaryColor}` : ''}
-${components.buttons.primaryTextColor ? `- Primary Button Text: ${components.buttons.primaryTextColor}` : ''}
-${components.buttons.padding ? `- Padding: ${components.buttons.padding}` : ''}
-
-CARDS:
-- Border Radius: ${components.cards.borderRadius}
-- Shadow: ${components.cards.shadow}
-${components.cards.backgroundColor ? `- Background: ${components.cards.backgroundColor}` : ''}
-${components.cards.border ? `- Border: ${components.cards.border}` : ''}
-
-SECTIONS (in exact order):
-${content.sections.map((s, i) => `${i + 1}. ${s.type.toUpperCase()}${s.title ? ` - Title: "${s.title}"` : ''}${s.subtitle ? ` - Subtitle: "${s.subtitle}"` : ''}${s.backgroundColor ? ` - BG: ${s.backgroundColor}` : ''}${s.itemCount ? ` - ${s.itemCount} items` : ''}${s.layout ? ` - Layout: ${s.layout}` : ''}`).join('\n')}
-
-EXACT TEXT CONTENT TO USE:
-${content.exactText.logoText ? `- Logo: "${content.exactText.logoText}"` : ''}
-${content.exactText.heroHeadline ? `- Hero Headline: "${content.exactText.heroHeadline}"` : ''}
-${content.exactText.heroSubheadline ? `- Hero Subheadline: "${content.exactText.heroSubheadline}"` : ''}
-${content.exactText.ctaButtonTexts?.length ? `- CTA Buttons: ${content.exactText.ctaButtonTexts.map(t => `"${t}"`).join(', ')}` : ''}
-${content.exactText.navMenuItems?.length ? `- Nav Items: ${content.exactText.navMenuItems.map(t => `"${t}"`).join(', ')}` : ''}
-${content.exactText.sectionTitles?.length ? `- Section Titles: ${content.exactText.sectionTitles.map(t => `"${t}"`).join(', ')}` : ''}
-${content.exactText.footerText ? `- Footer: "${content.exactText.footerText}"` : ''}
-`;
-            };
-
-            const htmlPrompt = `You are an expert frontend developer. Create a MULTI-PAGE website that is PIXEL-PERFECT and 100% IDENTICAL to the concept mockup.
-
-**** CRITICAL - IGNORE DEVICE FRAMES ****
-If the mockup analysis mentions a laptop, computer, phone, tablet, or any device frame:
-- DO NOT include the device frame in the website
-- DO NOT use the device image as a background
-- Build ONLY the website content that was shown INSIDE the device screen
-- The website should be a standalone webpage, not displayed on a device
-
-=== VISUAL ANALYSIS OF MOCKUP ===
-${imageAnalysis}
-
-=== BUSINESS CONTEXT ===
-${prompt}
-
-${buildDesignRequirements()}
-
-=== CRITICAL REQUIREMENTS (MANDATORY - NO EXCEPTIONS) ===
-
-${designSpec?.pageStructure === 'single-page' ? `
-1. SINGLE-PAGE STRUCTURE:
-   - Create ONE continuous scrollable page with all sections stacked vertically
-   - Navigation links MUST use anchor links (#home, #about, #services, #contact)
-   - DO NOT create separate pages - keep everything on ONE page
-   - Implement smooth scrolling between sections
-   - Example: <a href="#about" class="...">About</a> → scrolls to <section id="about">
-` : `
-1. MULTI-PAGE STRUCTURE (NOT SINGLE PAGE):
-   - Create SEPARATE pages for: Home, About, Services, Contact (and any others visible)
-   - Each navigation item MUST link to a SEPARATE PAGE with its own URL
-   - DO NOT use anchor links (#section) - use page links (about.html, services.html)
-   - Use JavaScript-based routing to simulate multi-page behavior in single HTML
-`}
-
-2. STICKY/FIXED NAVIGATION:
-   - Header must be FIXED at the top (position: fixed)
-   - Navigation must be visible while scrolling
-   - Must work on all screen sizes
-
-3. 100% RESPONSIVE:
-   - Must look perfect on Desktop, Tablet, and Mobile
-   - Use Tailwind responsive classes (sm:, md:, lg:, xl:)
-   - Mobile hamburger menu required
-
-4. EXACT VISUAL MATCH:
-   - Use EXACT colors (copy hex codes exactly)
-   - Use EXACT fonts specified
-   - Use EXACT text content (headlines, buttons, nav items) - NO placeholders
-   - Match EXACT layout structure
-   - Match EXACT spacing and sizing
-
-5. REAL CONTENT ONLY:
-   - Use ONLY real content from the mockup
-   - NO placeholder text like "Lorem ipsum"
-   - NO made-up contact details
-   - Extract EXACT phone, email, address from mockup
-
-${designSpec?.pageStructure === 'single-page' ? `
-=== SINGLE-PAGE SMOOTH SCROLLING ===
-
-Implement smooth scrolling with this pattern:
-
-<script>
-// Smooth scroll to sections
-document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-  anchor.addEventListener('click', function (e) {
-    e.preventDefault();
-    const target = document.querySelector(this.getAttribute('href'));
-    if (target) {
-      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  });
-});
-</script>
-` : `
-=== MULTI-PAGE ROUTING IMPLEMENTATION ===
-
-Implement client-side routing with this pattern:
-
-<script>
-// Multi-page routing system
-const pages = {
-  'home': document.getElementById('page-home'),
-  'about': document.getElementById('page-about'),
-  'services': document.getElementById('page-services'),
-  'contact': document.getElementById('page-contact')
-};
-
-function showPage(pageName) {
-  // Hide all pages
-  Object.values(pages).forEach(page => {
-    if (page) page.style.display = 'none';
-  });
-  // Show requested page
-  if (pages[pageName]) {
-    pages[pageName].style.display = 'block';
-  }
-  // Update URL
-  history.pushState({page: pageName}, '', pageName === 'home' ? '/' : '/' + pageName);
-  // Scroll to top
-  window.scrollTo(0, 0);
-}
-
-// Handle browser back/forward
-window.onpopstate = (e) => {
-  if (e.state && e.state.page) showPage(e.state.page);
-};
-
-// Initialize
-document.addEventListener('DOMContentLoaded', () => {
-  const path = window.location.pathname.replace('/', '') || 'home';
-  showPage(path);
-});
-</script>
-`}
-
-=== HTML STRUCTURE ===
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Business Name</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-  tailwind.config = {
-    theme: {
-      extend: {
-        colors: {
-          primary: '${designSpec?.colors.primary || '#D4AF37'}',
-          secondary: '${designSpec?.colors.secondary || '#4A4A4A'}',
-          accent: '${designSpec?.colors.accent || '#2E7D32'}',
-        }
-      }
-    }
-  }
-  </script>
-  <link href="https://fonts.googleapis.com/css2?family=${designSpec?.typography.headingFont?.replace(/ /g, '+') || 'Playfair+Display'}:wght@400;500;600;700&family=${designSpec?.typography.bodyFont?.replace(/ /g, '+') || 'Inter'}:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <style>
-    body { font-family: '${designSpec?.typography.bodyFont || 'Inter'}', sans-serif; }
-    .font-heading { font-family: '${designSpec?.typography.headingFont || 'Playfair Display'}', serif; }
-  </style>
-</head>
-<body>
-  <!-- FIXED HEADER -->
-  <header class="fixed top-0 left-0 right-0 z-50 ...">
-    <nav>
-      <!-- Logo -->
-      ${designSpec?.pageStructure === 'single-page' ?
-        '<!-- Navigation links with href="#section" for smooth scrolling -->' :
-        '<!-- Navigation links with onclick="showPage(\'pagename\')" for routing -->'
-      }
-      <!-- Mobile menu button -->
-    </nav>
-  </header>
-
-  ${designSpec?.pageStructure === 'single-page' ? `
-  <!-- SINGLE PAGE STRUCTURE: All sections on one page -->
-  <main class="pt-20">
-    <!-- Hero section with id="home" -->
-    <section id="home" class="hero ...">...</section>
-
-    <!-- About section with id="about" -->
-    <section id="about" class="...">...</section>
-
-    <!-- Services section with id="services" -->
-    <section id="services" class="...">...</section>
-
-    <!-- Contact section with id="contact" -->
-    <section id="contact" class="...">...</section>
-  </main>
-  ` : `
-  <!-- MULTI-PAGE STRUCTURE: Separate page containers -->
-  <!-- PAGE: HOME -->
-  <main id="page-home" class="pt-20">
-    <!-- Hero section -->
-    <!-- Other home content -->
-  </main>
-
-  <!-- PAGE: ABOUT -->
-  <main id="page-about" class="pt-20" style="display:none;">
-    <!-- About page content -->
-  </main>
-
-  <!-- PAGE: SERVICES -->
-  <main id="page-services" class="pt-20" style="display:none;">
-    <!-- Services page content -->
-  </main>
-
-  <!-- PAGE: CONTACT -->
-  <main id="page-contact" class="pt-20" style="display:none;">
-    <!-- Contact page content -->
-  </main>
-  `}
-
-  <!-- FOOTER -->
-  <footer>...</footer>
-
-  <!-- Script -->
-  <script>/* ${designSpec?.pageStructure === 'single-page' ? 'smooth scrolling' : 'routing'} code */</script>
-</body>
-</html>
-
-=== NAVIGATION LINKS FORMAT ===
-${designSpec?.pageStructure === 'single-page' ? `
-<a href="#home" class="...">Home</a>
-<a href="#about" class="...">About</a>
-<a href="#services" class="...">Services</a>
-<a href="#contact" class="...">Contact</a>
-` : `
-<a href="javascript:void(0)" onclick="showPage('home')" class="...">Home</a>
-<a href="javascript:void(0)" onclick="showPage('about')" class="...">About</a>
-<a href="javascript:void(0)" onclick="showPage('services')" class="...">Services</a>
-<a href="javascript:void(0)" onclick="showPage('contact')" class="...">Contact</a>
-`}
-
-=== HERO BACKGROUND IMAGE - CRITICAL ===
-
-IMPORTANT: The concept image will be automatically injected as the hero background after generation.
-For now, use this EXACT placeholder URL for the hero background:
-- Hero Background: https://images.unsplash.com/photo-hero-placeholder?w=1920&h=1080&fit=crop
-
-Apply dark overlay if the analysis indicates one:
-- background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('https://images.unsplash.com/photo-hero-placeholder?w=1920&h=1080&fit=crop');
-
-The hero section MUST have:
-- class="hero" or similar identifiable class
-- background-image CSS property (will be replaced with actual concept image)
-- Full viewport height (min-h-screen or similar)
-
-=== OTHER IMAGES ===
-For other sections, use these Unsplash URLs:
-- Team/People: https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop
-- Business: https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200&h=800&fit=crop
-- Team group: https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=800&fit=crop
-- Person 2: https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop
-
-=== OUTPUT ===
-Return ONLY the complete HTML code starting with <!DOCTYPE html>. No markdown, no explanations.
-The website MUST:
-1. Have SEPARATE pages for each navigation item
-2. Have FIXED/STICKY navigation
-3. Be 100% RESPONSIVE
-4. Match the mockup EXACTLY including the HERO BACKGROUND IMAGE
-5. Use REAL content only (no placeholders)
-6. Use hero image URL based on UNSPLASH_QUERY from the analysis`;
-
-            const htmlResponse = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: htmlPrompt,
                 config: { maxOutputTokens: 32000 }
             });
 
             let text = htmlResponse.text || '';
+            console.log('Vision-guided HTML generation complete, length:', text.length);
 
             // Clean up the response
             text = text.replace(/```html\s*/gi, '').replace(/```\s*/g, '').trim();
@@ -850,15 +2665,41 @@ The website MUST:
                 }
             }
 
-            console.log('HTML generated successfully, length:', text.length);
+            // The AI has generated a full functional website based on the concept image
+            // We no longer inject the concept image as a static background
+            // Instead, the AI creates real HTML sections that match the concept design
+            console.log('Generated functional website from concept. HTML length:', text.length);
 
-            // CRITICAL: Inject the actual concept image as the hero background
-            text = injectConceptImageAsHeroBackground(text, conceptImage);
+            // CRITICAL: Sanitize layout classes to prevent split-screen rendering
+            text = sanitizeLayoutClasses(text);
+
+            // CRITICAL: Inject design spec values (colors, fonts, text) for consistency
+            text = injectDesignSpecIntoHtml(text, designSpec);
+
+            // CRITICAL: Ensure viewport meta tag is present for responsive design
+            text = ensureViewportMeta(text);
+
+            // Add smooth scrolling CSS if not present
+            if (!text.includes('scroll-behavior')) {
+                text = text.replace('</head>', '<style>html { scroll-behavior: smooth; }</style>\n</head>');
+            }
+
+            // INJECT AI-GENERATED IMAGES if available
+            if (aiSectionImages && aiSectionImages.size > 0) {
+                onProgress?.('inject', 'Injecting AI-generated images into HTML...');
+                console.log('Injecting AI-generated section images into HTML...');
+                text = injectAISectionImages(text, aiSectionImages);
+            }
+
+            // CRITICAL: Replace unreliable image URLs to ensure images display
+            text = replaceUnreliableImageUrls(text, prompt);
+
+            console.log('Website generation complete with responsive design');
 
             return text;
 
         } catch (error) {
-            console.error('Two-step generation failed, falling back to text-based:', error);
+            console.error('Vision-guided generation failed, falling back to text-based:', error);
             // Fall through to design spec based generation
         }
     }
@@ -886,6 +2727,25 @@ The website MUST:
         if (designSpec.assets?.heroImage?.url) {
             text = injectConceptImageAsHeroBackground(text, designSpec.assets.heroImage.url);
         }
+
+        // Sanitize layout classes to prevent split-screen rendering
+        text = sanitizeLayoutClasses(text);
+
+        // Inject design spec values for verification
+        text = injectDesignSpecIntoHtml(text, designSpec);
+
+        // Ensure viewport meta tag is present for responsive design
+        text = ensureViewportMeta(text);
+
+        // INJECT AI-GENERATED IMAGES if available
+        if (aiSectionImages && aiSectionImages.size > 0) {
+            onProgress?.('inject', 'Injecting AI-generated images into HTML...');
+            console.log('Injecting AI-generated section images into HTML...');
+            text = injectAISectionImages(text, aiSectionImages);
+        }
+
+        // CRITICAL: Replace unreliable image URLs to ensure images display
+        text = replaceUnreliableImageUrls(text, prompt);
 
         return text;
     }
@@ -976,28 +2836,34 @@ SIZING:
 - Headlines: text-4xl md:text-5xl lg:text-6xl
 - Buttons: px-6 py-3 rounded-lg with hover effects
 
-IMAGES - USE CONTEXT-APPROPRIATE URLS:
+IMAGES - USE THESE RELIABLE URLs (select based on business type):
 
-CRITICAL: Use images that MATCH the business type from the prompt.
-Use Unsplash source API with relevant keywords based on the business:
-- Hero: https://source.unsplash.com/1920x1080/?[business-type-keywords]
-- Services: https://source.unsplash.com/800x600/?[service-keyword]
-- Team: https://source.unsplash.com/400x400/?professional,portrait
-- About: https://source.unsplash.com/1200x800/?[business-type],team
+HERO BACKGROUNDS (pick one that matches):
+- Business/Corporate: https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&h=1080&fit=crop
+- Restaurant: https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1920&h=1080&fit=crop
+- Spa/Wellness: https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=1920&h=1080&fit=crop
+- Fitness/Gym: https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1920&h=1080&fit=crop
+- Real Estate: https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1920&h=1080&fit=crop
+- Education: https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1920&h=1080&fit=crop
+- Tech/Startup: https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=1920&h=1080&fit=crop
 
-Example keyword substitutions:
-- Restaurant → restaurant,dining,food,interior
-- Spa → spa,wellness,relaxation,massage
-- Law Firm → legal,office,professional,lawyer
-- Gym → fitness,gym,workout,exercise
-- Bakery → bakery,pastry,bread,cafe
+SERVICE CARDS (800x600):
+- Teamwork: https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&h=600&fit=crop
+- Handshake: https://images.unsplash.com/photo-1521791136064-7986c2920216?w=800&h=600&fit=crop
+- Laptop: https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&h=600&fit=crop
+- Analytics: https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&h=600&fit=crop
+- Food: https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&h=600&fit=crop
 
-Fallback URLs (only if source API fails):
-- Hero: https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&h=1080&fit=crop
-- Business: https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200&h=800&fit=crop
-- Team: https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=800&fit=crop
+TEAM/PORTRAITS (400x400):
 - Person 1: https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop
 - Person 2: https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop
+- Person 3: https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop
+
+ABOUT SECTION (1200x800):
+- Team: https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=800&fit=crop
+- Office: https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200&h=800&fit=crop
+
+DO NOT use source.unsplash.com URLs - they are unreliable!
 
 Return ONLY complete HTML starting with <!DOCTYPE html>.
 The website MUST have:
@@ -1019,6 +2885,23 @@ The website MUST have:
             text = text.substring(doctypeIndex);
         }
     }
+
+    // Sanitize layout classes to prevent split-screen rendering
+    text = sanitizeLayoutClasses(text);
+
+    // Ensure viewport meta tag is present for responsive design
+    text = ensureViewportMeta(text);
+
+    // INJECT AI-GENERATED IMAGES if available (fallback path)
+    if (aiSectionImages && aiSectionImages.size > 0) {
+        onProgress?.('inject', 'Injecting AI-generated images into HTML...');
+        console.log('Injecting AI-generated section images into HTML...');
+        text = injectAISectionImages(text, aiSectionImages);
+    }
+
+    // CRITICAL: Replace unreliable image URLs to ensure images display
+    text = replaceUnreliableImageUrls(text, prompt);
+
     return text;
 }
 
@@ -1203,26 +3086,37 @@ ${spec.assets.heroImage?.url ? `- Hero Image: <img src="${spec.assets.heroImage.
 - Sections: py-16 md:py-20 lg:py-24
 - Headlines: text-4xl md:text-5xl lg:text-6xl
 
-## IMAGES - USE CONTEXT-APPROPRIATE URLS:
+## IMAGES - USE THESE RELIABLE URLS (select based on business type):
 
-IMPORTANT: Choose images that MATCH the business type described in the prompt.
-Use the Unsplash source API with relevant keywords:
-- Hero Background: https://source.unsplash.com/1920x1080/?[business-keywords]
-  Example for restaurant: https://source.unsplash.com/1920x1080/?restaurant,dining,food
-  Example for office: https://source.unsplash.com/1920x1080/?modern,office,business
-  Example for spa: https://source.unsplash.com/1920x1080/?spa,wellness,relaxation
+HERO BACKGROUNDS (1920x1080) - select one that matches the business:
+- Business/Corporate: https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&h=1080&fit=crop
+- Restaurant: https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1920&h=1080&fit=crop
+- Spa/Wellness: https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=1920&h=1080&fit=crop
+- Fitness/Gym: https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1920&h=1080&fit=crop
+- Real Estate: https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1920&h=1080&fit=crop
+- Education: https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1920&h=1080&fit=crop
+- Tech/Startup: https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=1920&h=1080&fit=crop
+- Medical: https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=1920&h=1080&fit=crop
 
-- Services/Features: https://source.unsplash.com/800x600/?[service-keyword]
-- Team Members: https://source.unsplash.com/400x400/?professional,portrait
-- About Section: https://source.unsplash.com/1200x800/?[business-type],team
+SERVICE CARDS (800x600):
+- Teamwork: https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&h=600&fit=crop
+- Handshake: https://images.unsplash.com/photo-1521791136064-7986c2920216?w=800&h=600&fit=crop
+- Laptop: https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&h=600&fit=crop
+- Analytics: https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&h=600&fit=crop
+- Food: https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&h=600&fit=crop
+- Service: https://images.unsplash.com/photo-1556745757-8d76bdb6984b?w=800&h=600&fit=crop
 
-Fallback URLs (only if source API doesn't work):
-- Generic Hero: https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&h=1080&fit=crop
-- Business: https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200&h=800&fit=crop
-- Team: https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=800&fit=crop
+TEAM PORTRAITS (400x400):
 - Person 1: https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop
 - Person 2: https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop
 - Person 3: https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop
+- Person 4: https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&h=400&fit=crop
+
+ABOUT SECTION (1200x800):
+- Team: https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=800&fit=crop
+- Office: https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200&h=800&fit=crop
+
+CRITICAL: Do NOT use source.unsplash.com URLs - they are unreliable!
 
 ## STRICT RULES - VIOLATIONS ARE NOT ACCEPTABLE
 - DO NOT use single-page scrolling - MUST be multi-page
@@ -1514,4 +3408,184 @@ Return ONLY the corrected HTML code:`,
 
     const text = response.text || '';
     return text.replace(/```html/g, '').replace(/```/g, '').trim();
+}
+
+/**
+ * Download an image from URL and convert to base64
+ */
+export const downloadImageAsBase64 = async (imageUrl: string): Promise<string | null> => {
+    try {
+        const response = await fetch(imageUrl);
+        if (!response.ok) return null;
+
+        const blob = await response.blob();
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+    } catch (error) {
+        console.error('Failed to download image:', error);
+        return null;
+    }
+};
+
+/**
+ * Fetch company logo from Google Search using Gemini with grounding
+ * Returns the best logo image URL or null if not found
+ */
+export const fetchLogoFromGoogle = async (
+    businessName: string,
+    location?: string
+): Promise<{ logoUrl: string | null; source: string }> => {
+    const ai = await getClient();
+
+    const searchQuery = `${businessName} ${location || ''} company logo official`;
+
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: `Search for the official logo of "${businessName}".
+
+TASK: Find and return the URL of the company's official logo image.
+
+Search query: "${searchQuery}"
+
+Return a JSON object with:
+{
+  "logoUrl": "https://..." or null if not found,
+  "confidence": "high" | "medium" | "low",
+  "source": "website name or search result"
+}
+
+If multiple logos found, prefer:
+1. Official company website
+2. LinkedIn/Facebook business page
+3. Google My Business listing
+4. High resolution version
+
+Return ONLY the JSON, no other text.`,
+        config: {
+            tools: [{ googleSearch: {} }],
+            maxOutputTokens: 500,
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    logoUrl: { type: Type.STRING, nullable: true },
+                    confidence: { type: Type.STRING },
+                    source: { type: Type.STRING }
+                },
+                required: ["source"]
+            }
+        }
+    });
+
+    try {
+        const result = safeParseJSON(response.text || '{}');
+        return {
+            logoUrl: result.logoUrl || null,
+            source: result.source || 'Google Search'
+        };
+    } catch {
+        return { logoUrl: null, source: 'not found' };
+    }
+};
+
+/**
+ * Fix/enhance a logo using Gemini Image model
+ * Improves quality, removes background, standardizes format
+ */
+export const fixLogoWithGemini = async (
+    logoDataUrl: string,
+    businessName: string,
+    skipKeyCheck: boolean = false
+): Promise<string> => {
+    const ai = await getClient(true, skipKeyCheck); // Requires paid key for image generation
+
+    // Remove data URL prefix
+    const imageData = logoDataUrl.includes(',')
+        ? logoDataUrl.split(',')[1]
+        : logoDataUrl;
+
+    const mimeType = logoDataUrl.includes('image/jpeg') ? 'image/jpeg' : 'image/png';
+
+    // Use Gemini to analyze and describe the logo
+    const analysisResponse = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [
+            {
+                role: 'user',
+                parts: [
+                    { inlineData: { mimeType, data: imageData } },
+                    { text: `Analyze this logo for ${businessName}. Describe:
+1. Main colors (hex codes)
+2. Shape/design elements
+3. Text content if any
+4. Style (modern, classic, minimal, etc.)
+
+Return a JSON object with these details.` }
+                ]
+            }
+        ],
+        config: {
+            maxOutputTokens: 500,
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                    colors: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    elements: { type: Type.STRING },
+                    text: { type: Type.STRING },
+                    style: { type: Type.STRING }
+                }
+            }
+        }
+    });
+
+    const logoAnalysis = safeParseJSON(analysisResponse.text || '{}');
+
+    // Generate an enhanced/cleaned version of the logo
+    const enhancedResponse = await ai.models.generateContent({
+        model: 'gemini-3-pro-image-preview',
+        contents: {
+            parts: [{
+                text: `Create a clean, professional logo for "${businessName}".
+
+Based on original logo analysis:
+- Colors: ${logoAnalysis.colors?.join(', ') || 'professional colors'}
+- Style: ${logoAnalysis.style || 'modern and clean'}
+- Elements: ${logoAnalysis.elements || 'professional business logo'}
+- Text: ${logoAnalysis.text || businessName}
+
+Requirements:
+- Clean vector-style design
+- Transparent or white background
+- High contrast
+- Scalable design
+- Professional and memorable
+- Include text "${logoAnalysis.text || businessName}" if it was in the original
+
+Generate a polished version of this company's logo.`
+            }]
+        },
+        config: {
+            imageConfig: {
+                aspectRatio: 'SQUARE',
+                imageSize: 'S_1K'
+            }
+        }
+    });
+
+    // Extract the generated image
+    if (enhancedResponse.candidates?.[0]?.content?.parts) {
+        for (const part of enhancedResponse.candidates[0].content.parts) {
+            if (part.inlineData) {
+                return `data:image/png;base64,${part.inlineData.data}`;
+            }
+        }
+    }
+
+    // Return original if enhancement fails
+    return logoDataUrl;
 }

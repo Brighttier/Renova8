@@ -472,7 +472,7 @@ function AppContent() {
                 />
             )}
             {currentView === AppView.CAMPAIGN_HISTORY && (
-                <CampaignHistory leads={myCustomers} />
+                <CampaignHistory leads={myCustomers} onUpdateLead={updateCustomer} />
             )}
             {currentView === AppView.IMAGE_STUDIO && (
                 <ImageStudio 
