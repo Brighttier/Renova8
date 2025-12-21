@@ -716,6 +716,20 @@ Sections needed: Hero with call-to-action, About/Services, Features/Benefits, Te
     // Step 6: Pitch (Generate Email)
     const handleDraftEmail = async () => {
         if (!activeLead) return;
+
+        // Check if website URL is a blob URL (local only, can't be shared)
+        if (activeLead.websiteUrl?.startsWith('blob:')) {
+            const shouldContinue = window.confirm(
+                'Your website is only saved locally and the link cannot be shared.\n\n' +
+                'The email will mention you have a mockup ready but won\'t include a clickable link.\n\n' +
+                'To include a shareable link:\n' +
+                '• Go to Website Builder and click "Publish"\n' +
+                '• Then return here to generate the email\n\n' +
+                'Click OK to continue without a link, or Cancel to go back.'
+            );
+            if (!shouldContinue) return;
+        }
+
         setLoading(true);
         try {
             onUseCredit(2);
@@ -723,8 +737,8 @@ Sections needed: Hero with call-to-action, About/Services, Features/Benefits, Te
             console.log("Generating email for:", activeLead.businessName, "URL:", activeLead.websiteUrl);
 
             const email = await generatePitchEmail(
-                activeLead.businessName, 
-                activeLead.websiteUrl, 
+                activeLead.businessName,
+                activeLead.websiteUrl,
                 activeLead.brandGuidelines?.tone || 'Friendly',
                 !!activeLead.websiteConceptImage
             );
@@ -1329,10 +1343,25 @@ Sections needed: Hero with call-to-action, About/Services, Features/Benefits, Te
                                          <div className="text-gray-600 whitespace-pre-wrap mt-2 leading-relaxed text-lg">{activeLead.emailDraft.body}</div>
                                      </div>
                                      
-                                     <div className="bg-[#F9F6F0] p-4 rounded-xl border border-[#EFEBE4] mb-8 text-sm text-[#4A4A4A] flex flex-col gap-2">
+                                     <div className="bg-[#F9F6F0] p-4 rounded-xl border border-[#EFEBE4] mb-4 text-sm text-[#4A4A4A] flex flex-col gap-2">
                                          {activeLead.websiteConceptImage && <div className="flex items-center gap-2"><span>📎</span> <strong>Attached:</strong> Website Concept Image</div>}
-                                         {activeLead.websiteUrl && <div className="flex items-center gap-2"><span>🔗</span> <strong>Link:</strong> Live Website Demo</div>}
+                                         {activeLead.websiteUrl && !activeLead.websiteUrl.startsWith('blob:') && (
+                                             <div className="flex items-center gap-2"><span>🔗</span> <strong>Link:</strong> Live Website Demo</div>
+                                         )}
+                                         {activeLead.websiteUrl?.startsWith('blob:') && (
+                                             <div className="flex items-center gap-2 text-amber-600"><span>⚠️</span> <strong>Local Preview Only</strong> - Website not published</div>
+                                         )}
                                      </div>
+
+                                     {/* Warning for unpublished website */}
+                                     {activeLead.websiteUrl?.startsWith('blob:') && (
+                                         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-8 text-sm">
+                                             <p className="text-amber-800 font-medium mb-1">⚠️ Website link not shareable</p>
+                                             <p className="text-amber-700">Your website is saved locally but hasn't been published. The email won't include a clickable link. To add a shareable link, publish your website first from the Website Builder.</p>
+                                         </div>
+                                     )}
+
+                                     {!activeLead.websiteUrl?.startsWith('blob:') && <div className="mb-4"></div>}
 
                                      <div className="flex gap-4">
                                          <a 

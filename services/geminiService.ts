@@ -560,16 +560,19 @@ Return JSON with:
 
 export const generatePitchEmail = async (businessName: string, websiteUrl: string | undefined, brandTone: string, hasConceptImage: boolean = false) => {
   const ai = await getClient();
-  
+
+  // Filter out blob: URLs - they only work locally and can't be shared externally
+  const validUrl = websiteUrl && !websiteUrl.startsWith('blob:') ? websiteUrl : undefined;
+
   const prompt = `Write a cold email to "${businessName}" to sell website design and social media marketing services.
-  
+
   Context:
   - Potential Client: ${businessName}
   - My Services: Website Design & Social Media Growth
   - Tone: ${brandTone || 'Professional and Friendly'}
-  
+
   Asset Status:
-  ${websiteUrl ? `- I have a live website demo link: ${websiteUrl}` : '- I do not have a live link yet.'}
+  ${validUrl ? `- I have a live website demo link: ${validUrl}` : '- I do not have a live link yet (the website needs to be published first to get a shareable URL).'}
   ${hasConceptImage ? '- I have attached a visual mockup image of a new website concept for them.' : ''}
   
   Instructions:
@@ -3127,128 +3130,142 @@ export const generateWebsiteStructure = async (
         return text;
     }
 
-    // Fallback to basic multi-page generation without strict specs
+    // Fallback to modern single-page scrolling website generation
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
-        contents: `Create a complete, professional MULTI-PAGE HTML website for: ${prompt}
+        contents: `Create a MODERN, STUNNING single-page scrolling website for: ${prompt}
 
-=== CRITICAL: MULTI-PAGE STRUCTURE (NOT SINGLE PAGE) ===
+=== DESIGN STYLE: MODERN 2024-2025 TRENDS ===
 
-This MUST be a multi-page website with SEPARATE PAGES for each navigation item.
-Use client-side JavaScript routing to simulate multi-page behavior.
+Create a visually impressive website with these modern design trends:
 
-STRUCTURE REQUIREMENTS:
-1. Start with <!DOCTYPE html> - NO markdown code blocks
-2. Include Tailwind CSS: <script src="https://cdn.tailwindcss.com"></script>
-3. Configure custom colors: <script>tailwind.config = { theme: { extend: { colors: { primary: '#D4AF37', secondary: '#4A4A4A', accent: '#2E7D32' }}}}</script>
-4. Import Google Fonts: Playfair Display for headings, Inter for body
+1. GLASSMORPHISM CARDS:
+   - background: rgba(255, 255, 255, 0.15)
+   - backdrop-filter: blur(12px)
+   - border: 1px solid rgba(255, 255, 255, 0.2)
+   - border-radius: 24px
 
-NAVIGATION - CRITICAL:
-- FIXED header (position: fixed) that stays visible while scrolling
-- Each nav item links to a SEPARATE PAGE (NOT anchor links)
-- Use onclick="showPage('pagename')" for navigation
-- Include mobile hamburger menu with JavaScript toggle
+2. GRADIENT BACKGROUNDS:
+   - Use smooth gradients for hero and sections
+   - Example: bg-gradient-to-br from-purple-900 via-indigo-900 to-slate-900
+   - Or: bg-gradient-to-r from-cyan-500 to-blue-600
 
-MULTI-PAGE ROUTING:
-Include this routing system:
+3. BOLD TYPOGRAPHY:
+   - Hero headlines: text-5xl md:text-7xl font-black
+   - Section titles: text-3xl md:text-5xl font-bold
+   - Great contrast and hierarchy
 
-<script>
-const pages = {
-  'home': document.getElementById('page-home'),
-  'about': document.getElementById('page-about'),
-  'services': document.getElementById('page-services'),
-  'contact': document.getElementById('page-contact')
-};
+4. MICRO-ANIMATIONS:
+   - hover:scale-105 transition-transform duration-300
+   - hover:-translate-y-2 for cards
+   - hover:shadow-2xl for interactive elements
 
-function showPage(pageName) {
-  Object.values(pages).forEach(page => { if (page) page.style.display = 'none'; });
-  if (pages[pageName]) pages[pageName].style.display = 'block';
-  history.pushState({page: pageName}, '', pageName === 'home' ? '/' : '/' + pageName);
-  window.scrollTo(0, 0);
-  // Close mobile menu if open
-  const mobileMenu = document.getElementById('mobile-menu');
-  if (mobileMenu) mobileMenu.classList.add('hidden');
+5. FULL-SCREEN HERO:
+   - min-h-screen with stunning background
+   - Large headline with text-shadow
+   - Animated scroll indicator at bottom
+
+=== STRUCTURE: SINGLE-PAGE SMOOTH SCROLLING ===
+
+Use anchor-based navigation (NOT JavaScript page routing):
+
+<nav class="fixed top-0 w-full z-50">
+  <a href="#home">Home</a>
+  <a href="#about">About</a>
+  <a href="#services">Services</a>
+  <a href="#contact">Contact</a>
+</nav>
+
+<section id="home" class="min-h-screen">Hero content</section>
+<section id="about" class="min-h-screen">About content</section>
+<section id="services" class="py-24">Services grid</section>
+<section id="contact" class="py-24">Contact form</section>
+
+REQUIRED CSS:
+<style>
+html { scroll-behavior: smooth; }
+section { scroll-margin-top: 80px; }
+.glass {
+  background: rgba(255,255,255,0.1);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.2);
 }
+</style>
 
-window.onpopstate = (e) => { if (e.state?.page) showPage(e.state.page); };
-document.addEventListener('DOMContentLoaded', () => {
-  const path = window.location.pathname.replace('/', '') || 'home';
-  showPage(path);
-});
-</script>
+=== TECHNICAL REQUIREMENTS ===
 
-PAGE STRUCTURE:
-1. FIXED HEADER (shared across all pages):
-   - Logo left, nav center/right
-   - Nav links: <a href="javascript:void(0)" onclick="showPage('home')">Home</a>
-   - Mobile menu toggle button
+1. Start with <!DOCTYPE html> - NO markdown code blocks
+2. Tailwind CSS: <script src="https://cdn.tailwindcss.com"></script>
+3. Google Fonts: Inter or Plus Jakarta Sans for modern look
+4. Configure colors in tailwind.config
 
-2. PAGE: HOME (id="page-home"):
-   - Hero section: min-h-screen, large headline, 2 CTA buttons, background image
-   - Features/highlights section
+=== LOGO HANDLING ===
+- Use ICON ONLY in the logo (no text)
+- If no icon provided, create a styled first-letter:
+  <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold text-xl shadow-lg">
+    [First Letter]
+  </div>
 
-3. PAGE: ABOUT (id="page-about" style="display:none"):
-   - About content, team section, testimonials
+=== SECTION DESIGNS ===
 
-4. PAGE: SERVICES (id="page-services" style="display:none"):
-   - Services grid with 3-4 columns of service cards
+HERO SECTION:
+- Full screen (min-h-screen)
+- Stunning gradient OR high-quality image background
+- Centered content with large headline
+- Glassmorphism card for CTA area
+- Animated scroll indicator (bouncing chevron)
 
-5. PAGE: CONTACT (id="page-contact" style="display:none"):
-   - Contact form (name, email, phone, message)
-   - Contact information (phone, email, address)
-   - Map placeholder
+ABOUT SECTION:
+- Alternating content/image layout
+- Glass cards for features
+- Gradient text for headings
 
-6. FOOTER (shared across all pages):
-   - Dark background, links, social icons, copyright
+SERVICES SECTION:
+- Grid of glass cards (3-4 columns)
+- Hover effects: scale + shadow + translate
+- Icon or image for each service
 
-RESPONSIVE REQUIREMENTS:
-- 100% responsive on Desktop, Tablet, Mobile
-- Use Tailwind responsive classes (sm:, md:, lg:, xl:)
-- Mobile hamburger menu that toggles visibility
+CONTACT SECTION:
+- Modern form with floating labels or glassmorphism
+- Social links with hover animations
 
-SIZING:
-- Container: max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
-- Hero: min-h-screen with centered content
-- Sections: py-16 md:py-20 lg:py-24
-- Headlines: text-4xl md:text-5xl lg:text-6xl
-- Buttons: px-6 py-3 rounded-lg with hover effects
+FOOTER:
+- Dark gradient background
+- Minimal, elegant design
 
-IMAGES - USE THESE RELIABLE URLs (select based on business type):
+=== IMAGES - HD QUALITY URLS ===
 
-HERO BACKGROUNDS (pick one that matches):
-- Business/Corporate: https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&h=1080&fit=crop
-- Restaurant: https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1920&h=1080&fit=crop
-- Spa/Wellness: https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=1920&h=1080&fit=crop
-- Fitness/Gym: https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1920&h=1080&fit=crop
-- Real Estate: https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1920&h=1080&fit=crop
-- Education: https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1920&h=1080&fit=crop
-- Tech/Startup: https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=1920&h=1080&fit=crop
+HERO BACKGROUNDS:
+- Business/Corporate: https://images.unsplash.com/photo-1497366216548-37526070297c?w=1920&h=1080&fit=crop&q=90
+- Restaurant: https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1920&h=1080&fit=crop&q=90
+- Spa/Wellness: https://images.unsplash.com/photo-1544161515-4ab6ce6db874?w=1920&h=1080&fit=crop&q=90
+- Tech/Startup: https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=1920&h=1080&fit=crop&q=90
+- Real Estate: https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1920&h=1080&fit=crop&q=90
+- Fitness: https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1920&h=1080&fit=crop&q=90
 
 SERVICE CARDS (800x600):
-- Teamwork: https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&h=600&fit=crop
-- Handshake: https://images.unsplash.com/photo-1521791136064-7986c2920216?w=800&h=600&fit=crop
-- Laptop: https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=800&h=600&fit=crop
-- Analytics: https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&h=600&fit=crop
-- Food: https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&h=600&fit=crop
+- Teamwork: https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&h=600&fit=crop&q=85
+- Handshake: https://images.unsplash.com/photo-1521791136064-7986c2920216?w=800&h=600&fit=crop&q=85
+- Analytics: https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&h=600&fit=crop&q=85
 
-TEAM/PORTRAITS (400x400):
-- Person 1: https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop
-- Person 2: https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop
-- Person 3: https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop
-
-ABOUT SECTION (1200x800):
-- Team: https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=800&fit=crop
-- Office: https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=1200&h=800&fit=crop
+TEAM (400x400):
+- Person 1: https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop&q=85
+- Person 2: https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop&q=85
+- Person 3: https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&h=400&fit=crop&q=85
 
 DO NOT use source.unsplash.com URLs - they are unreliable!
 
+=== OUTPUT REQUIREMENTS ===
+
 Return ONLY complete HTML starting with <!DOCTYPE html>.
 The website MUST have:
-1. SEPARATE pages for Home, About, Services, Contact
-2. FIXED/STICKY navigation header
-3. 100% RESPONSIVE design
-4. Mobile hamburger menu
-5. Hero background image that MATCHES the business type`,
+1. SINGLE-PAGE with smooth scroll navigation (anchor links)
+2. MODERN 2024 design trends (glass, gradients, animations)
+3. FIXED navigation header
+4. 100% RESPONSIVE (mobile-first)
+5. Mobile hamburger menu
+6. HD quality images
+7. Logo as ICON only (no text) or styled first-letter`,
         config: {
             maxOutputTokens: 32000,
         }
@@ -3311,49 +3328,48 @@ const buildStrictWebsitePrompt = (businessPrompt: string, spec: DesignSpecificat
     if (exactText.sectionTitles?.length) exactTextContent += `- Section Titles: ${exactText.sectionTitles.map(t => `"${t}"`).join(', ')}\n    `;
     if (exactText.footerText) exactTextContent += `- Footer Text: "${exactText.footerText}"\n    `;
 
-    return `Create a complete, MULTI-PAGE HTML website for: ${businessPrompt}
+    return `Create a MODERN, STUNNING single-page scrolling website for: ${businessPrompt}
 
-=== CRITICAL: MULTI-PAGE STRUCTURE REQUIRED ===
+=== DESIGN STYLE: MODERN 2024-2025 TRENDS ===
 
-This MUST be a multi-page website with SEPARATE PAGES for each navigation item.
-Use client-side JavaScript routing to simulate multi-page behavior in a single HTML file.
+Create a visually impressive website with:
 
-MULTI-PAGE ROUTING SYSTEM (MUST INCLUDE):
-<script>
-const pages = {
-  'home': document.getElementById('page-home'),
-  'about': document.getElementById('page-about'),
-  'services': document.getElementById('page-services'),
-  'contact': document.getElementById('page-contact')
-};
+1. GLASSMORPHISM:
+   .glass { background: rgba(255,255,255,0.1); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.2); border-radius: 24px; }
 
-function showPage(pageName) {
-  Object.values(pages).forEach(page => { if (page) page.style.display = 'none'; });
-  if (pages[pageName]) pages[pageName].style.display = 'block';
-  history.pushState({page: pageName}, '', pageName === 'home' ? '/' : '/' + pageName);
-  window.scrollTo(0, 0);
-  const mobileMenu = document.getElementById('mobile-menu');
-  if (mobileMenu) mobileMenu.classList.add('hidden');
-}
+2. GRADIENT BACKGROUNDS: Smooth color transitions for hero and sections
 
-window.onpopstate = (e) => { if (e.state?.page) showPage(e.state.page); };
-document.addEventListener('DOMContentLoaded', () => {
-  const path = window.location.pathname.replace('/', '') || 'home';
-  showPage(path);
-});
-</script>
+3. MICRO-ANIMATIONS: hover:scale-105, hover:-translate-y-2, transition-all duration-300
 
-NAVIGATION FORMAT:
-<a href="javascript:void(0)" onclick="showPage('home')">Home</a>
-<a href="javascript:void(0)" onclick="showPage('about')">About</a>
-<a href="javascript:void(0)" onclick="showPage('services')">Services</a>
-<a href="javascript:void(0)" onclick="showPage('contact')">Contact</a>
+4. BOLD TYPOGRAPHY: Hero text-5xl md:text-7xl font-black
 
-PAGE STRUCTURE:
-- <main id="page-home">...</main>
-- <main id="page-about" style="display:none">...</main>
-- <main id="page-services" style="display:none">...</main>
-- <main id="page-contact" style="display:none">...</main>
+=== STRUCTURE: SINGLE-PAGE SMOOTH SCROLLING ===
+
+Use anchor-based navigation (NOT JavaScript page routing):
+
+<style>
+html { scroll-behavior: smooth; }
+section { scroll-margin-top: 80px; }
+.glass { background: rgba(255,255,255,0.1); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.2); }
+</style>
+
+<nav class="fixed top-0 w-full z-50">
+  <a href="#home">Home</a>
+  <a href="#about">About</a>
+  <a href="#services">Services</a>
+  <a href="#contact">Contact</a>
+</nav>
+
+<section id="home" class="min-h-screen">Hero</section>
+<section id="about" class="py-24">About</section>
+<section id="services" class="py-24">Services</section>
+<section id="contact" class="py-24">Contact</section>
+<footer>Footer</footer>
+
+=== LOGO HANDLING ===
+- Use ICON ONLY (no text in logo)
+- If no logo icon provided, create a styled first-letter:
+  <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold text-xl shadow-lg">[First Letter]</div>
 
 === CRITICAL: STRICT DESIGN SPECIFICATIONS - MUST MATCH EXACTLY ===
 
@@ -3450,12 +3466,12 @@ ${spec.assets.heroImage?.url ? `- Hero Image: <img src="${spec.assets.heroImage.
 7. Return ONLY raw HTML starting with <!DOCTYPE html>
 8. Do not wrap in markdown code blocks
 
-## NAVIGATION - CRITICAL (MULTI-PAGE)
+## NAVIGATION - SINGLE-PAGE SMOOTH SCROLL
 - Header must be FIXED (position: fixed, top: 0)
-- Use page-based navigation with onclick="showPage('pagename')"
-- DO NOT use anchor links (#section) - use separate pages
+- Use anchor links: <a href="#about">About</a>
+- Include smooth scrolling CSS: html { scroll-behavior: smooth; }
 - Include mobile hamburger menu with toggle
-- Navigation must be visible while scrolling on all pages
+- Navigation must be visible while scrolling
 
 ## SIZING - FULL SIZE WEBSITE
 - Container: max-w-7xl mx-auto px-4 sm:px-6 lg:px-8
@@ -3496,8 +3512,8 @@ ABOUT SECTION (1200x800):
 CRITICAL: Do NOT use source.unsplash.com URLs - they are unreliable!
 
 ## STRICT RULES - VIOLATIONS ARE NOT ACCEPTABLE
-- DO NOT use single-page scrolling - MUST be multi-page
-- DO NOT use anchor links (#section) - use page navigation
+- MUST use single-page scrolling with anchor navigation (#section links)
+- DO NOT use JavaScript page routing (showPage function)
 - DO NOT substitute any colors with similar shades
 - DO NOT change font families
 - DO NOT rearrange section order
@@ -3508,7 +3524,9 @@ CRITICAL: Do NOT use source.unsplash.com URLs - they are unreliable!
 - COPY exact text content character-for-character where specified
 - MUST have FIXED/STICKY navigation header
 - MUST be 100% RESPONSIVE (Desktop, Tablet, Mobile)
-- MUST include mobile hamburger menu`;
+- MUST include mobile hamburger menu
+- MUST use modern design trends (glassmorphism, gradients, animations)
+- MUST use ICON ONLY for logo (no text), or styled first-letter fallback`;
 }
 
 export const refineWebsiteCode = async (currentCode: string, instructions: string) => {
