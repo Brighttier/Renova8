@@ -1,11 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { AppView } from '../types';
 import { useAuth } from '../hooks/useAuth';
-import { useCredits } from '../hooks/useCredits';
 
 interface Props {
     onNavigate: (view: AppView) => void;
-    credits: number;
     onRestartTour?: () => void;
     currentView?: AppView;
     currentWebsiteId?: string;
@@ -15,7 +13,6 @@ interface Props {
 
 export const Header: React.FC<Props> = ({
     onNavigate,
-    credits: legacyCredits,
     onRestartTour,
     currentView,
     currentWebsiteId,
@@ -23,12 +20,8 @@ export const Header: React.FC<Props> = ({
     lastPublishError
 }) => {
     const { user, signOut } = useAuth();
-    const { credits: firebaseCredits, loading: creditsLoading } = useCredits();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
-
-    // Use Firebase credits if logged in, otherwise fall back to legacy
-    const credits = user ? firebaseCredits : legacyCredits;
 
     // Get user display info
     const displayName = user?.displayName || 'Guest User';
@@ -78,19 +71,6 @@ export const Header: React.FC<Props> = ({
 
             {/* Right Side */}
             <div className="flex items-center gap-2 md:gap-4">
-                 {/* Credits Display */}
-                 <div data-walkthrough="credits" className="flex items-center gap-2 bg-gradient-to-r from-[#D4AF37]/10 to-[#D4AF37]/5 px-3 py-1.5 md:px-4 md:py-2 rounded-xl border border-[#D4AF37]/20">
-                    <svg className="w-4 h-4 md:w-5 md:h-5 text-[#D4AF37]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <div className="flex flex-col">
-                        <span className="text-[10px] text-[#4A4A4A]/60 uppercase tracking-wider font-medium hidden md:block">Tokens</span>
-                        <span className="text-sm md:text-base font-bold text-[#D4AF37]">
-                            {creditsLoading ? '...' : credits.toLocaleString()}
-                        </span>
-                    </div>
-                 </div>
-
                  {/* Notification Bell */}
                  <button className="relative p-2 text-gray-400 hover:text-[#D4AF37] transition-colors rounded-full hover:bg-[#F9F6F0]">
                     <span className="absolute top-2 right-2 h-2 w-2 bg-[#D4AF37] rounded-full border border-white"></span>

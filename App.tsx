@@ -354,35 +354,28 @@ function AppContent() {
         </div>
 
         <div className="p-4 border-t border-[#F9F6F0]">
-            <button 
-                onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-                className={`hidden lg:flex items-center w-full mb-6 text-[#4A4A4A]/50 hover:text-[#D4AF37] transition-all ${isSidebarCollapsed ? 'justify-center' : 'justify-start px-2'}`}
-                title={isSidebarCollapsed ? "Expand Menu" : "Collapse Menu"}
-            >
-                {isSidebarCollapsed ? <ChevronRightIcon /> : <div className="flex items-center"><ChevronLeftIcon /><span className="ml-2 text-xs font-medium uppercase tracking-widest">Collapse</span></div>}
-            </button>
-
-            <button
-                onClick={() => setIsSupportOpen(true)}
-                className={`group bg-gradient-to-br from-[#D4AF37] to-[#B8963A] rounded-xl p-4 ${isSidebarCollapsed ? 'flex flex-col items-center justify-center' : 'text-center'} border border-[#D4AF37]/30 hover:shadow-lg hover:shadow-[#D4AF37]/20 transition-all duration-300 cursor-pointer w-full`}
-                title="Professional Help Needed – Contact Us"
-            >
-                <div className={`flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-center gap-2'} mb-2`}>
-                    <svg className={`${isSidebarCollapsed ? 'w-6 h-6' : 'w-5 h-5'} text-white group-hover:scale-110 transition-transform`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                    </svg>
-                    {!isSidebarCollapsed && <span className="text-white font-semibold text-sm hidden lg:inline">Contact Us</span>}
-                </div>
+            {/* Tokens Display */}
+            <div className={`flex items-center gap-2 bg-gradient-to-r from-[#D4AF37]/10 to-[#D4AF37]/5 px-3 py-2 rounded-xl border border-[#D4AF37]/20 mb-4 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
+                <svg className="w-5 h-5 text-[#D4AF37]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
                 {!isSidebarCollapsed && (
-                    <div className="text-[10px] text-white/80 uppercase tracking-wider font-medium hidden lg:block">
-                        Professional Help Needed?
+                    <div className="flex flex-col">
+                        <span className="text-[10px] text-[#4A4A4A]/60 uppercase tracking-wider font-medium">Tokens</span>
+                        <span className="text-sm font-bold text-[#D4AF37]">{credits.toLocaleString()}</span>
                     </div>
                 )}
                 {isSidebarCollapsed && (
-                    <div className="text-[9px] text-white/80 uppercase tracking-wider font-bold">
-                        Help
-                    </div>
+                    <span className="text-xs font-bold text-[#D4AF37]">{credits.toLocaleString()}</span>
                 )}
+            </div>
+
+            <button
+                onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                className={`hidden lg:flex items-center w-full text-[#4A4A4A]/50 hover:text-[#D4AF37] transition-all ${isSidebarCollapsed ? 'justify-center' : 'justify-start px-2'}`}
+                title={isSidebarCollapsed ? "Expand Menu" : "Collapse Menu"}
+            >
+                {isSidebarCollapsed ? <ChevronRightIcon /> : <div className="flex items-center"><ChevronLeftIcon /><span className="ml-2 text-xs font-medium uppercase tracking-widest">Collapse</span></div>}
             </button>
         </div>
       </aside>
@@ -391,7 +384,7 @@ function AppContent() {
       <div className="flex-1 flex flex-col h-screen overflow-hidden relative">
         
         {/* Top Header */}
-        <Header onNavigate={setCurrentView} credits={credits} onRestartTour={restartWalkthrough} />
+        <Header onNavigate={setCurrentView} onRestartTour={restartWalkthrough} />
 
         {/* Scrollable Main Area */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-10 scroll-smooth bg-[#F9F6F0]">
