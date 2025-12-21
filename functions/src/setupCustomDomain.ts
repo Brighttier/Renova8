@@ -213,7 +213,7 @@ export const setupCustomDomain = functions.https.onCall(
         );
       }
 
-      // 4. Check if domain is already in use
+      // 4. Check if domain is already in use by another website
       const existingDomain = await db
         .collection("websites")
         .where("customDomain", "==", normalizedDomain)
@@ -229,26 +229,42 @@ export const setupCustomDomain = functions.https.onCall(
         }
       }
 
-      // 5. Get DNS records for the domain
-      const { verificationRecords, routingRecords } = await requestCustomDomain(
+      // 5. Register domain with Firebase Hosting and get real DNS records
+      // This calls the Firebase Hosting API to register the domain first,
+      // which returns the actual verification records needed
+      functions.logger.info("Registering domain with Firebase Hosting", {
+        websiteId,
+        domain: normalizedDomain,
+      });
+
+      const { verificationRecords, routingRecords, domainStatus } = await requestCustomDomain(
         normalizedDomain
       );
+
+      functions.logger.info("Domain registration response", {
+        websiteId,
+        domain: normalizedDomain,
+        domainStatus,
+        verificationRecordCount: verificationRecords.length,
+        routingRecordCount: routingRecords.length,
+      });
 
       const allDnsRecords: DnsRecord[] = [
         ...verificationRecords.map((r) => ({
           ...r,
-          purpose: "Domain verification",
+          purpose: "Domain verification (required by Firebase)",
         })),
         ...routingRecords.map((r) => ({
           ...r,
-          purpose: r.type === "A" ? "Point domain to Firebase" : "Point subdomain to Firebase",
+          purpose: r.type === "A" ? "Point domain to Firebase Hosting" : "Point subdomain to Firebase Hosting",
         })),
       ];
 
       // 6. Update website with pending custom domain
+      // Domain is now registered with Firebase, waiting for DNS configuration
       await websiteRef.update({
         customDomain: normalizedDomain,
-        customDomainStatus: "pending",
+        customDomainStatus: domainStatus === "ALREADY_REGISTERED" ? "pending" : "pending",
         dnsRecords: allDnsRecords,
         updatedAt: Timestamp.now(),
       });
@@ -360,52 +376,78 @@ export const checkDomainStatus = functions.https.onCall(
       let localStatus = website.customDomainStatus || "pending";
       let localSslStatus = website.sslStatus || "provisioning";
 
-      // If domain is verified but not yet active, check Firebase Hosting for real status
-      if (localStatus === "verified" && localSslStatus !== "active") {
-        try {
-          const hostingStatus = await getDomainStatus(website.customDomain);
+      // Always check Firebase Hosting for real status when domain is configured
+      try {
+        const hostingStatus = await getDomainStatus(website.customDomain);
 
-          functions.logger.info("Firebase Hosting domain status", {
-            websiteId,
-            domain: website.customDomain,
-            hostingStatus,
-          });
+        functions.logger.info("Firebase Hosting domain status", {
+          websiteId,
+          domain: website.customDomain,
+          status: hostingStatus.status,
+          provisioning: hostingStatus.provisioning,
+        });
 
-          // Check if SSL is now active
-          // Firebase Hosting returns status like "ACTIVE", "NEEDS_SETUP", etc.
-          if (
-            hostingStatus.status === "ACTIVE" ||
-            hostingStatus.provisioning?.certStatus === "CERT_ACTIVE"
-          ) {
-            // Update local status to active
+        // Check domain status from Firebase Hosting API
+        // Status values: DOMAIN_STATUS_UNSPECIFIED, NEEDS_SETUP, SETUP_IN_PROGRESS, ACTIVE
+        if (hostingStatus.status === "ACTIVE") {
+          // Domain is fully active with SSL
+          if (localStatus !== "active" || localSslStatus !== "active") {
             await websiteRef.update({
               customDomainStatus: "active",
               sslStatus: "active",
               updatedAt: Timestamp.now(),
             });
-
             localStatus = "active";
             localSslStatus = "active";
 
-            functions.logger.info("Domain SSL is now active", {
+            functions.logger.info("Domain is now fully active", {
               websiteId,
               domain: website.customDomain,
             });
-          } else if (hostingStatus.provisioning?.certStatus === "CERT_PENDING") {
-            // Still provisioning
+          }
+        } else if (hostingStatus.status === "SETUP_IN_PROGRESS") {
+          // Firebase is verifying DNS or provisioning SSL
+          const certStatus = hostingStatus.provisioning?.certStatus;
+
+          if (certStatus === "CERT_ACTIVE") {
+            localSslStatus = "active";
+          } else if (
+            certStatus === "CERT_PREPARING" ||
+            certStatus === "CERT_VALIDATING" ||
+            certStatus === "CERT_PROPAGATING"
+          ) {
             localSslStatus = "provisioning";
           }
-        } catch (hostingError) {
-          // If we can't reach Firebase Hosting API, use local status
-          functions.logger.warn("Could not fetch Firebase Hosting status", {
-            websiteId,
-            domain: website.customDomain,
-            error:
-              hostingError instanceof Error
-                ? hostingError.message
-                : "Unknown error",
-          });
+
+          // Update status if DNS is verified but cert is still provisioning
+          if (localStatus === "pending" && hostingStatus.provisioning?.dnsStatus === "DNS_MATCH") {
+            await websiteRef.update({
+              customDomainStatus: "verified",
+              sslStatus: localSslStatus,
+              updatedAt: Timestamp.now(),
+            });
+            localStatus = "verified";
+
+            functions.logger.info("Domain DNS verified by Firebase", {
+              websiteId,
+              domain: website.customDomain,
+              certStatus,
+            });
+          }
+        } else if (hostingStatus.status === "NEEDS_SETUP") {
+          // DNS not configured yet
+          localStatus = "pending";
         }
+      } catch (hostingError) {
+        // If we can't reach Firebase Hosting API, use local status
+        functions.logger.warn("Could not fetch Firebase Hosting status", {
+          websiteId,
+          domain: website.customDomain,
+          error:
+            hostingError instanceof Error
+              ? hostingError.message
+              : "Unknown error",
+        });
       }
 
       let message = "";
@@ -532,32 +574,46 @@ export const verifyDomain = functions.https.onCall(
         };
       }
 
-      // Step 2: Register domain with Firebase Hosting
-      functions.logger.info("DNS verified, registering with Firebase Hosting", {
+      // Step 2: Domain is already registered with Firebase Hosting (done during setup)
+      // Just verify that Firebase can see the DNS records
+      functions.logger.info("DNS verified, checking Firebase Hosting status", {
         websiteId,
         domain: website.customDomain,
         details,
       });
 
+      // Get domain status from Firebase Hosting to confirm registration
       try {
-        await addCustomDomain(website.customDomain);
-        functions.logger.info("Domain registered with Firebase Hosting", {
+        const hostingStatus = await getDomainStatus(website.customDomain);
+        functions.logger.info("Firebase Hosting domain status", {
           websiteId,
           domain: website.customDomain,
+          status: hostingStatus.status,
+          provisioning: hostingStatus.provisioning,
         });
       } catch (hostingError) {
-        // Domain might already be registered, check if it's our domain
+        // If domain not found in Firebase Hosting, try to re-register it
         const errorMessage =
           hostingError instanceof Error ? hostingError.message : "Unknown error";
-        functions.logger.warn("Firebase Hosting registration response", {
+        functions.logger.warn("Domain not found in Firebase Hosting, re-registering", {
           websiteId,
           domain: website.customDomain,
           error: errorMessage,
         });
 
-        // If domain already exists, that's okay - continue
-        if (!errorMessage.includes("already exists")) {
-          throw hostingError;
+        try {
+          await addCustomDomain(website.customDomain);
+          functions.logger.info("Domain re-registered with Firebase Hosting", {
+            websiteId,
+            domain: website.customDomain,
+          });
+        } catch (reRegisterError) {
+          const reRegisterMessage =
+            reRegisterError instanceof Error ? reRegisterError.message : "Unknown error";
+          // If it already exists, that's fine
+          if (!reRegisterMessage.includes("already exists") && !reRegisterMessage.includes("409")) {
+            throw reRegisterError;
+          }
         }
       }
 

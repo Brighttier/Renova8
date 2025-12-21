@@ -417,36 +417,89 @@ export function getRequiredDnsRecords(domain: string): Array<{
 }
 
 /**
- * Request custom domain setup (returns verification records)
- * Note: Full custom domain support requires Firebase Console or gcloud CLI
+ * Request custom domain setup by registering with Firebase Hosting
+ *
+ * This function registers the domain with Firebase Hosting API first,
+ * which returns the real DNS verification records that the user needs to configure.
  */
-export async function requestCustomDomain(domain: string): Promise<{
+export async function requestCustomDomain(
+  domain: string,
+  siteId: string = DEFAULT_SITE_ID
+): Promise<{
   verificationRecords: Array<{ type: string; name: string; value: string }>;
   routingRecords: Array<{ type: string; name: string; value: string }>;
+  domainStatus?: string;
 }> {
-  // Generate TXT record for domain verification
-  const verificationToken = `firebase-hosting-verification-${Date.now()}`;
+  try {
+    // Register domain with Firebase Hosting first to get real verification records
+    const domainResponse = await addCustomDomain(domain, siteId);
 
-  return {
-    verificationRecords: [
-      {
-        type: "TXT",
-        name: "_firebase",
-        value: verificationToken,
-      },
-    ],
-    routingRecords: getRequiredDnsRecords(domain),
-  };
+    // Extract verification records from Firebase Hosting API response
+    const verificationRecords: Array<{ type: string; name: string; value: string }> = [];
+
+    // Parse the desired DNS updates from Firebase Hosting response
+    if (domainResponse.requiredDnsUpdates?.desired) {
+      for (const update of domainResponse.requiredDnsUpdates.desired) {
+        for (const record of update.records || []) {
+          // Firebase returns TXT records for verification
+          if (record.type === "TXT") {
+            verificationRecords.push({
+              type: "TXT",
+              name: update.domainName.startsWith("_") ? update.domainName.split(".")[0] : "@",
+              value: record.rrdatas?.[0] || "",
+            });
+          }
+        }
+      }
+    }
+
+    // If no TXT verification records from API, Firebase may not require them
+    // (domain ownership might be verified through other means)
+    // Still return routing records for A/CNAME configuration
+
+    return {
+      verificationRecords,
+      routingRecords: getRequiredDnsRecords(domain),
+      domainStatus: domainResponse.status,
+    };
+  } catch (error) {
+    // If domain already exists, get its current status
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    if (errorMessage.includes("already exists") || errorMessage.includes("409")) {
+      // Domain already registered, just return routing records
+      return {
+        verificationRecords: [],
+        routingRecords: getRequiredDnsRecords(domain),
+        domainStatus: "ALREADY_REGISTERED",
+      };
+    }
+    throw error;
+  }
 }
 
 /**
  * Add custom domain to Firebase Hosting site
  * This registers the domain with Firebase and starts SSL provisioning
+ *
+ * Returns domain status and required DNS updates from Firebase Hosting API
  */
 export async function addCustomDomain(
   domain: string,
   siteId: string = DEFAULT_SITE_ID
-): Promise<{ status: string; domainName: string }> {
+): Promise<{
+  status: string;
+  domainName: string;
+  requiredDnsUpdates?: {
+    discovered?: Array<{ domainName: string; records: Array<{ type: string; rrdatas: string[] }> }>;
+    desired?: Array<{ domainName: string; records: Array<{ type: string; rrdatas: string[] }> }>;
+    checkTime?: string;
+  };
+  provisioning?: {
+    certStatus: string;
+    dnsStatus: string;
+    expectedIps?: string[];
+  };
+}> {
   const accessToken = await getAccessToken();
 
   const response = await fetch(
@@ -472,6 +525,20 @@ export async function addCustomDomain(
 /**
  * Get domain status from Firebase Hosting
  * Returns the current provisioning/SSL status of the domain
+ *
+ * Status values from Firebase Hosting API:
+ * - DOMAIN_STATUS_UNSPECIFIED: Status unknown
+ * - NEEDS_SETUP: Domain needs DNS configuration
+ * - SETUP_IN_PROGRESS: Firebase is verifying DNS
+ * - ACTIVE: Domain is fully active with SSL
+ *
+ * Cert status values:
+ * - CERT_PREPARING: Certificate is being prepared
+ * - CERT_VALIDATING: Validating domain ownership
+ * - CERT_PROPAGATING: Propagating certificate
+ * - CERT_ACTIVE: Certificate is active
+ * - CERT_EXPIRING_SOON: Certificate expiring soon
+ * - CERT_EXPIRED: Certificate expired
  */
 export async function getDomainStatus(
   domain: string,
@@ -482,6 +549,11 @@ export async function getDomainStatus(
   provisioning?: {
     certStatus: string;
     dnsStatus: string;
+    expectedIps?: string[];
+  };
+  requiredDnsUpdates?: {
+    discovered?: Array<{ domainName: string; records: Array<{ type: string; rrdatas: string[] }> }>;
+    desired?: Array<{ domainName: string; records: Array<{ type: string; rrdatas: string[] }> }>;
   };
   updateTime?: string;
 }> {
