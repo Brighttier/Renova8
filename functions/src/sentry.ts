@@ -10,78 +10,87 @@
 
 import * as Sentry from "@sentry/node";
 
-// Initialize Sentry immediately when this module is imported
-// DSN is hardcoded for reliability in serverless environment
-// In production, you can use Firebase secrets instead
-const SENTRY_DSN = process.env.SENTRY_DSN ||
-  "https://e78f31a9581e25f4714ef445909c50fd@o4510573422313472.ingest.us.sentry.io/4510573760348160";
+// Track initialization state
+let isInitialized = false;
 
-Sentry.init({
-  dsn: SENTRY_DSN,
+// Lazy initialize Sentry to avoid deployment timeouts
+function ensureSentryInitialized(): void {
+  if (isInitialized) return;
 
-  // Release tracking for better Jira/Teams integration
-  release: process.env.SENTRY_RELEASE || "renovatemysite-functions@1.0.0",
-  environment: process.env.SENTRY_ENVIRONMENT || "production",
+  const SENTRY_DSN = process.env.SENTRY_DSN ||
+    "https://e78f31a9581e25f4714ef445909c50fd@o4510573422313472.ingest.us.sentry.io/4510573760348160";
 
-  // Send default PII data (IP address, etc.) for better debugging
-  sendDefaultPii: true,
+  Sentry.init({
+    dsn: SENTRY_DSN,
 
-  // Performance monitoring sample rate
-  tracesSampleRate: 0.2,
+    // Release tracking for better Jira/Teams integration
+    release: process.env.SENTRY_RELEASE || "renovatemysite-functions@1.0.0",
+    environment: process.env.SENTRY_ENVIRONMENT || "production",
 
-  // Server-side settings
-  serverName: "firebase-functions",
+    // Send default PII data (IP address, etc.) for better debugging
+    sendDefaultPii: true,
 
-  // Attach stack traces to all messages
-  attachStacktrace: true,
+    // Performance monitoring sample rate
+    tracesSampleRate: 0.2,
 
-  // Capture 100% of errors
-  sampleRate: 1.0,
+    // Server-side settings
+    serverName: "firebase-functions",
 
-  // Initial tags for routing to Jira/Teams
-  initialScope: {
-    tags: {
-      service: "functions",
-      team: "platform",
+    // Attach stack traces to all messages
+    attachStacktrace: true,
+
+    // Capture 100% of errors
+    sampleRate: 1.0,
+
+    // Initial tags for routing to Jira/Teams
+    initialScope: {
+      tags: {
+        service: "functions",
+        team: "platform",
+      },
     },
-  },
 
-  // Integrations
-  integrations: [
-    // HTTP integration for tracking outbound requests
-    Sentry.httpIntegration(),
-  ],
+    // Integrations
+    integrations: [
+      // HTTP integration for tracking outbound requests
+      Sentry.httpIntegration(),
+    ],
 
-  // Filter out non-critical errors
-  beforeSend(event, hint) {
-    const error = hint.originalException;
+    // Filter out non-critical errors
+    beforeSend(event, hint) {
+      const error = hint.originalException;
 
-    // Skip expected errors like rate limiting
-    if (error && typeof error === "object" && "code" in error) {
-      const code = (error as any).code;
-      if (code === "functions/resource-exhausted") {
-        return null;
+      // Skip expected errors like rate limiting
+      if (error && typeof error === "object" && "code" in error) {
+        const code = (error as any).code;
+        if (code === "functions/resource-exhausted") {
+          return null;
+        }
       }
-    }
 
-    return event;
-  },
-});
+      return event;
+    },
+  });
 
-console.log("Sentry initialized for Cloud Functions");
+  isInitialized = true;
+  console.log("Sentry initialized for Cloud Functions");
+}
+
+// Initialize lazily on first function execution, not during deployment
+// This prevents deployment timeouts
 
 /**
- * Re-initialize Sentry (for use if DSN changes via secrets)
+ * Initialize or re-initialize Sentry
  */
 export function initSentry(): void {
-  // Already initialized above, this is a no-op but kept for compatibility
-  console.log("Sentry already initialized");
+  ensureSentryInitialized();
 }
 
 /**
  * Set user context for error tracking
  */
 export function setSentryUser(userId: string, email?: string): void {
+  ensureSentryInitialized();
   Sentry.setUser({
     id: userId,
     email,
@@ -92,6 +101,7 @@ export function setSentryUser(userId: string, email?: string): void {
  * Clear user context
  */
 export function clearSentryUser(): void {
+  ensureSentryInitialized();
   Sentry.setUser(null);
 }
 
@@ -104,6 +114,7 @@ export function addBreadcrumb(
   data?: Record<string, unknown>,
   level: Sentry.SeverityLevel = "info"
 ): void {
+  ensureSentryInitialized();
   Sentry.addBreadcrumb({
     category,
     message,
@@ -123,6 +134,7 @@ export function captureError(
     user?: { id: string; email?: string };
   }
 ): void {
+  ensureSentryInitialized();
   if (context?.user) {
     Sentry.setUser(context.user);
   }
@@ -140,6 +152,7 @@ export function captureMessage(
   message: string,
   level: Sentry.SeverityLevel = "info"
 ): void {
+  ensureSentryInitialized();
   Sentry.captureMessage(message, level);
 }
 
@@ -147,6 +160,7 @@ export function captureMessage(
  * Start a transaction span for performance monitoring
  */
 export function startSpan(name: string, op?: string): Sentry.Span | undefined {
+  ensureSentryInitialized();
   return Sentry.startInactiveSpan({
     name,
     op: op || "function",
@@ -162,6 +176,7 @@ export function trackMetric(
   unit?: string,
   tags?: Record<string, string>
 ): void {
+  ensureSentryInitialized();
   // Use breadcrumbs as a fallback for metrics tracking
   // This ensures compatibility across Sentry SDK versions
   Sentry.addBreadcrumb({
@@ -180,6 +195,7 @@ export function incrementCounter(
   value: number = 1,
   tags?: Record<string, string>
 ): void {
+  ensureSentryInitialized();
   Sentry.addBreadcrumb({
     category: "counter",
     message: `${name}: +${value}`,
@@ -193,6 +209,7 @@ export function incrementCounter(
  * Should be called before returning from a function
  */
 export async function flushSentry(timeout: number = 2000): Promise<boolean> {
+  if (!isInitialized) return true; // Nothing to flush if not initialized
   return Sentry.flush(timeout);
 }
 

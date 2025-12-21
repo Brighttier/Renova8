@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { findLeadsWithMaps } from '../services/geminiService';
 import { Lead } from '../types';
 import { PageTour, SCOUT_TOUR_STEPS, usePageTour } from './PageTour';
+import { HelpTooltip } from './HelpTooltip';
 
 interface Props {
   onLeadsFound: (leads: Lead[]) => void;
@@ -73,9 +74,12 @@ export const LeadFinder: React.FC<Props> = ({ onLeadsFound, onUseCredit, onAnaly
       <div data-tour="scout-search" className="bg-white p-6 rounded-2xl shadow-sm border border-pink-100">
         <form onSubmit={(e) => handleSearch(e, false)} className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Business Type</label>
-            <input 
-              type="text" 
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1">
+              Business Type
+              <HelpTooltip featureId="lead-finder-type" size="sm" />
+            </label>
+            <input
+              type="text"
               placeholder="e.g. Bakeries, Yoga Studios"
               className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-200 focus:border-purple-400 outline-none transition-all"
               value={query}
@@ -83,9 +87,12 @@ export const LeadFinder: React.FC<Props> = ({ onLeadsFound, onUseCredit, onAnaly
             />
           </div>
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-            <input 
-              type="text" 
+            <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1">
+              Location
+              <HelpTooltip featureId="lead-finder-location" size="sm" />
+            </label>
+            <input
+              type="text"
               placeholder="e.g. Seattle, WA"
               className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-200 focus:border-purple-400 outline-none transition-all"
               value={location}

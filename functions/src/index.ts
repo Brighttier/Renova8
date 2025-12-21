@@ -21,6 +21,14 @@
  * - checkDomainStatus: Callable - Check domain verification status
  * - verifyDomain: Callable - Verify DNS configuration
  * - removeCustomDomain: Callable - Remove custom domain from website
+ *
+ * Support Ticket Functions:
+ * - createTicket: Callable - Create a new support ticket
+ * - getUserTickets: Callable - Get all tickets for current user
+ * - getTicketDetail: Callable - Get single ticket details
+ * - addTicketMessage: Callable - Add reply to a ticket
+ * - closeTicket: Callable - Close a ticket
+ * - reopenTicket: Callable - Reopen a closed ticket
  */
 
 // IMPORTANT: Import Sentry FIRST before any other imports
@@ -66,3 +74,13 @@ export {
   updatePlatformRateLimits,
   updatePlatformTokenLimits,
 } from "./platformSettingsFunctions";
+
+// Export Support Ticket Functions
+export {
+  createTicket,
+  getUserTickets,
+  getTicketDetail,
+  addTicketMessage,
+  closeTicket,
+  reopenTicket,
+} from "./supportTickets";

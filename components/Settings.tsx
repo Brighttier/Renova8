@@ -8,6 +8,7 @@
 import React, { useState, useEffect } from 'react';
 import { useCredits } from '../hooks/useCredits';
 import { useAuth } from '../hooks/useAuth';
+import { HelpTooltip } from './HelpTooltip';
 
 // Credit pack configurations (must match functions/src/config.ts)
 const CREDIT_PACKS = [
@@ -244,7 +245,10 @@ export const Settings: React.FC<Props> = ({ credits: legacyCredits, onAddCredits
       {/* Credit Balance */}
       <div className="bg-gradient-to-r from-[#D4AF37] to-[#B8963A] rounded-3xl p-8 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
         <div>
-          <h2 className="text-2xl font-bold mb-1">Current Balance</h2>
+          <h2 className="text-2xl font-bold mb-1 flex items-center gap-2">
+            Current Balance
+            <HelpTooltip featureId="credit-system" size="sm" />
+          </h2>
           <div className="text-5xl font-bold">
             {loading ? (
               <span className="animate-pulse">...</span>

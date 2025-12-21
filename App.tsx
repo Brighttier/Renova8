@@ -16,6 +16,10 @@ import { WebsiteEditor } from './components/WebsiteEditor';
 import { SitesManager } from './components/SitesManager';
 import { AIWebsiteEditor } from './components/AIWebsiteEditor';
 import { UserProfile, GeneralSettings, UserPassword, PaymentSetup, EmailConfig, HelpSupport } from './components/UserPages';
+import { KnowledgeBase } from './components/KnowledgeBase';
+import { SupportTickets } from './components/SupportTickets';
+import { StatusPage } from './components/StatusPage';
+import { StatusBadge } from './components/StatusBadge';
 import { LandingPage } from './components/LandingPage';
 import { GuidedWalkthrough } from './components/GuidedWalkthrough';
 import { AuthProvider, useAuth } from './hooks/useAuth';
@@ -538,7 +542,30 @@ function AppContent() {
             {currentView === AppView.PASSWORD && <UserPassword />}
             {currentView === AppView.PAYMENT_SETUP && <PaymentSetup />}
             {currentView === AppView.EMAIL_CONFIG && <EmailConfig />}
-            {currentView === AppView.HELP_SUPPORT && <HelpSupport />}
+            {currentView === AppView.HELP_SUPPORT && (
+              <HelpSupport
+                onNavigateToKnowledgeBase={() => setCurrentView(AppView.KNOWLEDGE_BASE)}
+                onNavigateToTickets={() => setCurrentView(AppView.SUPPORT_TICKETS)}
+                onNavigateToStatus={() => setCurrentView(AppView.STATUS_PAGE)}
+              />
+            )}
+
+            {/* Help & Support Views */}
+            {currentView === AppView.KNOWLEDGE_BASE && (
+              <KnowledgeBase
+                onContactSupport={() => setIsSupportOpen(true)}
+              />
+            )}
+            {currentView === AppView.SUPPORT_TICKETS && (
+              <SupportTickets
+                onBack={() => setCurrentView(AppView.HELP_SUPPORT)}
+              />
+            )}
+            {currentView === AppView.STATUS_PAGE && (
+              <StatusPage
+                onBack={() => setCurrentView(AppView.HELP_SUPPORT)}
+              />
+            )}
             </div>
         </main>
       </div>
@@ -601,6 +628,9 @@ function AppContent() {
       [AppView.SITES_MANAGER]: 'Sites Manager',
       [AppView.AI_WEBSITE_EDITOR]: 'AI Website Editor',
       [AppView.SERVICE_CATALOG]: 'Service Catalog',
+      [AppView.KNOWLEDGE_BASE]: 'Knowledge Base',
+      [AppView.SUPPORT_TICKETS]: 'Support Tickets',
+      [AppView.STATUS_PAGE]: 'System Status',
     };
     return pageNames[view] || 'Unknown';
   }

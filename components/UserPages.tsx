@@ -210,30 +210,98 @@ export const EmailConfig = () => (
     </PageContainer>
 );
 
-export const HelpSupport = () => (
+interface HelpSupportProps {
+    onNavigateToKnowledgeBase?: () => void;
+    onNavigateToTickets?: () => void;
+    onNavigateToStatus?: () => void;
+}
+
+export const HelpSupport: React.FC<HelpSupportProps> = ({
+    onNavigateToKnowledgeBase,
+    onNavigateToTickets,
+    onNavigateToStatus,
+}) => (
     <PageContainer title="Help & Support" subtitle="We are here to help you succeed.">
+        {/* Quick Access Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            <button
+                onClick={onNavigateToKnowledgeBase}
+                className="bg-gradient-to-br from-[#D4AF37]/10 to-[#D4AF37]/5 p-6 rounded-2xl border border-[#D4AF37]/20 hover:shadow-md hover:border-[#D4AF37]/40 transition-all text-left group"
+            >
+                <div className="text-3xl mb-3">📚</div>
+                <h3 className="font-bold text-[#4A4A4A] text-lg mb-1" style={{ fontFamily: 'Playfair Display, serif' }}>
+                    Knowledge Base
+                </h3>
+                <p className="text-sm text-gray-500">Search help articles and guides</p>
+                <div className="mt-3 text-[#D4AF37] text-sm font-semibold flex items-center gap-1 group-hover:gap-2 transition-all">
+                    Browse Articles
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                </div>
+            </button>
+
+            <button
+                onClick={onNavigateToTickets}
+                className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 p-6 rounded-2xl border border-blue-500/20 hover:shadow-md hover:border-blue-500/40 transition-all text-left group"
+            >
+                <div className="text-3xl mb-3">🎫</div>
+                <h3 className="font-bold text-[#4A4A4A] text-lg mb-1" style={{ fontFamily: 'Playfair Display, serif' }}>
+                    Support Tickets
+                </h3>
+                <p className="text-sm text-gray-500">View and manage your requests</p>
+                <div className="mt-3 text-blue-500 text-sm font-semibold flex items-center gap-1 group-hover:gap-2 transition-all">
+                    My Tickets
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                </div>
+            </button>
+
+            <button
+                onClick={onNavigateToStatus}
+                className="bg-gradient-to-br from-green-500/10 to-green-500/5 p-6 rounded-2xl border border-green-500/20 hover:shadow-md hover:border-green-500/40 transition-all text-left group"
+            >
+                <div className="text-3xl mb-3">🟢</div>
+                <h3 className="font-bold text-[#4A4A4A] text-lg mb-1" style={{ fontFamily: 'Playfair Display, serif' }}>
+                    System Status
+                </h3>
+                <p className="text-sm text-gray-500">Check service health and uptime</p>
+                <div className="mt-3 text-green-500 text-sm font-semibold flex items-center gap-1 group-hover:gap-2 transition-all">
+                    View Status
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                </div>
+            </button>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="space-y-6">
-                <h3 className="font-bold text-gray-800 text-xl">Frequently Asked Questions</h3>
+                <h3 className="font-bold text-gray-800 text-xl" style={{ fontFamily: 'Playfair Display, serif' }}>
+                    Frequently Asked Questions
+                </h3>
                 {[
                     { q: "How do I get more credits?", a: "You can purchase credit packs or upgrade your subscription in the Plans & Billing section." },
                     { q: "Can I cancel my subscription?", a: "Yes, you can cancel anytime from the Billing page. You will keep access until the end of your billing period." },
                     { q: "How accurate is the lead finder?", a: "We use Google Maps real-time data to find businesses. Contact details are extracted where available publicly." },
                     { q: "Is the website code production ready?", a: "The code is a high-quality starting point using Tailwind CSS. You can host it anywhere (Netlify, Vercel, etc.)." }
                 ].map((faq, i) => (
-                    <div key={i} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-                        <h4 className="font-bold text-purple-700 text-sm mb-1">{faq.q}</h4>
+                    <div key={i} className="bg-[#F9F6F0] rounded-xl p-4 border border-[#EFEBE4]">
+                        <h4 className="font-bold text-[#D4AF37] text-sm mb-1">{faq.q}</h4>
                         <p className="text-gray-600 text-sm">{faq.a}</p>
                     </div>
                 ))}
             </div>
 
-            <div className="bg-purple-50 p-6 rounded-2xl border border-purple-100 h-fit">
-                <h3 className="font-bold text-gray-800 text-xl mb-4">Contact Support</h3>
+            <div className="bg-gradient-to-br from-[#D4AF37]/10 to-[#D4AF37]/5 p-6 rounded-2xl border border-[#D4AF37]/20 h-fit">
+                <h3 className="font-bold text-gray-800 text-xl mb-4" style={{ fontFamily: 'Playfair Display, serif' }}>
+                    Contact Support
+                </h3>
                 <div className="space-y-4">
                     <div>
                         <label className="block text-sm font-bold text-gray-700 mb-1">Subject</label>
-                        <select className="w-full px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-200 outline-none bg-white">
+                        <select className="w-full px-4 py-2 rounded-xl border border-[#EFEBE4] focus:ring-2 focus:ring-[#D4AF37] outline-none bg-white">
                             <option>Technical Issue</option>
                             <option>Billing Question</option>
                             <option>Feature Request</option>
@@ -242,9 +310,9 @@ export const HelpSupport = () => (
                     </div>
                     <div>
                         <label className="block text-sm font-bold text-gray-700 mb-1">Message</label>
-                        <textarea className="w-full h-32 px-4 py-2 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-200 outline-none resize-none bg-white" placeholder="Describe your issue..." />
+                        <textarea className="w-full h-32 px-4 py-2 rounded-xl border border-[#EFEBE4] focus:ring-2 focus:ring-[#D4AF37] outline-none resize-none bg-white" placeholder="Describe your issue..." />
                     </div>
-                    <button className="w-full bg-purple-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-purple-700 transition-colors shadow-md">
+                    <button className="w-full bg-gradient-to-r from-[#D4AF37] to-[#B8962E] text-white px-6 py-3 rounded-xl font-bold hover:shadow-md transition-all">
                         Send Message
                     </button>
                     <p className="text-center text-xs text-gray-500 mt-2">We typically reply within 24 hours.</p>
