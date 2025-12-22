@@ -27,8 +27,8 @@ function ensureSentryInitialized(): void {
     release: process.env.SENTRY_RELEASE || "renovatemysite-functions@1.0.0",
     environment: process.env.SENTRY_ENVIRONMENT || "production",
 
-    // Send default PII data (IP address, etc.) for better debugging
-    sendDefaultPii: true,
+    // GDPR Compliance: Do NOT send PII data (IP address, user agent, etc.)
+    sendDefaultPii: false,
 
     // Performance monitoring sample rate
     tracesSampleRate: 0.2,

@@ -20,6 +20,8 @@ import { SupportTickets } from './components/SupportTickets';
 import { StatusPage } from './components/StatusPage';
 import { StatusBadge } from './components/StatusBadge';
 import { LandingPage } from './components/LandingPage';
+import { PrivacyPolicy } from './components/PrivacyPolicy';
+import { TermsOfService } from './components/TermsOfService';
 import { GuidedWalkthrough } from './components/GuidedWalkthrough';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { useCredits } from './hooks/useCredits';
@@ -180,6 +182,16 @@ function AppContent() {
   // Landing Page is a full-screen view
   if (currentView === AppView.LANDING) {
     return <LandingPage onNavigate={setCurrentView} />;
+  }
+
+  // Privacy Policy is a full-screen view
+  if (currentView === AppView.PRIVACY_POLICY) {
+    return <PrivacyPolicy onBack={() => setCurrentView(AppView.LANDING)} />;
+  }
+
+  // Terms of Service is a full-screen view
+  if (currentView === AppView.TERMS_OF_SERVICE) {
+    return <TermsOfService onBack={() => setCurrentView(AppView.LANDING)} />;
   }
 
   // Website Editor is a full-screen view

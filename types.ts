@@ -174,7 +174,11 @@ export enum AppView {
   // Help & Support Pages
   KNOWLEDGE_BASE = 'KNOWLEDGE_BASE',
   SUPPORT_TICKETS = 'SUPPORT_TICKETS',
-  STATUS_PAGE = 'STATUS_PAGE'
+  STATUS_PAGE = 'STATUS_PAGE',
+
+  // Legal Pages
+  PRIVACY_POLICY = 'PRIVACY_POLICY',
+  TERMS_OF_SERVICE = 'TERMS_OF_SERVICE'
 }
 
 // AI Website Editor Types

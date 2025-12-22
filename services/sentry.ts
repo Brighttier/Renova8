@@ -24,8 +24,8 @@ export function initSentry(): void {
     dsn,
     environment: import.meta.env.VITE_SENTRY_ENVIRONMENT || 'development',
 
-    // Send default PII data (IP address, etc.) for better debugging
-    sendDefaultPii: true,
+    // GDPR Compliance: Do NOT send PII data (IP address, user agent, etc.)
+    sendDefaultPii: false,
 
     // Performance monitoring
     tracesSampleRate: import.meta.env.PROD ? 0.1 : 1.0,

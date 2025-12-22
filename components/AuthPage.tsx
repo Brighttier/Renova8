@@ -7,12 +7,14 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
+import { AppView } from '../types';
 
 interface AuthPageProps {
   onSuccess?: () => void;
+  onNavigate?: (view: AppView) => void;
 }
 
-export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
+export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess, onNavigate }) => {
   const { signIn, signUp, signInWithGoogle, resetPassword, error, loading, clearError } = useAuth();
 
   const [mode, setMode] = useState<'signin' | 'signup' | 'reset'>('signin');
@@ -21,6 +23,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
   const [displayName, setDisplayName] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
   const [resetSent, setResetSent] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +37,10 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
       } else if (mode === 'signup') {
         if (!displayName.trim()) {
           setLocalError('Please enter your name');
+          return;
+        }
+        if (!agreedToTerms) {
+          setLocalError('Please agree to the Terms of Service and Privacy Policy');
           return;
         }
         await signUp(email, password, displayName);
@@ -164,6 +171,45 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
               </div>
             )}
 
+            {/* Consent Checkbox for Signup */}
+            {mode === 'signup' && (
+              <div className="flex items-start gap-3">
+                <input
+                  type="checkbox"
+                  id="terms-consent"
+                  checked={agreedToTerms}
+                  onChange={(e) => setAgreedToTerms(e.target.checked)}
+                  className="mt-1 w-4 h-4 text-[#D4AF37] border-[#EFEBE4] rounded focus:ring-[#D4AF37] focus:ring-2 cursor-pointer"
+                />
+                <label htmlFor="terms-consent" className="text-sm text-[#4A4A4A]/70 cursor-pointer">
+                  I agree to the{' '}
+                  {onNavigate ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => onNavigate(AppView.TERMS_OF_SERVICE)}
+                        className="text-[#D4AF37] hover:underline font-medium"
+                      >
+                        Terms of Service
+                      </button>
+                      {' '}and{' '}
+                      <button
+                        type="button"
+                        onClick={() => onNavigate(AppView.PRIVACY_POLICY)}
+                        className="text-[#D4AF37] hover:underline font-medium"
+                      >
+                        Privacy Policy
+                      </button>
+                    </>
+                  ) : (
+                    <span className="text-[#D4AF37] font-medium">
+                      Terms of Service and Privacy Policy
+                    </span>
+                  )}
+                </label>
+              </div>
+            )}
+
             <button
               type="submit"
               disabled={loading}
@@ -289,7 +335,29 @@ export const AuthPage: React.FC<AuthPageProps> = ({ onSuccess }) => {
 
         {/* Footer */}
         <p className="text-center text-xs text-[#4A4A4A]/50 mt-8">
-          By continuing, you agree to our Terms of Service and Privacy Policy.
+          By continuing, you agree to our{' '}
+          {onNavigate ? (
+            <>
+              <button
+                type="button"
+                onClick={() => onNavigate(AppView.TERMS_OF_SERVICE)}
+                className="text-[#D4AF37] hover:underline"
+              >
+                Terms of Service
+              </button>
+              {' '}and{' '}
+              <button
+                type="button"
+                onClick={() => onNavigate(AppView.PRIVACY_POLICY)}
+                className="text-[#D4AF37] hover:underline"
+              >
+                Privacy Policy
+              </button>
+            </>
+          ) : (
+            'Terms of Service and Privacy Policy'
+          )}
+          .
         </p>
       </div>
     </div>

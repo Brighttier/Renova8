@@ -84,3 +84,6 @@ export {
   closeTicket,
   reopenTicket,
 } from "./supportTickets";
+
+// Export GDPR Compliance Functions
+export { exportUserData, deleteUserAccount } from "./gdprCompliance";

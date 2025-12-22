@@ -701,7 +701,7 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
       {/* Footer */}
       <footer className="bg-[#4A4A4A] text-white py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-3 gap-12 mb-12">
+          <div className="grid md:grid-cols-4 gap-12 mb-12">
             {/* Brand */}
             <div>
               <div className="flex items-center gap-3 mb-4">
@@ -739,6 +739,29 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
                     </svg>
                     support@renovatemysite.com
                   </a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Legal */}
+            <div>
+              <h4 className="font-semibold mb-4">Legal</h4>
+              <ul className="space-y-3 text-white/60">
+                <li>
+                  <button
+                    onClick={() => onNavigate(AppView.PRIVACY_POLICY)}
+                    className="hover:text-[#D4AF37] transition-colors"
+                  >
+                    Privacy Policy
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => onNavigate(AppView.TERMS_OF_SERVICE)}
+                    className="hover:text-[#D4AF37] transition-colors"
+                  >
+                    Terms of Service
+                  </button>
                 </li>
               </ul>
             </div>

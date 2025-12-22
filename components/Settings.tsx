@@ -9,6 +9,7 @@ import React, { useState, useEffect } from 'react';
 import { useCredits } from '../hooks/useCredits';
 import { useAuth } from '../hooks/useAuth';
 import { HelpTooltip } from './HelpTooltip';
+import { exportUserData, deleteUserAccount } from '../lib/firebase';
 
 // Credit pack configurations (must match functions/src/config.ts)
 const CREDIT_PACKS = [
@@ -114,6 +115,14 @@ export const Settings: React.FC<Props> = ({ credits: legacyCredits, onAddCredits
   const [purchasing, setPurchasing] = useState<string | null>(null);
   const [showTransactions, setShowTransactions] = useState(false);
 
+  // GDPR states
+  const [exporting, setExporting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [gdprError, setGdprError] = useState<string | null>(null);
+  const [gdprSuccess, setGdprSuccess] = useState<string | null>(null);
+
   // Check for checkout result in URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -177,6 +186,57 @@ export const Settings: React.FC<Props> = ({ credits: legacyCredits, onAddCredits
         return '🔧';
       default:
         return '📝';
+    }
+  };
+
+  // GDPR: Export user data
+  const handleExportData = async () => {
+    if (!user) return;
+
+    setExporting(true);
+    setGdprError(null);
+    setGdprSuccess(null);
+
+    try {
+      const result = await exportUserData();
+      const data = result.data;
+
+      // Create and download JSON file
+      const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `renovatemysite-data-export-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      setGdprSuccess('Your data has been exported and downloaded successfully.');
+    } catch (err: any) {
+      console.error('Export failed:', err);
+      setGdprError(err.message || 'Failed to export data. Please try again.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // GDPR: Delete account
+  const handleDeleteAccount = async () => {
+    if (!user || deleteConfirmText !== 'DELETE MY ACCOUNT') return;
+
+    setDeleting(true);
+    setGdprError(null);
+
+    try {
+      await deleteUserAccount({ confirmPhrase: 'DELETE MY ACCOUNT' });
+      // User will be logged out automatically when auth account is deleted
+      // Redirect to landing page
+      window.location.href = '/';
+    } catch (err: any) {
+      console.error('Delete failed:', err);
+      setGdprError(err.message || 'Failed to delete account. Please contact support.');
+      setDeleting(false);
     }
   };
 
@@ -594,6 +654,159 @@ export const Settings: React.FC<Props> = ({ credits: legacyCredits, onAddCredits
       <div className="text-center text-gray-400 text-xs pb-8">
         Payments are securely processed via Stripe. You can cancel anytime.
       </div>
+
+      {/* Data Privacy Section (GDPR) */}
+      {user && (
+        <>
+          <hr className="border-gray-100" />
+
+          <div>
+            <h3 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
+              <span className="bg-purple-100 p-2 rounded-lg mr-3 text-2xl">🔒</span>
+              Data Privacy
+            </h3>
+
+            {/* Success/Error Messages */}
+            {gdprSuccess && (
+              <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl mb-6 flex items-center justify-between">
+                <span>{gdprSuccess}</span>
+                <button onClick={() => setGdprSuccess(null)} className="text-green-500 hover:text-green-700">
+                  ✕
+                </button>
+              </div>
+            )}
+            {gdprError && (
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 flex items-center justify-between">
+                <span>{gdprError}</span>
+                <button onClick={() => setGdprError(null)} className="text-red-500 hover:text-red-700">
+                  ✕
+                </button>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Export Data */}
+              <div className="bg-white rounded-2xl p-6 border border-gray-200">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-2xl">📥</span>
+                  <h4 className="font-bold text-gray-800">Export Your Data</h4>
+                </div>
+                <p className="text-gray-500 text-sm mb-4">
+                  Download a copy of all your data including profile, transactions, websites, and CRM customers.
+                </p>
+                <button
+                  onClick={handleExportData}
+                  disabled={exporting}
+                  className="w-full py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {exporting ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      Exporting...
+                    </>
+                  ) : (
+                    'Download My Data'
+                  )}
+                </button>
+              </div>
+
+              {/* Delete Account */}
+              <div className="bg-white rounded-2xl p-6 border border-red-200">
+                <div className="flex items-center gap-3 mb-3">
+                  <span className="text-2xl">⚠️</span>
+                  <h4 className="font-bold text-red-600">Delete Account</h4>
+                </div>
+                <p className="text-gray-500 text-sm mb-4">
+                  Permanently delete your account and all associated data. This action cannot be undone.
+                </p>
+                <button
+                  onClick={() => setShowDeleteModal(true)}
+                  className="w-full py-3 bg-red-50 text-red-600 rounded-xl font-medium hover:bg-red-100 transition-colors border border-red-200"
+                >
+                  Delete My Account
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Delete Account Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl">
+            <div className="text-center mb-6">
+              <span className="text-5xl">⚠️</span>
+              <h3 className="text-xl font-bold text-red-600 mt-4">Delete Your Account?</h3>
+              <p className="text-gray-500 text-sm mt-2">
+                This will permanently delete all your data including:
+              </p>
+              <ul className="text-left text-gray-600 text-sm mt-4 space-y-2">
+                <li className="flex items-center gap-2">
+                  <span className="text-red-500">✕</span> Your profile and settings
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-red-500">✕</span> All published websites
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-red-500">✕</span> Transaction history
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-red-500">✕</span> CRM customers and communications
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-red-500">✕</span> Support tickets
+                </li>
+              </ul>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Type <span className="font-bold text-red-600">DELETE MY ACCOUNT</span> to confirm:
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="DELETE MY ACCOUNT"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setDeleteConfirmText('');
+                }}
+                className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleteConfirmText !== 'DELETE MY ACCOUNT' || deleting}
+                className="flex-1 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {deleting ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete Forever'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

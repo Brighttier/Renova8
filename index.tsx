@@ -11,8 +11,8 @@ Sentry.init({
   release: import.meta.env.VITE_APP_VERSION || "renovatemysite-frontend@1.0.0",
   environment: import.meta.env.VITE_SENTRY_ENVIRONMENT || "development",
 
-  // Send default PII data for better debugging
-  sendDefaultPii: true,
+  // GDPR Compliance: Do NOT send PII data (IP address, user agent, etc.)
+  sendDefaultPii: false,
 
   // Performance monitoring
   tracesSampleRate: import.meta.env.PROD ? 0.1 : 1.0,

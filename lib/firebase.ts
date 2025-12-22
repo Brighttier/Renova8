@@ -133,6 +133,30 @@ export interface GeminiChatResponse {
   tokenBalance: number;
 }
 
+// GDPR Compliance Types
+export interface ExportUserDataResponse {
+  success: boolean;
+  data: {
+    user: Record<string, unknown> | null;
+    transactions: Record<string, unknown>[];
+    websites: Record<string, unknown>[];
+    supportTickets: Record<string, unknown>[];
+    customers: Record<string, unknown>[];
+  };
+  exportedAt: string;
+  message: string;
+}
+
+export interface DeleteAccountRequest {
+  confirmPhrase: string; // Must be "DELETE MY ACCOUNT"
+}
+
+export interface DeleteAccountResponse {
+  success: boolean;
+  deletedCollections: string[];
+  message: string;
+}
+
 // ============================================
 // Cloud Function Callables
 // ============================================
@@ -164,6 +188,24 @@ export const createTokenCheckout = functions
 export const geminiChat = functions
   ? httpsCallable<GeminiChatRequest, GeminiChatResponse>(functions, "geminiChat")
   : createDummyCallable<GeminiChatRequest, GeminiChatResponse>("geminiChat");
+
+// ============================================
+// GDPR Compliance Functions
+// ============================================
+
+/**
+ * Export all user data (GDPR Right to Access / Right to Portability)
+ */
+export const exportUserData = functions
+  ? httpsCallable<void, ExportUserDataResponse>(functions, "exportUserData")
+  : createDummyCallable<void, ExportUserDataResponse>("exportUserData");
+
+/**
+ * Delete user account and all data (GDPR Right to Erasure)
+ */
+export const deleteUserAccount = functions
+  ? httpsCallable<DeleteAccountRequest, DeleteAccountResponse>(functions, "deleteUserAccount")
+  : createDummyCallable<DeleteAccountRequest, DeleteAccountResponse>("deleteUserAccount");
 
 // ============================================
 // Helper Functions
