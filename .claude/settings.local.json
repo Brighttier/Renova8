@@ -26,7 +26,9 @@
       "Bash(npm install:*)",
       "Bash(npx @sentry/cli:*)",
       "Bash(firebase functions:secrets:set:*)",
-      "Bash(gcloud builds list:*)"
+      "Bash(gcloud builds list:*)",
+      "Bash(firebase functions:secrets:access:*)",
+      "Bash(firebase functions:list:*)"
     ],
     "deny": [],
     "ask": []

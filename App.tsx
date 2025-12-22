@@ -23,6 +23,7 @@ import { LandingPage } from './components/LandingPage';
 import { GuidedWalkthrough } from './components/GuidedWalkthrough';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { useCredits } from './hooks/useCredits';
+import { useCustomers } from './hooks/useCustomers';
 import { AuthPage } from './components/AuthPage';
 import WizardLoaderPreview from './components/WizardLoaderPreview';
 import { FloatingContactButton } from './components/FloatingContactButton';
@@ -69,21 +70,18 @@ const ChevronRightIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className
 function AppContent() {
   const { user, loading: authLoading } = useAuth();
   const { credits, refreshCredits } = useCredits();
+  const {
+    customers: myCustomers,
+    saveCustomer: saveCustomerToFirebase,
+    updateCustomer: updateCustomerInFirebase,
+    syncStatus,
+    loading: customersLoading,
+  } = useCustomers();
 
   const [currentView, setCurrentView] = useState<AppView>(AppView.LANDING);
   const [leads, setLeads] = useState<Lead[]>([]); // Search results
-  // Load saved customers from localStorage on mount
-  const [myCustomers, setMyCustomers] = useState<Lead[]>(() => {
-    try {
-      const saved = localStorage.getItem('renova8_customers');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<'saved' | 'saving' | null>(null);
 
   // Walkthrough state - check localStorage for completion status
   const [showWalkthrough, setShowWalkthrough] = useState(false);
@@ -131,38 +129,15 @@ function AppContent() {
     setShowWalkthrough(true);
   };
 
-  // Auto-save customers to localStorage with debounce
-  useEffect(() => {
-    // Skip saving on initial load (empty array)
-    if (myCustomers.length === 0 && !localStorage.getItem('renova8_customers')) {
-      return;
-    }
-
-    setSaveStatus('saving');
-    const timeoutId = setTimeout(() => {
-      try {
-        localStorage.setItem('renova8_customers', JSON.stringify(myCustomers));
-        setSaveStatus('saved');
-        // Clear the "saved" status after 2 seconds
-        setTimeout(() => setSaveStatus(null), 2000);
-      } catch (e) {
-        console.error('Failed to save customers to localStorage:', e);
-        setSaveStatus(null);
-      }
-    }, 500); // Debounce: wait 500ms before saving
-
-    return () => clearTimeout(timeoutId);
-  }, [myCustomers]);
-
-  // Add leads from Search to "My Customers"
+  // Add leads from Search to "My Customers" (using Firebase-backed hook)
   const saveCustomer = (lead: Lead) => {
     if (!myCustomers.find(c => c.id === lead.id)) {
-      setMyCustomers([...myCustomers, { ...lead, status: 'new', addedAt: Date.now(), history: [] }]);
+      saveCustomerToFirebase({ ...lead, status: 'new', addedAt: Date.now(), history: [] });
     }
   };
 
   const updateCustomer = (updatedLead: Lead) => {
-      setMyCustomers(prev => prev.map(l => l.id === updatedLead.id ? updatedLead : l));
+      updateCustomerInFirebase(updatedLead);
       if (selectedLead?.id === updatedLead.id) {
           setSelectedLead(updatedLead);
       }
@@ -379,6 +354,41 @@ function AppContent() {
                     {isSidebarCollapsed ? '+' : 'Buy Now'}
                 </button>
             </div>
+
+            {/* Sync Status Indicator */}
+            {!isSidebarCollapsed && syncStatus !== 'synced' && (
+                <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs mb-2 ${
+                    syncStatus === 'syncing' ? 'bg-blue-50 text-blue-600' :
+                    syncStatus === 'offline' ? 'bg-gray-100 text-gray-500' :
+                    'bg-red-50 text-red-600'
+                }`}>
+                    {syncStatus === 'syncing' && (
+                        <>
+                            <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+                            </svg>
+                            <span>Syncing...</span>
+                        </>
+                    )}
+                    {syncStatus === 'offline' && (
+                        <>
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414" />
+                            </svg>
+                            <span>Offline mode</span>
+                        </>
+                    )}
+                    {syncStatus === 'error' && (
+                        <>
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <span>Sync error</span>
+                        </>
+                    )}
+                </div>
+            )}
 
             <button
                 onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
