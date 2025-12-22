@@ -54,6 +54,10 @@ export interface UseCreditsReturn {
   refreshCredits: () => Promise<void>;
   purchaseTokens: (packId: string) => Promise<void>;
   clearError: () => void;
+
+  // Credit check helper for pre-operation validation
+  hasSufficientCredits: (requiredAmount: number) => boolean;
+  checkCredits: (requiredAmount: number, operationName?: string) => { canProceed: boolean; message?: string };
 }
 
 // ============================================
@@ -148,6 +152,25 @@ export function useCredits(): UseCreditsReturn {
     setError(null);
   }, []);
 
+  // Check if user has sufficient credits
+  const hasSufficientCredits = useCallback((requiredAmount: number): boolean => {
+    return credits >= requiredAmount;
+  }, [credits]);
+
+  // Check credits with detailed message
+  const checkCredits = useCallback((requiredAmount: number, operationName?: string): { canProceed: boolean; message?: string } => {
+    if (credits >= requiredAmount) {
+      return { canProceed: true };
+    }
+
+    const deficit = requiredAmount - credits;
+    const operation = operationName ? ` for ${operationName}` : '';
+    return {
+      canProceed: false,
+      message: `Insufficient credits${operation}. You need ${requiredAmount} tokens but only have ${credits}. Please purchase ${deficit} more tokens to continue.`,
+    };
+  }, [credits]);
+
   // Fetch full credit details including transactions
   const refreshCredits = useCallback(async () => {
     // Demo mode: no real credit fetching
@@ -232,6 +255,8 @@ export function useCredits(): UseCreditsReturn {
     refreshCredits,
     purchaseTokens,
     clearError,
+    hasSufficientCredits,
+    checkCredits,
   };
 }
 
