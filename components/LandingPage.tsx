@@ -25,7 +25,8 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
         </svg>
       ),
       title: 'Scout Customers',
-      description: 'Find local businesses by type and location with AI-powered lead discovery and Google Maps integration.'
+      description: 'Find local businesses using AI-powered Google Maps discovery. Target by industry and location.',
+      image: 'https://images.unsplash.com/photo-1553877522-43269d4ea984?w=600&h=400&fit=crop'
     },
     {
       icon: (
@@ -33,17 +34,9 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
         </svg>
       ),
-      title: 'Analyze Brand DNA',
-      description: 'Generate color palettes, brand tone, and strategic marketing insights in seconds with AI analysis.'
-    },
-    {
-      icon: (
-        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-        </svg>
-      ),
-      title: 'Visualize Websites',
-      description: 'AI-generated website concept mockups let you see the vision before building anything.'
+      title: 'Analyze Brands',
+      description: 'Extract color palettes, typography, and brand tone. Upload logos for instant brand guidelines.',
+      image: 'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=600&h=400&fit=crop'
     },
     {
       icon: (
@@ -52,7 +45,8 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
         </svg>
       ),
       title: 'Build Websites',
-      description: 'Full HTML websites generated instantly with our no-code editor powered by AI prompts.'
+      description: 'Generate complete, responsive HTML websites in seconds. Edit with our drag-and-drop editor.',
+      image: 'https://images.unsplash.com/photo-1467232004584-a241de8bcf5d?w=600&h=400&fit=crop'
     },
     {
       icon: (
@@ -61,25 +55,36 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
         </svg>
       ),
       title: 'Pitch Perfectly',
-      description: 'AI-crafted cold emails that convert, personalized to each prospect automatically.'
+      description: 'AI-crafted personalized cold emails that convert. Each one tailored to the prospect.',
+      image: 'https://images.unsplash.com/photo-1596526131083-e8c633c948d2?w=600&h=400&fit=crop'
     },
     {
       icon: (
         <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
         </svg>
       ),
-      title: 'Manage Everything',
-      description: 'CRM, invoicing, and communications - all your client data organized in one place.'
+      title: 'Manage Clients',
+      description: 'Full CRM with invoicing, payment tracking, and communication history in one place.',
+      image: 'https://images.unsplash.com/photo-1552581234-26160f608093?w=600&h=400&fit=crop'
+    },
+    {
+      icon: (
+        <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+        </svg>
+      ),
+      title: 'Publish & Host',
+      description: 'One-click publishing to your custom domain with SSL. Professional hosting included.',
+      image: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=600&h=400&fit=crop'
     }
   ];
 
   const steps = [
-    { number: '01', title: 'Find', description: 'Search for local businesses in your target market' },
-    { number: '02', title: 'Analyze', description: 'Get instant brand insights and color palettes' },
-    { number: '03', title: 'Visualize', description: 'See AI-generated website concepts' },
-    { number: '04', title: 'Build', description: 'Generate complete websites in seconds' },
-    { number: '05', title: 'Pitch', description: 'Send personalized emails that convert' }
+    { number: '01', title: 'Find', description: 'Search for local businesses using AI-powered Google Maps discovery', icon: '🔍' },
+    { number: '02', title: 'Analyze', description: 'Extract brand colors, typography, and upload their logo', icon: '🎨' },
+    { number: '03', title: 'Build', description: 'Generate a complete, responsive website in seconds', icon: '💻' },
+    { number: '04', title: 'Pitch', description: 'Send personalized cold emails that convert', icon: '✉️' }
   ];
 
   const pricingPlans = [
@@ -140,7 +145,7 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
     },
     {
       question: 'How does the credit system work?',
-      answer: 'Credits are used for AI-powered features. Each credit equals $0.02. Lead discovery costs 10 credits ($0.20), brand analysis costs 5 credits ($0.10), website concepts cost 15 credits ($0.30), full website builds cost 125 credits ($2.50), and pitch emails cost 3 credits ($0.06). New users get 100 free credits to try the platform.'
+      answer: 'Credits are used for AI-powered features. Each credit equals $0.02. Lead discovery costs 5 credits ($0.10), brand analysis costs 2 credits ($0.04), website builds cost 10 credits ($0.20), and pitch emails cost 2 credits ($0.04). New users get 100 free credits to try the platform.'
     },
     {
       question: 'Do I need technical skills to use RenovateMySite?',
@@ -290,34 +295,63 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
             </div>
           </div>
 
-          {/* Hero Visual */}
+          {/* Hero Visual - Browser Mockup with Dashboard Image */}
           <div className="mt-16 relative">
-            <div className="bg-white rounded-2xl shadow-2xl border border-[#EFEBE4] p-4 max-w-5xl mx-auto">
-              <div className="bg-gradient-to-br from-[#F9F6F0] to-white rounded-xl p-8 min-h-[400px] flex items-center justify-center">
-                <div className="text-center">
-                  <div className="w-20 h-20 bg-gradient-to-br from-[#D4AF37] to-[#B8963A] rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-lg">
-                    <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                    </svg>
-                  </div>
-                  <h3 className="text-2xl font-serif font-bold text-[#4A4A4A] mb-2">Concierge Wizard</h3>
-                  <p className="text-[#4A4A4A]/60">Your 5-step journey from lead to closed deal</p>
-                  <div className="flex items-center justify-center gap-3 mt-6">
-                    {['Find', 'Analyze', 'Visualize', 'Build', 'Pitch'].map((step, i) => (
-                      <div key={step} className="flex items-center">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${i === 0 ? 'bg-[#D4AF37] text-white' : 'bg-[#EFEBE4] text-[#4A4A4A]/50'}`}>
-                          {i + 1}
-                        </div>
-                        {i < 4 && <div className="w-8 h-0.5 bg-[#EFEBE4]"></div>}
-                      </div>
-                    ))}
-                  </div>
+            {/* Browser Frame */}
+            <div className="bg-[#4A4A4A] rounded-2xl shadow-2xl p-1 max-w-5xl mx-auto">
+              {/* Browser Top Bar */}
+              <div className="bg-[#3A3A3A] rounded-t-xl px-4 py-3 flex items-center gap-3">
+                <div className="flex gap-2">
+                  <div className="w-3 h-3 rounded-full bg-[#FF5F56]"></div>
+                  <div className="w-3 h-3 rounded-full bg-[#FFBD2E]"></div>
+                  <div className="w-3 h-3 rounded-full bg-[#27CA40]"></div>
+                </div>
+                <div className="flex-1 bg-[#2A2A2A] rounded-lg px-4 py-1.5 text-white/40 text-sm font-mono">
+                  renovatemysite.com/dashboard
                 </div>
               </div>
+              {/* Browser Content */}
+              <div className="bg-white rounded-b-xl overflow-hidden">
+                <img
+                  src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=1200&h=600&fit=crop"
+                  alt="RenovateMySite Dashboard"
+                  className="w-full h-[400px] object-cover"
+                />
+              </div>
             </div>
+
+            {/* Floating Feature Cards */}
+            <div className="hidden lg:block absolute -left-8 top-1/4 bg-white rounded-xl shadow-xl border border-[#EFEBE4] p-4 max-w-[200px] animate-pulse">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 bg-gradient-to-br from-[#D4AF37] to-[#B8963A] rounded-lg flex items-center justify-center text-white text-lg">🔍</div>
+                <span className="font-semibold text-[#4A4A4A]">Lead Found</span>
+              </div>
+              <p className="text-xs text-[#4A4A4A]/60">AI discovered 15 new prospects in your area</p>
+            </div>
+
+            <div className="hidden lg:block absolute -right-8 top-1/3 bg-white rounded-xl shadow-xl border border-[#EFEBE4] p-4 max-w-[200px]">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 bg-gradient-to-br from-[#D4AF37] to-[#B8963A] rounded-lg flex items-center justify-center text-white text-lg">✨</div>
+                <span className="font-semibold text-[#4A4A4A]">Website Ready</span>
+              </div>
+              <p className="text-xs text-[#4A4A4A]/60">Your client's site is live!</p>
+            </div>
+
+            {/* 4-Step Wizard Flow */}
+            <div className="mt-8 flex items-center justify-center gap-2 sm:gap-4">
+              {['🔍 Find', '🎨 Analyze', '💻 Build', '✉️ Pitch'].map((step, i) => (
+                <div key={step} className="flex items-center">
+                  <div className={`px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-semibold ${i === 0 ? 'bg-gradient-to-r from-[#D4AF37] to-[#B8963A] text-white shadow-lg' : 'bg-white border border-[#EFEBE4] text-[#4A4A4A]/70'}`}>
+                    {step}
+                  </div>
+                  {i < 3 && <div className="w-4 sm:w-8 h-0.5 bg-[#EFEBE4]"></div>}
+                </div>
+              ))}
+            </div>
+
             {/* Decorative Elements */}
-            <div className="absolute -top-4 -left-4 w-24 h-24 bg-[#D4AF37]/10 rounded-full blur-2xl"></div>
-            <div className="absolute -bottom-4 -right-4 w-32 h-32 bg-[#D4AF37]/10 rounded-full blur-2xl"></div>
+            <div className="absolute -top-8 -left-8 w-32 h-32 bg-[#D4AF37]/10 rounded-full blur-3xl"></div>
+            <div className="absolute -bottom-8 -right-8 w-40 h-40 bg-[#D4AF37]/10 rounded-full blur-3xl"></div>
           </div>
         </div>
       </section>
@@ -400,12 +434,22 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature, i) => (
-              <div key={i} className="group bg-[#F9F6F0] rounded-2xl p-8 border border-[#EFEBE4] hover:border-[#D4AF37]/30 hover:shadow-lg transition-all duration-300">
-                <div className="w-14 h-14 bg-gradient-to-br from-[#D4AF37] to-[#B8963A] rounded-xl flex items-center justify-center text-white mb-6 group-hover:scale-110 transition-transform">
-                  {feature.icon}
+              <div key={i} className="group bg-[#F9F6F0] rounded-2xl overflow-hidden border border-[#EFEBE4] hover:border-[#D4AF37]/30 hover:shadow-xl transition-all duration-300">
+                {/* Feature Image */}
+                <div className="h-40 overflow-hidden">
+                  <img
+                    src={feature.image}
+                    alt={feature.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
                 </div>
-                <h3 className="text-xl font-bold text-[#4A4A4A] mb-3">{feature.title}</h3>
-                <p className="text-[#4A4A4A]/70 leading-relaxed">{feature.description}</p>
+                <div className="p-6">
+                  <div className="w-12 h-12 bg-gradient-to-br from-[#D4AF37] to-[#B8963A] rounded-xl flex items-center justify-center text-white mb-4 -mt-10 relative z-10 shadow-lg group-hover:scale-110 transition-transform">
+                    {feature.icon}
+                  </div>
+                  <h3 className="text-xl font-bold text-[#4A4A4A] mb-2">{feature.title}</h3>
+                  <p className="text-[#4A4A4A]/70 leading-relaxed text-sm">{feature.description}</p>
+                </div>
               </div>
             ))}
           </div>
@@ -418,7 +462,7 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
           <div className="text-center mb-16">
             <span className="text-[#D4AF37] font-semibold text-sm uppercase tracking-wider">How It Works</span>
             <h2 className="text-3xl sm:text-4xl font-serif font-bold text-[#4A4A4A] mt-2 mb-4">
-              From Lead to Closed Deal in 5 Steps
+              From Lead to Closed Deal in 4 Simple Steps
             </h2>
             <p className="text-lg text-[#4A4A4A]/70 max-w-2xl mx-auto">
               Our concierge wizard guides you through the entire process, making client acquisition effortless.
@@ -429,14 +473,15 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
             {/* Connection Line */}
             <div className="hidden lg:block absolute top-1/2 left-0 right-0 h-0.5 bg-gradient-to-r from-[#EFEBE4] via-[#D4AF37] to-[#EFEBE4] -translate-y-1/2"></div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
               {steps.map((step, i) => (
-                <div key={i} className="relative text-center">
+                <div key={i} className="relative text-center group">
                   <div className="bg-white rounded-2xl p-6 border border-[#EFEBE4] hover:border-[#D4AF37]/30 hover:shadow-lg transition-all relative z-10">
-                    <div className="w-12 h-12 bg-gradient-to-br from-[#D4AF37] to-[#B8963A] rounded-full flex items-center justify-center text-white font-bold text-lg mx-auto mb-4">
-                      {step.number}
+                    <div className="w-16 h-16 bg-gradient-to-br from-[#D4AF37] to-[#B8963A] rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 group-hover:scale-110 transition-transform shadow-lg">
+                      {step.icon}
                     </div>
-                    <h3 className="text-lg font-bold text-[#4A4A4A] mb-2">{step.title}</h3>
+                    <div className="text-xs text-[#D4AF37] font-semibold mb-1">Step {step.number}</div>
+                    <h3 className="text-xl font-bold text-[#4A4A4A] mb-2">{step.title}</h3>
                     <p className="text-sm text-[#4A4A4A]/60">{step.description}</p>
                   </div>
                 </div>
@@ -523,11 +568,10 @@ export const LandingPage: React.FC<Props> = ({ onNavigate }) => {
                 </thead>
                 <tbody>
                   {[
-                    ['Lead Discovery', '10', '$0.20'],
-                    ['Brand Analysis', '5', '$0.10'],
-                    ['Website Concept', '15', '$0.30'],
-                    ['Full Website Build', '125', '$2.50'],
-                    ['Pitch Email', '3', '$0.06']
+                    ['Lead Discovery', '5', '$0.10'],
+                    ['Brand Analysis', '2', '$0.04'],
+                    ['Website Build', '10', '$0.20'],
+                    ['Pitch Email', '2', '$0.04']
                   ].map(([feature, credits, price], i) => (
                     <tr key={i} className="border-b border-[#EFEBE4] last:border-0">
                       <td className="px-6 py-4 text-[#4A4A4A]/80">{feature}</td>
